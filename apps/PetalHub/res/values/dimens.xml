@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <dimen name="petal_screen_margin">20dp</dimen>
+    <dimen name="petal_card_radius">24dp</dimen>
+    <dimen name="petal_hero_radius">28dp</dimen>
+    <dimen name="petal_tile_radius">22dp</dimen>
+    <dimen name="petal_card_gap">12dp</dimen>
+    <dimen name="petal_tile_height">148dp</dimen>
+    <dimen name="petal_hero_height">208dp</dimen>
+    <dimen name="petal_icon_badge">46dp</dimen>
+    <dimen name="petal_icon_size">24dp</dimen>
+    <dimen name="petal_backdrop_blur">28dp</dimen>
+</resources>

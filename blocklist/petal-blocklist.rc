@@ -1,0 +1,22 @@
+# petalOS content blocker helper.
+# Long lived but event driven: it parks in inotifyd watching the enabled flag.
+# On change it sets sys.petal.blocklist, and init (the only domain allowed to)
+# does the real bind mount / unmount of /system/etc/hosts.
+
+service petal-blocklist /system_ext/bin/petal-blocklist.sh
+    user root
+    group root
+    capabilities
+
+on post-fs-data
+    mkdir /data/petal 0770 root root
+    mkdir /data/petal/blocklist 0777 root root
+    restorecon_recursive /data/petal
+    start petal-blocklist
+
+# init does the mount, since stock AOSP neverallow blocks everyone else
+on property:sys.petal.blocklist=1
+    mount none /data/petal/blocklist/hosts /system/etc/hosts bind
+
+on property:sys.petal.blocklist=0
+    umount /system/etc/hosts

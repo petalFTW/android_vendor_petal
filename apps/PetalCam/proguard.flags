@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: The petalOS Project
+# SPDX-License-Identifier: Apache-2.0
+
+# The vendor bridges look classes/methods up by name at runtime, so nothing
+# reachable only through them may be stripped.
+-keep class org.petalos.cam.vendor.** { *; }
+
+# Preferences inflated from preference XML are built reflectively.
+-keep public class * extends androidx.preference.* {
+    public <init>(android.content.Context, android.util.AttributeSet);
+}
+
+# CameraX loads its OEM extension implementation reflectively.
+-keep class androidx.camera.extensions.impl.** { *; }
+-dontwarn androidx.camera.extensions.impl.**
+
+# TF Lite JNI pokes these by name.
+-keep class org.tensorflow.lite.** { *; }
+-dontwarn org.tensorflow.lite.**
+
+# ONNX Runtime native code news up TensorInfo/OrtValue by exact signature, so
+# R8 must not strip or rename anything in the package (NoSuchMethodError).
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+
+# ZXing resolves result parsers/readers by name at runtime.
+-keep class com.google.zxing.** { *; }
+-dontwarn com.google.zxing.**

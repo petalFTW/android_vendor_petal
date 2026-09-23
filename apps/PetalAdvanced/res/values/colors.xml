@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <color name="petal_advanced_primary">#FF3B6FE0</color>
+    <color name="petal_advanced_primary_dark">#FF23408F</color>
+    <color name="petal_advanced_accent">#FF53C6C0</color>
+</resources>

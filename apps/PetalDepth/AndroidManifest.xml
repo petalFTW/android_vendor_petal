@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.petalos.depth"
+    android:sharedUserId="android.uid.system"
+    android:versionCode="5"
+    android:versionName="2.3">
+
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+
+    <application
+        android:hardwareAccelerated="true"
+        android:icon="@drawable/ic_depth_studio"
+        android:label="@string/depth_app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+        <activity
+            android:name=".DepthStudioActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:exported="true" />
+
+        <!-- Serves the generated cutout / base image to SystemUI (same uid). -->
+        <provider
+            android:name=".DepthContentProvider"
+            android:directBootAware="true"
+            android:authorities="org.petalos.depth"
+            android:exported="true"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

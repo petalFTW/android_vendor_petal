@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <string-array name="power_profile_entries">
+        <item>Optimized</item>
+        <item>Deep restricted</item>
+    </string-array>
+    <string-array name="power_profile_values">
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="power_grace_entries">
+        <item>Immediately</item>
+        <item>5 minutes</item>
+        <item>10 minutes</item>
+        <item>15 minutes</item>
+        <item>30 minutes</item>
+    </string-array>
+    <string-array name="power_grace_values">
+        <item>0</item><item>5</item><item>10</item><item>15</item><item>30</item>
+    </string-array>
+    <string-array name="clock_style_entries">
+        <item>@string/clock_style_stock</item>
+        <item>@string/clock_style_hyperos_light</item>
+        <item>@string/clock_style_hyperos_bold</item>
+        <item>@string/clock_style_oxygenos</item>
+        <item>@string/clock_style_ios</item>
+        <item>@string/clock_style_ios_light</item>
+        <item>@string/clock_style_pixel_bold</item>
+        <item>@string/clock_style_slim</item>
+        <item>@string/clock_style_condensed</item>
+        <item>@string/clock_style_wide</item>
+        <item>@string/clock_style_slanted</item>
+        <item>@string/clock_style_neon</item>
+    </string-array>
+    <string-array name="clock_style_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+        <item>11</item>
+    </string-array>
+
+    <string-array name="recents_style_entries">
+        <item>@string/recents_style_default</item>
+        <item>@string/recents_style_grid</item>
+        <item>@string/recents_style_rounded</item>
+    </string-array>
+    <string-array name="recents_style_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="bridge_style_entries">
+        <item>Adaptive</item>
+        <item>Clean</item>
+        <item>Reverb</item>
+        <item>Stutter</item>
+    </string-array>
+    <string-array name="bridge_style_values">
+        <item>3</item>
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+</resources>

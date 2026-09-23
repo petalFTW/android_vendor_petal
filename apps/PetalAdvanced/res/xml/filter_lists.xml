@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS SPDX-License-Identifier: Apache-2.0 -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <Preference
+        android:key="catalog_update"
+        android:persistent="false"
+        android:title="@string/update_sources_title"
+        android:summary="@string/update_sources_summary" />
+
+    <Preference
+        android:key="yokoffing_repo"
+        android:persistent="false"
+        android:title="@string/yokoffing_title"
+        android:summary="@string/yokoffing_summary" />
+
+    <PreferenceCategory
+        android:key="sources_category"
+        android:title="@string/sources_title" />
+
+</PreferenceScreen>

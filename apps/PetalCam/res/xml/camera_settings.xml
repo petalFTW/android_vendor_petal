@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="@string/settings_title">
+
+    <PreferenceCategory
+        android:layout="@layout/preference_petal_category"
+        android:title="@string/settings_capture_title">
+
+        <SwitchPreference
+            android:layout="@layout/preference_petal_switch"
+            android:key="petal_engine"
+            android:defaultValue="true"
+            android:title="@string/settings_petal_engine"
+            android:summary="@string/settings_petal_engine_summary" />
+
+        <SwitchPreference
+            android:layout="@layout/preference_petal_switch"
+            android:key="watermark"
+            android:defaultValue="false"
+            android:title="@string/settings_watermark"
+            android:summary="@string/settings_watermark_summary" />
+
+        <SwitchPreference
+            android:layout="@layout/preference_petal_switch"
+            android:key="location"
+            android:defaultValue="false"
+            android:title="@string/settings_location"
+            android:summary="@string/settings_location_summary" />
+
+        <SwitchPreference
+            android:layout="@layout/preference_petal_switch"
+            android:key="shutter_sound"
+            android:defaultValue="true"
+            android:title="@string/settings_shutter_sound"
+            android:summary="@string/settings_shutter_sound_summary" />
+
+        <SwitchPreference
+            android:layout="@layout/preference_petal_switch"
+            android:key="volume_shutter"
+            android:defaultValue="true"
+            android:title="@string/settings_volume_shutter"
+            android:summary="@string/settings_volume_shutter_summary" />
+
+        <SwitchPreference
+            android:layout="@layout/preference_petal_switch"
+            android:key="vendor_force"
+            android:defaultValue="false"
+            android:title="@string/settings_vendor_force"
+            android:summary="@string/settings_vendor_force_summary" />
+    </PreferenceCategory>
+</PreferenceScreen>

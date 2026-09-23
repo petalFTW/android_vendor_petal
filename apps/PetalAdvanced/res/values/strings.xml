@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+
+    <string name="app_name">petalOS Advanced</string>
+    <string name="tile_label">Content blocker</string>
+
+    <string name="screen_home">Content blocker</string>
+    <string name="screen_sources">Filter lists</string>
+    <string name="screen_sites">Blocked sites</string>
+
+    <string name="blocker_enabled_title">Enable content blocker</string>
+    <string name="blocker_enabled_summary">Block ad and tracker domains system-wide. No root required.</string>
+    <string name="blocker_status_title">Status</string>
+    <string name="blocker_category">Content blocker</string>
+    <string name="lists_category">Lists and rules</string>
+    <string name="updates_category">Updates</string>
+
+    <string name="category_filter_lists">Filter lists</string>
+    <string name="filter_lists_summary">Pick your blocklists and update them from GitHub</string>
+    <string name="category_blocked_sites">Blocked sites</string>
+    <string name="blocked_sites_summary">Block your own domains on top of the lists</string>
+
+    <string name="update_now_title">Update now</string>
+    <string name="update_now_summary">Download enabled lists and rebuild the block list</string>
+    <string name="update_sources_title">Update sources</string>
+    <string name="update_sources_summary">Pull the latest source catalog from GitHub and overwrite the local one</string>
+    <string name="yokoffing_title">yokoffing/filterlists</string>
+    <string name="yokoffing_summary">Open the upstream collection on GitHub</string>
+    <string name="sources_title">Sources</string>
+
+    <string name="add_site_title">Add a site</string>
+    <string name="add_site_summary">Type a domain, e.g. ads.example.com</string>
+    <string name="custom_sites_title">Custom domains</string>
+    <string name="custom_sites_empty">Nothing added yet. Tap above to block a domain.</string>
+    <string name="remove_site_title">Remove %1$s?</string>
+    <string name="remove">Remove</string>
+    <string name="cancel">Cancel</string>
+    <string name="add">Add</string>
+
+    <string name="status_disabled">Off</string>
+    <string name="status_no_sources">On, but no sources enabled yet</string>
+    <string name="status_blocked">%1$d domains blocked · %2$s</string>
+    <string name="status_never">never updated</string>
+    <string name="status_helper_missing">System helper not reachable, using app storage</string>
+
+    <string name="updating">Updating…</string>
+    <string name="update_ok">Blocked %1$d domains from %2$d sources</string>
+    <string name="update_fail">Update failed: %1$s</string>
+    <string name="update_catalog_ok">Source catalog updated</string>
+    <string name="update_catalog_fail">Could not refresh catalog, kept local copy</string>
+    <string name="bad_domain">That doesn\'t look like a domain</string>
+    <string name="no_network">No network</string>
+
+    <string name="catalog_url" translatable="false">https://api.github.com/repos/petalFTW/petal-sources/contents/sources.json</string>
+    <string name="yokoffing_url" translatable="false">https://github.com/yokoffing/filterlists</string>
+
+</resources>

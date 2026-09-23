@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M13.60,12.00 L13.66,12.24 L13.68,12.49 L13.67,12.76 L13.61,13.03 L13.52,13.31 L13.38,13.58 L13.19,13.84 L12.96,14.08 L12.69,14.30 L12.37,14.48 L12.02,14.63 L11.63,14.72 L11.22,14.76 L10.78,14.75 L10.33,14.66 L9.87,14.51 L9.43,14.28 L9.00,13.98 L8.60,13.61 L8.24,13.16 L7.93,12.64 L7.69,12.06 L7.53,11.43 L7.46,10.75 L7.48,10.03 L7.61,9.29 L7.86,8.54 L8.22,7.81 L8.71,7.10 L9.32,6.44 L10.05,5.84 L10.89,5.33 L11.84,4.93 L12.88,4.66 L14.00,4.53 L15.18,4.56 L16.40,4.77 L17.62,5.16 L18.84,5.75 L20.00,6.54 L21.10,7.54 L22.08,8.72"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M11.20,13.39 L10.97,13.32 L10.73,13.21 L10.51,13.07 L10.30,12.88 L10.11,12.66 L9.94,12.41 L9.81,12.11 L9.72,11.79 L9.66,11.45 L9.66,11.08 L9.72,10.70 L9.83,10.32 L10.00,9.94 L10.23,9.57 L10.53,9.22 L10.89,8.90 L11.31,8.63 L11.78,8.41 L12.31,8.25 L12.88,8.16 L13.48,8.16 L14.10,8.24 L14.73,8.41 L15.36,8.69 L15.97,9.07 L16.54,9.56 L17.07,10.14 L17.52,10.83 L17.89,11.60 L18.16,12.46 L18.31,13.39 L18.33,14.37 L18.20,15.40 L17.92,16.44 L17.47,17.47 L16.85,18.47 L16.07,19.42 L15.11,20.29 L13.99,21.04 L12.72,21.66 L11.32,22.11 L9.80,22.37"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M11.20,10.61 L11.38,10.45 L11.58,10.30 L11.82,10.18 L12.09,10.09 L12.37,10.03 L12.68,10.02 L13.00,10.05 L13.32,10.12 L13.65,10.25 L13.96,10.44 L14.26,10.67 L14.54,10.96 L14.79,11.30 L14.99,11.69 L15.14,12.12 L15.24,12.59 L15.26,13.09 L15.22,13.61 L15.09,14.14 L14.89,14.68 L14.59,15.20 L14.21,15.70 L13.74,16.16 L13.19,16.56 L12.55,16.90 L11.85,17.16 L11.08,17.32 L10.26,17.37 L9.40,17.30 L8.52,17.10 L7.64,16.77 L6.78,16.29 L5.96,15.67 L5.20,14.91 L4.53,14.00 L3.97,12.97 L3.54,11.81 L3.27,10.55 L3.17,9.20 L3.27,7.80 L3.58,6.35 L4.12,4.91"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M12.00,12.00 m-10.6,0 a10.6,10.6 0 1,0 21.2,0 a10.6,10.6 0 1,0 -21.2,0"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.7"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M12.00,12.00 m-1.1,0 a1.1,1.1 0 1,0 2.2,0 a1.1,1.1 0 1,0 -2.2,0"
+        android:fillColor="#FFFFFFFF" />
+</vector>

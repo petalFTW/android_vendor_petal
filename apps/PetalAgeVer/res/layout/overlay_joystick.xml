@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/joystick_root"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_pill"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <org.petalos.agever.ui.JoystickView
+            android:id="@+id/joystick_move"
+            android:layout_width="@dimen/agever_joystick_size"
+            android:layout_height="@dimen/agever_joystick_size"
+            android:contentDescription="@string/desc_joystick_move" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/joystick_move"
+            android:textColor="@color/agever_text_secondary"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <org.petalos.agever.ui.JoystickView
+            android:id="@+id/joystick_turn"
+            android:layout_width="@dimen/agever_joystick_size"
+            android:layout_height="@dimen/agever_joystick_size"
+            android:contentDescription="@string/desc_joystick_turn" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/joystick_turn"
+            android:textColor="@color/agever_text_secondary"
+            android:textSize="10sp" />
+    </LinearLayout>
+</LinearLayout>

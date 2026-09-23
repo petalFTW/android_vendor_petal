@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS SPDX-License-Identifier: Apache-2.0 -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/blocker_category">
+        <SwitchPreference
+            android:key="blocker_enabled"
+            android:persistent="false"
+            android:title="@string/blocker_enabled_title"
+            android:summary="@string/blocker_enabled_summary" />
+        <Preference
+            android:key="blocker_status"
+            android:persistent="false"
+            android:selectable="false"
+            android:title="@string/blocker_status_title" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/lists_category">
+        <Preference
+            android:key="filter_lists"
+            android:persistent="false"
+            android:title="@string/category_filter_lists"
+            android:summary="@string/filter_lists_summary" />
+        <Preference
+            android:key="blocked_sites"
+            android:persistent="false"
+            android:title="@string/category_blocked_sites"
+            android:summary="@string/blocked_sites_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/updates_category">
+        <Preference
+            android:key="update_now"
+            android:persistent="false"
+            android:title="@string/update_now_title"
+            android:summary="@string/update_now_summary" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

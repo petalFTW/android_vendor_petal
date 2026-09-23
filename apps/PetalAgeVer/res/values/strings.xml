@@ -1,0 +1,57 @@
+<?xml version="1.0" ?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <string name="app_name">petal IDHelper</string>
+    <string name="settings_summary">Verify your age with an avatar instead of your face</string>
+    <string name="tile_label">IDHelper</string>
+    <string name="notification_channel_name">Virtual camera</string>
+    <string name="notification_title">Privacy camera is live</string>
+    <string name="notification_text">Sharing your avatar, not your face.</string>
+    <string name="notification_stop">Stop</string>
+    <string name="notification_joystick_on">Show joystick</string>
+    <string name="notification_joystick_off">Hide joystick</string>
+    <string name="main_subtitle">A 3D avatar replaces your front camera during age checks.</string>
+    <string name="section_stage">Avatar stage</string>
+    <string name="section_control">Control</string>
+    <string name="section_output">Output</string>
+    <string name="section_status">Status</string>
+    <string name="label_avatar">Avatar model</string>
+    <string name="label_mode">Control mode</string>
+    <string name="label_mirror">Mirror avatar</string>
+    <string name="label_idle_motion">Gentle idle motion</string>
+    <string name="label_joystick">Floating sticks overlay</string>
+    <string name="summary_mirror">Flip the avatar horizontally</string>
+    <string name="summary_mode">How the avatar is driven</string>
+    <string name="summary_idle_motion">Subtle movement when you are not steering</string>
+    <string name="summary_joystick">Move and turn the avatar while another app is open</string>
+    <string name="mode_joystick">On-screen stick (move / tilt)</string>
+    <string name="mode_idle">Idle only</string>
+    <string name="button_start">Start virtual camera</string>
+    <string name="button_stop">Stop virtual camera</string>
+    <string name="button_pick_avatar">Import .glb</string>
+    <string name="button_preview">Preview mode</string>
+    <string name="status_running">Live</string>
+    <string name="status_stopped">Off</string>
+    <string name="status_injection_ready">Camera injection: provider available</string>
+    <string name="status_injection_missing">Camera injection: provider not installed yet — preview only</string>
+    <string name="status_permission_overlay">Overlay permission is required for the joystick.</string>
+    <string name="status_import_ok">Imported %1$s</string>
+    <string name="status_import_failed">Could not import avatar</string>
+    <string name="desc_preview">Live avatar preview</string>
+    <string name="joystick_move">Move</string>
+    <string name="joystick_turn">Turn</string>
+    <string name="desc_joystick_move">Move the avatar up, down, left and right</string>
+    <string name="desc_joystick_turn">Turn the avatar head left and right</string>
+    <string name="desc_joystick">Avatar direction joystick</string>
+    <string name="toast_started">Virtual camera started</string>
+    <string name="toast_stopped">Virtual camera stopped</string>
+    <string name="toast_provider_missing">Camera provider HAL is not installed yet. Showing preview only.</string>
+    <string name="title_agever">petal IDHelper</string>
+    <string name="brand_petal">petalOS</string>
+    <string name="action_back">Back</string>
+    <string name="tile_hint">Tap the Quick Settings tile to start or stop. Hold it to open these controls.</string>
+    <string name="default_avatar">Default avatar</string>
+</resources>

@@ -1,0 +1,11 @@
+# petalOS privacy camera (PetalAgeVer) SELinux policy.
+#
+# The AOSP virtual camera service already allows apps to binder-call it
+# (system/sepolicy/private/app.te: binder_call(appdomain, virtual_camera)).
+# The only missing permission for PetalAgeVer to register its avatar camera is
+# the service_manager lookup of the "virtual_camera" service.
+#
+# PetalAgeVer is platform-signed and lives in system_ext/priv-app, so it runs in
+# the platform_app domain. priv_app/system_app are covered defensively in case
+# the signing/partition changes.
+allow { platform_app priv_app system_app } virtual_camera_service:service_manager find;

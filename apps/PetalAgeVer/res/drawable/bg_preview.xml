@@ -1,0 +1,5 @@
+<?xml version="1.0" ?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/agever_preview_letterbox"/>
+    <corners android:radius="@dimen/agever_preview_radius"/>
+</shape>

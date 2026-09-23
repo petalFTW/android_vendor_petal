@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <!-- petal glass palette, light. mirrors the hub. -->
+    <color name="petal_window_base">#FFF6F6FA</color>
+    <color name="petal_glass_tint">#52FFFFFF</color>
+    <color name="petal_glass_tint_strong">#8AFFFFFF</color>
+    <color name="petal_glass_rim_top">#66FFFFFF</color>
+    <color name="petal_glass_rim_bottom">#1AFFFFFF</color>
+
+    <color name="petal_accent_primary">#FF7C5CFF</color>
+    <color name="petal_accent_pink">#FFFF6FAE</color>
+    <color name="petal_accent_violet">#FF9B7BFF</color>
+    <color name="petal_accent_teal">#FF57E0D2</color>
+    <color name="petal_text_secondary">#99000000</color>
+    <color name="petal_ripple">#247C5CFF</color>
+
+    <color name="petal_badge_fill">#14000000</color>
+    <color name="petal_badge_stroke">#1F000000</color>
+
+    <color name="petal_aurora_pink">#4DFF6FAE</color>
+    <color name="petal_aurora_violet">#3D9B7BFF</color>
+    <color name="petal_aurora_teal">#3357E0D2</color>
+    <color name="petal_aurora_fade">#00FFFFFF</color>
+</resources>

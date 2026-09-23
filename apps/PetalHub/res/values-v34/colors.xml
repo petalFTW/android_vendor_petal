@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+
+     Retint SettingsLib's accent (switches, sliders, category titles) to the petal palette
+     instead of the wallpaper's monet accent. Overrides the v34 dynamic-colour definitions.
+-->
+<resources>
+    <color name="settingslib_materialColorPrimary">#FF7C5CFF</color>
+    <color name="settingslib_materialColorOnPrimary">#FFFFFFFF</color>
+</resources>

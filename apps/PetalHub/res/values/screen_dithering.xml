@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="screen_dithering_title">Screen dithering</string>
+    <string name="screen_dithering_enabled_title">Enable screen dithering</string>
+    <string name="screen_dithering_enabled_summary">Turn some pixels off automatically to cut OLED power draw. The pattern shifts every minute so wear stays even.</string>
+    <string name="screen_dithering_battery_saver_title">Use with Battery Saver</string>
+    <string name="screen_dithering_battery_saver_summary">Dither while Battery Saver is on</string>
+    <string name="screen_dithering_schedule_title">Use on a schedule</string>
+    <string name="screen_dithering_schedule_summary">Dither every day between the chosen times; ranges that wrap past midnight are fine</string>
+    <string name="screen_dithering_start_title">Start time</string>
+    <string name="screen_dithering_end_title">End time</string>
+    <string name="screen_dithering_percent_title">Pixels turned off</string>
+    <string-array name="screen_dithering_percent_entries">
+        <item>25%</item>
+        <item>50%</item>
+        <item>75%</item>
+    </string-array>
+    <string-array name="screen_dithering_percent_values" translatable="false">
+        <item>25</item>
+        <item>50</item>
+        <item>75</item>
+    </string-array>
+</resources>

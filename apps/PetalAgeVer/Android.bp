@@ -1,0 +1,82 @@
+//
+// Copyright (C) 2026 petalOS
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+// petalOS privacy camera. renders a 3D avatar and feeds it into the camera
+// provider HAL so age-verification apps can pick it as a front cam. the model
+// is placed/tilted from an overlay stick; no face tracking. native deps are
+// vendored, no gradle needed.
+android_app {
+    name: "PetalAgeVer",
+
+    srcs: ["src/**/*.java"],
+    resource_dirs: ["res"],
+    asset_dirs: ["assets"],
+    manifest: "AndroidManifest.xml",
+
+    // arm64 only: the vendored Filament .so payloads are arm64.
+    compile_multilib: "64",
+    use_embedded_native_libs: true,
+
+    platform_apis: true,
+    certificate: "platform",
+    system_ext_specific: true,
+    privileged: true,
+    privapp_allowlist: "org.petalos.agever.xml",
+
+    optimize: {
+        enabled: true,
+        proguard_flags_files: ["proguard.flags"],
+        shrink_resources: true,
+    },
+
+    static_libs: [
+        "androidx.appcompat_appcompat",
+        "androidx.core_core",
+
+        // AIDL bindings for the AOSP virtual camera provider
+        // (frameworks/av/services/camera/virtualcamera). Registers the avatar
+        // feed as a front camera on the default device.
+        "virtual_camera_service_aidl-java",
+
+        // 3D / glTF
+        "agever-filament-android",
+        "agever-gltfio-android",
+    ],
+}
+
+// ---------------------------------------------------------------------------
+// Vendored prebuilts
+//
+// NOTE: module names are prefixed with "agever-" to avoid colliding with the
+// identically-sourced modules declared by vendor/petal/apps/PetalDepth when
+// both apps are present in the same build.
+// ---------------------------------------------------------------------------
+
+android_library_import {
+    name: "agever-filament-android",
+    aars: ["libs/filament-android-1.76.1.aar"],
+    sdk_version: "current",
+    min_sdk_version: "24",
+    extract_jni: true,
+}
+
+android_library_import {
+    name: "agever-gltfio-android",
+    aars: ["libs/gltfio-android-1.76.1.aar"],
+    sdk_version: "current",
+    min_sdk_version: "24",
+    extract_jni: true,
+}

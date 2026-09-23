@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: The petalOS Project
+# SPDX-License-Identifier: Apache-2.0
+
+# Fragments are instantiated reflectively by HubActivity (via
+# Fragment.instantiate / the :settings:show_fragment extra) and via the
+# app:fragment attribute in preference XML.
+-keep class org.petalos.hub.*Fragment
+
+# Preferences inflated from preference XML resources (e.g. ColorPickerPreference)
+# are instantiated reflectively, so keep their constructors.
+-keep public class * extends androidx.preference.* {
+    public <init>(android.content.Context, android.util.AttributeSet);
+}

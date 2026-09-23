@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <string name="depth_app_name">Depth Studio</string>
+    <string name="depth_studio_subtitle">Draw loosely around your subject. AI finds the edges.</string>
+    <string name="depth_empty_preview">Choose a portrait to begin</string>
+    <string name="depth_pick_photo">Pick a photo</string>
+    <string name="depth_hint_tap">Draw an outline or tap your subject</string>
+    <string name="depth_hint_drag_clock">Cutout ready · drag to position the clock</string>
+    <string name="depth_segmenting">AI is finding the edges…</string>
+    <string name="depth_applying">Applying wallpaper…</string>
+    <string name="depth_apply">Apply wallpaper</string>
+    <string name="depth_applied">Wallpaper applied</string>
+    <string name="depth_applied_body">Your photo, clock design, and foreground layer are now live on the lock screen.</string>
+    <string name="depth_disable">Turn off custom wallpaper</string>
+    <string name="depth_error">Something went wrong</string>
+    <string name="depth_disabled_toast">Custom lock screen turned off</string>
+    <string name="depth_note">Applying replaces the lock-screen wallpaper with this composition.</string>
+    <string name="depth_pick_short">Choose photo</string>
+    <string name="depth_apply_short">Apply</string>
+    <string name="depth_disable_short">Disable</string>
+    <string name="depth_clock_off">Off</string>
+    <string name="depth_clock_heading">Clock gallery</string>
+    <string name="depth_clock_solid">Solid</string>
+    <string name="depth_clock_outline">Glass</string>
+    <string name="depth_clock_gradient">Fade</string>
+    <string name="depth_clock_hybrid">Mix</string>
+    <string name="depth_clock_stack">Stack</string>
+    <string name="depth_clock_poster">Poster</string>
+    <string name="depth_clock_neon">Neon</string>
+    <string name="depth_clock_gold">Gold</string>
+    <string name="depth_clock_vogue">Vogue</string>
+    <string name="depth_clock_mono">3D</string>
+    <string name="depth_preset_cinema">Cinema</string>
+    <string name="depth_preset_spotlight">Spotlight</string>
+    <string name="depth_preset_fireworks">Fireworks</string>
+    <string name="depth_preset_fade">Fade</string>
+    <string name="depth_preset_mix">Mix</string>
+    <string name="depth_preset_monument">Monument</string>
+    <string name="depth_preset_editorial">Editorial</string>
+    <string name="depth_preset_neon">Neon</string>
+    <string name="depth_tune">Tune</string>
+    <string name="depth_tune_position">Position</string>
+    <string name="depth_tune_horizontal">Horizontal</string>
+    <string name="depth_tune_size">Size</string>
+    <string name="depth_tune_parallax">Parallax</string>
+    <string name="depth_ink_auto">Auto</string>
+    <string name="depth_date">Date</string>
+    <string name="depth_motion">Motion</string>
+    <string name="depth_subject_reselect">Draw rough outline</string>
+    <string name="depth_tab_photo">Photo</string>
+    <string name="depth_tab_clock">Clock</string>
+    <string name="depth_tab_adjust">Effects</string>
+    <string name="depth_show_cutout">Highlight cutout</string>
+    <string name="depth_aurora_help">The aurora sits behind your cutout. Turn it off to preview your wallpaper.</string>
+    <string name="depth_retry_subject">No clear cutout. Try a closer outline.</string>
+    <string name="depth_move_clock">Move clock</string>
+    <string name="depth_restore">Restore</string>
+    <string name="depth_erase">Erase</string>
+    <string name="depth_brush_hint">Paint over the preview to refine the cutout</string>
+    <string name="depth_cancel_outline">Cancel drawing</string>
+    <string name="depth_outline_hint">Draw loosely around your subject. Lift to refine.</string>
+    <string name="depth_outline_retry">Draw a larger loop around your subject.</string>
+    <string name="depth_ai_keep">Keep</string>
+    <string name="depth_ai_remove">Remove</string>
+    <string name="depth_keep_hint">Tap a missing part. AI will include it.</string>
+    <string name="depth_remove_hint">Tap an unwanted part. AI will remove it.</string>
+    <string name="depth_ai_ready">AI cutout ready. Use Keep or Remove to refine.</string>
+    <string name="depth_draw_first">Draw a fresh outline to guide the AI.</string>
+    <string name="depth_background_blur">Background blur</string>
+    <string name="depth_preset_heavy">Heavy</string>
+    <string name="depth_preset_soft">Soft bold</string>
+    <string name="depth_preset_frost">Frost</string>
+    <string name="depth_preset_smoke">Smoked glass</string>
+    <string name="depth_preset_bloom">Petal bloom</string>
+    <string name="depth_preset_pearl">Petal pearl</string>
+    <string name="depth_preset_frost_square">Frost square</string>
+    <string name="depth_preset_smoke_square">Smoked glass square</string>
+    <string name="depth_preset_bloom_square">Petal bloom square</string>
+    <string name="depth_motion_strength">Motion (0 = off)</string>
+    <string name="depth_refine_help">Tap Keep or Remove to refine. Tap it again to return to clock dragging.</string>
+    <string name="depth_photo_heading">Photo &amp; subject</string>
+    <string name="depth_clock_help">Choose a material, then drag the clock in the preview to place it.</string>
+    <string name="depth_effects_heading">Depth &amp; atmosphere</string>
+    <string name="depth_effects_help">Add movement and soften the background to bring your subject forward.</string>
+    <string name="depth_layout_horizontal">Horizontal</string>
+    <string name="depth_layout_stacked">Stacked</string>
+    <string name="depth_preset_liquid">Liquid</string>
+    <string name="depth_preset_liquid_stack">Liquid stacked</string>
+    <string name="depth_browse_styles">Browse all clock styles</string>
+    <string name="depth_collapse_styles">Show fewer styles</string>
+</resources>

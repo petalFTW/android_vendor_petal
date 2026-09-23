@@ -1,0 +1,132 @@
+//
+// Copyright (C) 2026 petalOS
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+// MediaPipe tasks-vision prebuilt (arm64-v8a JNI only — the repacked AAR strips
+// armeabi-v7a / x86 / x86_64).
+android_library_import {
+    name: "mediapipe-tasks-vision-aar",
+    aars: ["libs/tasks-vision.aar"],
+    sdk_version: "current",
+    min_sdk_version: "24",
+    extract_jni: true,
+}
+
+android_library_import {
+    name: "mediapipe-tasks-core-aar",
+    aars: ["libs/tasks-core.aar"],
+    sdk_version: "current",
+    min_sdk_version: "24",
+}
+
+// MediaPipe tasks' stats logger (TasksStatsProtoLogger / RemoteLoggingClient) requires the
+// Firebase data-transport runtime at class-init time; without these the app crashes with
+// NoClassDefFoundError on TransportRuntime as soon as a segmenter is created.
+android_library_import {
+    name: "petal-transport-api-aar",
+    aars: ["libs/petal-transport-api-3.0.0.aar"],
+    sdk_version: "current",
+    min_sdk_version: "24",
+}
+
+android_library_import {
+    name: "petal-transport-runtime-aar",
+    aars: ["libs/transport-runtime-3.1.9.aar"],
+    sdk_version: "current",
+    min_sdk_version: "24",
+}
+
+android_library_import {
+    name: "petal-transport-backend-cct-aar",
+    aars: ["libs/transport-backend-cct-3.1.9.aar"],
+    sdk_version: "current",
+    min_sdk_version: "24",
+}
+
+java_import {
+    name: "petal-firebase-encoders-proto-jar",
+    jars: ["libs/firebase-encoders-proto-16.0.0.jar"],
+    sdk_version: "current",
+}
+
+// dagger's relocated Factory (inside transport-runtime) implements javax.inject.Provider;
+// the javax.inject classes are a separate artifact and must be on the classpath.
+java_import {
+    name: "petal-javax-inject-jar",
+    jars: ["libs/javax.inject-1.jar"],
+    sdk_version: "current",
+}
+
+// MediaPipe's generated protos reference well-known types (com.google.protobuf.Any etc.)
+// that AOSP's bare libprotobuf-java-lite runtime does not ship; the maven javalite jar
+// provides the full lite runtime including the WKT message classes.
+java_import {
+    name: "petal-protobuf-javalite-jar",
+    jars: ["libs/protobuf-javalite-3.25.1.jar"],
+    sdk_version: "current",
+}
+
+java_import {
+    name: "flogger-api-jar",
+    jars: ["libs/flogger.jar"],
+    sdk_version: "current",
+}
+
+java_import {
+    name: "flogger-system-backend-jar",
+    jars: ["libs/flogger-system-backend.jar"],
+    sdk_version: "current",
+}
+
+java_import {
+    name: "google-extensions-jar",
+    jars: ["libs/google-extensions.jar"],
+    sdk_version: "current",
+}
+
+android_app {
+    name: "PetalDepth",
+    srcs: ["src/**/*.java"],
+    resource_dirs: ["res"],
+    asset_dirs: ["assets"],
+    manifest: "AndroidManifest.xml",
+    // libmediapipe_tasks_vision_jni.so is arm64-only.
+    compile_multilib: "64",
+    // Required for soong to package the AAR-provided JNI libs (extract_jni prebuilt
+    // packages are only merged when embedded); without it the .so is dropped and the
+    // app dies with UnsatisfiedLinkError on first segmentation.
+    use_embedded_native_libs: true,
+    platform_apis: true,
+    certificate: "platform",
+    system_ext_specific: true,
+    privileged: true,
+    privapp_allowlist: "org.petalos.depth.xml",
+    optimize: {
+        enabled: false,
+    },
+	
+    static_libs: [
+        "petal-depth-onnxruntime",
+        "petalos-config",
+    ],
+}
+
+android_library_import {
+    name: "petal-depth-onnxruntime",
+    aars: ["libs/onnxruntime-android-1.22.0.aar"],
+    sdk_version: "current",
+    min_sdk_version: "24",
+    extract_jni: true,
+}

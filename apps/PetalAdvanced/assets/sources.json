@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "updated": "2026-09-23",
+  "note": "hosts-format sources only. yokoffing/filterlists is uBlock syntax so its picks are mapped to hosts equivalents.",
+  "sources": [
+    {
+      "id": "adaway",
+      "name": "AdAway",
+      "group": "General",
+      "url": "https://adaway.org/hosts.txt",
+      "default": false
+    },
+    {
+      "id": "stevenblack",
+      "name": "StevenBlack Unified",
+      "group": "General",
+      "url": "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
+      "default": false
+    },
+    {
+      "id": "hagezi_pro",
+      "name": "Hagezi Pro",
+      "group": "Hagezi",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/hosts/pro.txt",
+      "default": false
+    },
+    {
+      "id": "hagezi_multi",
+      "name": "Hagezi Multi",
+      "group": "Hagezi",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/hosts/multi.txt",
+      "default": false
+    },
+    {
+      "id": "oisd_big",
+      "name": "oisd big",
+      "group": "General",
+      "url": "https://big.oisd.nl/",
+      "default": false
+    },
+    {
+      "id": "yokoffing_hagezi_pro_mini",
+      "name": "Hagezi Pro mini",
+      "group": "yokoffing/filterlists",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/hosts/pro.mini.txt",
+      "default": false
+    },
+    {
+      "id": "yokoffing_hagezi_tif",
+      "name": "Hagezi TIF (threat intel)",
+      "group": "yokoffing/filterlists",
+      "url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/hosts/tif.txt",
+      "default": false
+    }
+  ]
+}

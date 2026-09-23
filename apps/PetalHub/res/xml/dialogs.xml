@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <org.petalos.hub.BezelPlacementPreference
+        android:key="volume_placement"
+        android:title="@string/volume_anchor_title"
+        android:summary="@string/bezel_placement_hint" />
+    <org.petalos.hub.BezelPlacementPreference
+        android:key="power_placement"
+        android:title="@string/power_anchor_title"
+        android:summary="@string/bezel_placement_hint" />
+    <org.petalos.hub.BezelPlacementPreference
+        android:key="extra_key_placement"
+        android:title="@string/extra_key_anchor_title"
+        android:summary="@string/extra_key_placement_hint" />
+</PreferenceScreen>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <style name="Theme.PetalAutomation" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@drawable/petal_window_background</item>
+        <item name="android:colorBackground">@color/petal_window_base</item>
+        <item name="colorPrimary">@color/petal_accent_primary</item>
+        <item name="colorSecondary">@color/petal_accent_pink</item>
+        <item name="colorTertiary">@color/petal_accent_teal</item>
+        <item name="android:fontFamily">@font/petal_rubik</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

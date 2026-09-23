@@ -1,0 +1,46 @@
+# petalOS content blocker helper SELinux policy.
+#
+# AOSP forbids anyone but init from mounting over system_file, so the helper
+# does NOT mount. It flips sys.petal.blocklist and init does the bind mount /
+# unmount via property triggers (see petal-blocklist.rc).
+
+type petal_blocklist, domain, mlstrustedsubject, coredomain;
+type petal_blocklist_exec, system_file_type, exec_type, file_type;
+type petal_blocklist_data_file, file_type, data_file_type, core_data_file_type;
+
+system_internal_prop(petal_blocklist_prop)
+
+init_daemon_domain(petal_blocklist)
+
+# script rides on /system/bin/sh and toybox (inotifyd, setprop...)
+allow petal_blocklist shell_exec:file rx_file_perms;
+allow petal_blocklist toolbox_exec:file rx_file_perms;
+
+# inotifyd re-execs the script on every flag write
+allow petal_blocklist petal_blocklist_exec:file rx_file_perms;
+
+# it seeds and chmods the drop file
+allow petal_blocklist system_data_root_file:dir search;
+allow petal_blocklist petal_blocklist_data_file:dir create_dir_perms;
+allow petal_blocklist petal_blocklist_data_file:file create_file_perms;
+
+# the only way it can move the mount: poke init
+set_prop(petal_blocklist, petal_blocklist_prop)
+
+# init owns the actual mount, it's the only domain allowed to touch system_file
+allow init petal_blocklist_data_file:dir search;
+allow init petal_blocklist_data_file:file r_file_perms;
+allow init system_file:file mounton;
+
+# init makes the drop dir then relabels it, mkdir alone doesn't restorecon
+allow init system_data_root_file:dir create_dir_perms;
+allow init system_data_root_file:dir relabelfrom;
+allow init petal_blocklist_data_file:dir { relabelto getattr search };
+
+# platform_app (the advanced app) writes the merged file in place
+allow platform_app rootfs:dir search;
+allow platform_app system_data_root_file:dir search;
+allow platform_app petal_blocklist_data_file:dir
+    { search write add_name remove_name getattr open read };
+allow platform_app petal_blocklist_data_file:file
+    { create open read write getattr setattr unlink };

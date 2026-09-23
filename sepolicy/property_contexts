@@ -1,0 +1,2 @@
+# petalOS content blocker control property
+sys.petal.blocklist u:object_r:petal_blocklist_prop:s0 exact string

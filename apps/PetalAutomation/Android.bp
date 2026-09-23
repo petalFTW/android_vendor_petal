@@ -1,0 +1,30 @@
+//
+// Copyright (C) 2026 petalOS
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// petalOS automation: plain trigger -> action rules. deliberately NOT privileged
+// and signed with the release key so users can actually disable or bin it. loses
+// a few god-mode actions (force-stop, wifi/bt) in exchange. worth it.
+android_app {
+    name: "PetalAutomation",
+
+    srcs: ["src/**/*.java"],
+    resource_dirs: ["res"],
+    manifest: "AndroidManifest.xml",
+
+    platform_apis: true,
+
+    static_libs: [
+        "androidx.appcompat_appcompat",
+        "androidx.core_core",
+        "androidx.recyclerview_recyclerview",
+        "com.google.android.material_material",
+    ],
+
+    // no shrinking. i'm not debugging proguard on a thing i can't even run rn.
+    optimize: {
+        enabled: false,
+    },
+}

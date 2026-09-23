@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cam_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/cam_void">
+
+    <!-- Aurora wash behind everything; visible during lens swaps and before preview. -->
+    <org.petalos.cam.ui.AuroraBackgroundView
+        android:id="@+id/aurora"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/preview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no" />
+
+    <org.petalos.cam.ui.GridOverlayView
+        android:id="@+id/grid"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <org.petalos.cam.ui.LevelView
+        android:id="@+id/level"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <org.petalos.cam.ui.FocusRingView
+        android:id="@+id/focus_ring"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Top controls -->
+    <LinearLayout
+        android:id="@+id/top_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="12dp"
+        android:paddingBottom="10dp"
+        android:paddingStart="@dimen/cam_edge_pad"
+        android:paddingEnd="@dimen/cam_edge_pad"
+        android:background="@drawable/cam_scrim_top">
+
+        <ImageButton
+            android:id="@+id/btn_flash"
+            style="@style/PetalCam.IconButton"
+            android:contentDescription="@string/cd_flash"
+            android:src="@drawable/ic_cam_flash_off" />
+
+        <ImageButton
+            android:id="@+id/btn_timer"
+            style="@style/PetalCam.IconButton"
+            android:contentDescription="@string/cd_timer"
+            android:src="@drawable/ic_cam_timer" />
+
+        <ImageButton
+            android:id="@+id/btn_hdr"
+            style="@style/PetalCam.IconButton"
+            android:contentDescription="@string/settings_petal_engine"
+            android:src="@drawable/ic_cam_hdr" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/btn_grid"
+            style="@style/PetalCam.IconButton"
+            android:contentDescription="@string/cd_grid"
+            android:src="@drawable/ic_cam_grid" />
+
+        <ImageButton
+            android:id="@+id/btn_rotate"
+            style="@style/PetalCam.IconButton"
+            android:contentDescription="@string/cd_autorotate"
+            android:src="@drawable/ic_cam_autorotate" />
+
+        <ImageButton
+            android:id="@+id/btn_settings"
+            style="@style/PetalCam.IconButton"
+            android:contentDescription="@string/cd_settings"
+            android:src="@drawable/ic_cam_settings" />
+    </LinearLayout>
+
+    <!-- Exposure compensation, revealed on tap-to-focus. -->
+    <org.petalos.cam.ui.ExposureSliderView
+        android:id="@+id/exposure"
+        android:layout_width="52dp"
+        android:layout_height="240dp"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="16dp"
+        android:visibility="invisible" />
+
+    <!-- Pro panel: manual ISO / shutter / focus / WB. -->
+    <org.petalos.cam.ui.ProPanelView
+        android:id="@+id/pro_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="188dp"
+        android:layout_marginStart="@dimen/cam_edge_pad"
+        android:layout_marginEnd="@dimen/cam_edge_pad"
+        android:elevation="8dp"
+        android:visibility="gone" />
+
+    <!-- Countdown, shadowRadius is a float not a dimen, dp blew up the inflate -->
+    <TextView
+        android:id="@+id/countdown"
+        style="@style/PetalCamText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:textSize="96sp"
+        android:textStyle="bold"
+        android:shadowColor="#CC000000"
+        android:shadowRadius="21"
+        android:visibility="gone" />
+
+    <!-- Recording timer -->
+    <LinearLayout
+        android:id="@+id/rec_chip"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="72dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="16dp"
+        android:background="@drawable/cam_chip_background"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/rec_dot"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:background="@drawable/cam_rec_dot" />
+
+        <TextView
+            android:id="@+id/rec_time"
+            style="@style/PetalCamText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="00:00"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Bottom stack -->
+    <LinearLayout
+        android:id="@+id/bottom_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/cam_edge_pad"
+        android:paddingEnd="@dimen/cam_edge_pad"
+        android:paddingBottom="34dp"
+        android:background="@drawable/cam_scrim_bottom">
+
+        <!-- faint ticker while the denoiser chews on a shot -->
+        <ProgressBar
+            android:id="@+id/processing"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="6dp"
+            android:alpha="0.6"
+            android:indeterminateTint="@color/cam_text_primary"
+            android:visibility="gone" />
+
+        <org.petalos.cam.ui.ZoomSelectorView
+            android:id="@+id/zoom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="18dp" />
+
+        <org.petalos.cam.ui.ModeSelectorView
+            android:id="@+id/modes"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/cam_mode_selector_height"
+            android:layout_marginBottom="22dp" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Gallery thumbnail -->
+            <FrameLayout
+                android:id="@+id/thumb_frame"
+                android:layout_width="@dimen/cam_thumb"
+                android:layout_height="@dimen/cam_thumb"
+                android:layout_gravity="start|center_vertical"
+                android:background="@drawable/cam_thumb_background">
+
+                <ImageView
+                    android:id="@+id/thumb"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="2dp"
+                    android:background="@drawable/cam_thumb_clip"
+                    android:clipToOutline="true"
+                    android:contentDescription="@string/cd_thumbnail"
+                    android:scaleType="centerCrop" />
+            </FrameLayout>
+
+            <org.petalos.cam.ui.ShutterButtonView
+                android:id="@+id/shutter"
+                android:layout_width="@dimen/cam_shutter_outer"
+                android:layout_height="@dimen/cam_shutter_outer"
+                android:layout_gravity="center_horizontal"
+                android:contentDescription="@string/cd_shutter" />
+
+            <ImageButton
+                android:id="@+id/btn_flip"
+                style="@style/PetalCam.IconButton"
+                android:layout_width="@dimen/cam_control_height"
+                android:layout_height="@dimen/cam_control_height"
+                android:layout_gravity="end|center_vertical"
+                android:contentDescription="@string/cd_flip"
+                android:src="@drawable/ic_cam_flip" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Petal pill messages -->
+    <TextView
+        android:id="@+id/toast"
+        style="@style/PetalCamText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="212dp"
+        android:background="@drawable/cam_chip_background"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <!-- QR / barcode result, slides up from the bottom while previewing. -->
+    <org.petalos.cam.ui.PetalGlassLayout
+        android:id="@+id/qr_popup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="236dp"
+        android:layout_marginStart="@dimen/cam_edge_pad"
+        android:layout_marginEnd="@dimen/cam_edge_pad"
+        android:visibility="gone"
+        app:petalCornerRadius="@dimen/cam_corner_expanded"
+        app:petalGlassTint="@color/cam_glass_tint_strong"
+        app:petalGlassRimTop="@color/cam_glass_rim_top"
+        app:petalGlassRimBottom="@color/cam_glass_rim_bottom"
+        app:petalGlassGrain="18">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="18dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@string/cd_qr"
+                android:src="@drawable/ic_cam_grid"
+                android:tint="@color/cam_text_primary" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/qr_text"
+                    style="@style/PetalCamText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/qr_hint"
+                    style="@style/PetalCamText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/cam_text_secondary"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/qr_close"
+                style="@style/PetalCam.IconButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:contentDescription="@string/cd_cancel"
+                android:padding="8dp"
+                android:src="@drawable/ic_cam_close" />
+        </LinearLayout>
+    </org.petalos.cam.ui.PetalGlassLayout>
+
+</FrameLayout>

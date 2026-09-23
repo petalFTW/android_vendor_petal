@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+
+    <!--
+         petalOS Hub theme: keeps every SettingsLib/Preference widget intact but swaps
+         the flat window for the ROM's aurora glass and tints the preference surfaces.
+    -->
+    <style name="Theme.PetalHub" parent="@style/Theme.SubSettingsBase.Expressive">
+        <item name="android:windowBackground">@drawable/petal_window_background</item>
+        <item name="android:colorBackground">@color/petal_window_base</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/petal_window_light_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/petal_window_light_bars</item>
+        <item name="android:fontFamily">@font/petal_rubik</item>
+        <item name="preferenceTheme">@style/PreferenceTheme.PetalHub</item>
+        <item name="colorControlActivated">@color/petal_control_activated</item>
+        <item name="colorAccent">@color/petal_accent_primary</item>
+    </style>
+
+    <style name="PreferenceTheme.PetalHub" parent="@style/PreferenceTheme.SettingsLib.Expressive">
+        <item name="preferenceCategoryTitleTextColor">@color/petal_accent_primary</item>
+    </style>
+
+</resources>

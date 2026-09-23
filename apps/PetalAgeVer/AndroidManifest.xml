@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.petalos.agever"
+    android:versionCode="1"
+    android:versionName="0.1">
+
+    <!-- No real camera is used any more: the overlay stick places a 3D avatar
+         and that feed is published as the virtual front camera. -->
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- petalOS virtual camera provider. This is a signature permission defined
+         by this app and accepted by the patched virtual_camera HAL, because the
+         stock android.permission.CREATE_VIRTUAL_DEVICE is internal|role and is
+         not grantable to a regular privileged system app. -->
+    <permission
+        android:name="org.petalos.agever.permission.MANAGE_VIRTUAL_CAMERA"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="org.petalos.agever.permission.MANAGE_VIRTUAL_CAMERA" />
+
+    <!-- Platform signature permission guarding CameraService's
+         setPetalFrontCameraOverride; granted automatically to this
+         platform-signed app. -->
+    <uses-permission android:name="android.permission.CAMERA_INJECT_EXTERNAL_CAMERA" />
+
+    <application
+        android:name=".PetalAgeVerApp"
+        android:allowBackup="false"
+        android:hardwareAccelerated="true"
+        android:icon="@drawable/ic_agever"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PetalAgeVer">
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity-alias
+            android:name=".PetalAgeVerSettingsEntry"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="com.android.settings.action.IA_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="com.android.settings.category"
+                android:value="com.android.settings.category.ia.privacy" />
+            <meta-data
+                android:name="com.android.settings.icon"
+                android:resource="@drawable/ic_agever" />
+            <meta-data
+                android:name="com.android.settings.icon_tintable"
+                android:value="true" />
+            <meta-data
+                android:name="com.android.settings.order"
+                android:value="-200" />
+            <meta-data
+                android:name="com.android.settings.summary"
+                android:resource="@string/settings_summary" />
+        </activity-alias>
+
+        <service
+            android:name=".StageService"
+            android:exported="false"
+            android:stopWithTask="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="virtual_camera_stage" />
+        </service>
+
+        <service
+            android:name=".StageTile"
+            android:exported="true"
+            android:icon="@drawable/ic_agever"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+        </service>
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <SwitchPreferenceCompat
+        android:key="island_enabled"
+        android:title="@string/island_enabled_title"
+        android:summary="@string/island_enabled_summary" />
+
+    <SwitchPreferenceCompat
+        android:key="island_glass_notifications"
+        android:title="@string/island_glass_title"
+        android:summary="@string/island_glass_summary" />
+
+</PreferenceScreen>

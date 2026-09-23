@@ -1,0 +1,7 @@
+"Free Old Man Head" by dayinji
+Source: https://sketchfab.com/3d-models/free-old-man-head-d56a7cdda5e9452b847a8139d939b4d3
+License: Creative Commons Attribution 4.0 International (CC-BY-4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+Bundled as assets/avatars/free_old_man_head.glb. Attribution is required by
+the license; the model has not been modified beyond runtime transforms.

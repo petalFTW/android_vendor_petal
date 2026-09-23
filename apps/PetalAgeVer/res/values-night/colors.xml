@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<resources>
+    <color name="agever_void">#101115</color>
+    <color name="agever_surface">#1C1E25</color>
+    <color name="agever_surface_alt">#292E3B</color>
+    <color name="agever_accent">#A9C4FF</color>
+    <color name="agever_accent_pink">#F0A6CB</color>
+    <color name="agever_accent_teal">#8DDCCE</color>
+    <color name="agever_accent_amber">#EFCB88</color>
+    <color name="agever_danger">#FF9AA9</color>
+    <color name="agever_text_primary">#F4F5FA</color>
+    <color name="agever_text_secondary">#B4BACB</color>
+    <color name="agever_text_tertiary">#B4BACB</color>
+    <color name="agever_ripple">#303B7BFF</color>
+    <color name="agever_outline">#3A404E</color>
+    <color name="agever_stage">#FFFFFF</color>
+    <color name="agever_preview_letterbox">#101115</color>
+    <color name="agever_hero_end">#252E43</color>
+    <color name="agever_on_accent">#13284F</color>
+    <color name="agever_preview_text">#F5F5F8</color>
+    <color name="agever_preview_pill">#E6101115</color>
+    <bool name="agever_light_bars">false</bool>
+</resources>

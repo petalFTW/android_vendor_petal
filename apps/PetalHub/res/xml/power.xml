@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/screen_dithering_title">
+        <SwitchPreferenceCompat
+            android:key="petal_screen_dither_enabled"
+            android:defaultValue="true"
+            android:title="@string/screen_dithering_enabled_title"
+            android:summary="@string/screen_dithering_enabled_summary" />
+        <SwitchPreferenceCompat
+            android:key="petal_screen_dither_battery_saver"
+            android:dependency="petal_screen_dither_enabled"
+            android:defaultValue="true"
+            android:title="@string/screen_dithering_battery_saver_title"
+            android:summary="@string/screen_dithering_battery_saver_summary" />
+        <SwitchPreferenceCompat
+            android:key="petal_screen_dither_schedule"
+            android:dependency="petal_screen_dither_enabled"
+            android:defaultValue="false"
+            android:title="@string/screen_dithering_schedule_title"
+            android:summary="@string/screen_dithering_schedule_summary" />
+        <Preference
+            android:key="petal_screen_dither_start_min"
+            android:dependency="petal_screen_dither_schedule"
+            android:title="@string/screen_dithering_start_title" />
+        <Preference
+            android:key="petal_screen_dither_end_min"
+            android:dependency="petal_screen_dither_schedule"
+            android:title="@string/screen_dithering_end_title" />
+        <ListPreference
+            android:key="petal_screen_dither_percent"
+            android:dependency="petal_screen_dither_enabled"
+            android:defaultValue="25"
+            android:title="@string/screen_dithering_percent_title"
+            android:entries="@array/screen_dithering_percent_entries"
+            android:entryValues="@array/screen_dithering_percent_values" />
+    </PreferenceCategory>
+    <SwitchPreferenceCompat
+        android:key="petal_idle_power_enabled"
+        android:title="@string/power_policy_enabled_title"
+        android:summary="@string/power_policy_enabled_summary" />
+    <ListPreference
+        android:key="petal_idle_power_profile"
+        android:title="@string/power_profile_title"
+        android:entries="@array/power_profile_entries"
+        android:entryValues="@array/power_profile_values" />
+    <ListPreference
+        android:key="petal_idle_power_grace_minutes"
+        android:title="@string/power_grace_title"
+        android:entries="@array/power_grace_entries"
+        android:entryValues="@array/power_grace_values" />
+    <MultiSelectListPreference
+        android:key="petal_idle_power_packages"
+        android:title="@string/power_packages_title"
+        android:summary="@string/power_packages_none" />
+    <PreferenceCategory android:title="@string/power_scanning_category">
+        <SwitchPreferenceCompat
+            android:key="petal_idle_disable_wifi_scan"
+            android:title="@string/power_wifi_scan_title"
+            android:summary="@string/power_wifi_scan_summary" />
+        <SwitchPreferenceCompat
+            android:key="petal_idle_disable_ble_scan"
+            android:title="@string/power_ble_scan_title"
+            android:summary="@string/power_ble_scan_summary" />
+    </PreferenceCategory>
+    <Preference
+        android:key="power_policy_audit"
+        android:selectable="false"
+        android:title="@string/power_audit_title"
+        android:summary="@string/power_audit_empty" />
+    <Preference
+        android:selectable="false"
+        android:title="@string/power_warning_title"
+        android:summary="@string/power_warning_summary" />
+</PreferenceScreen>

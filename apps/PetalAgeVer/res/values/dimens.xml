@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <dimen name="agever_gutter">20dp</dimen>
+    <dimen name="agever_card_radius">24dp</dimen>
+    <dimen name="agever_preview_radius">28dp</dimen>
+    <dimen name="agever_preview_height">260dp</dimen>
+    <dimen name="agever_joystick_size">168dp</dimen>
+</resources>

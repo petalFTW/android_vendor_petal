@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <!-- Island-derived geometry -->
+    <dimen name="cam_corner_capsule">15dp</dimen>
+    <dimen name="cam_corner_expanded">28dp</dimen>
+    <dimen name="cam_corner_control">22dp</dimen>
+    <dimen name="cam_rim_width">1dp</dimen>    <!-- Controls -->
+    <dimen name="cam_control_height">48dp</dimen>
+    <dimen name="cam_control_icon">24dp</dimen>
+    <dimen name="cam_shutter_outer">86dp</dimen>
+    <dimen name="cam_shutter_inner">68dp</dimen>
+    <dimen name="cam_thumb">52dp</dimen>
+    <dimen name="cam_bottom_bar">196dp</dimen>
+
+    <!-- Mode selector -->
+    <dimen name="cam_mode_text">14sp</dimen>
+    <dimen name="cam_mode_selector_height">40dp</dimen>
+
+    <!-- Zoom chips -->
+    <dimen name="cam_zoom_chip">40dp</dimen>
+    <dimen name="cam_zoom_chip_active">48dp</dimen>
+
+    <dimen name="cam_edge_pad">26dp</dimen>
+</resources>

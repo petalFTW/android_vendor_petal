@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <SwitchPreferenceCompat
+        android:key="lockscreen_media_cover"
+        android:title="@string/lockscreen_media_cover_title"
+        android:summary="@string/lockscreen_media_cover_summary" />
+
+    <SwitchPreferenceCompat
+        android:key="lockscreen_cd_player"
+        android:title="@string/lockscreen_cd_player_title"
+        android:summary="@string/lockscreen_cd_player_summary" />
+
+    <ListPreference
+        android:key="lockscreen_clock_style"
+        android:title="@string/lockscreen_clock_style_title"
+        android:summary="@string/lockscreen_clock_style_summary"
+        android:entries="@array/clock_style_entries"
+        android:entryValues="@array/clock_style_values"
+        android:defaultValue="0" />
+
+    <SwitchPreferenceCompat
+        android:key="lockscreen_seamless_unlock"
+        android:title="@string/lockscreen_seamless_unlock_title"
+        android:summary="@string/lockscreen_seamless_unlock_summary" />
+
+    <SwitchPreferenceCompat
+        android:key="lockscreen_fingerprint_ripple"
+        android:title="@string/lockscreen_fingerprint_ripple_title"
+        android:summary="@string/lockscreen_fingerprint_ripple_summary"
+        android:defaultValue="true" />
+
+</PreferenceScreen>

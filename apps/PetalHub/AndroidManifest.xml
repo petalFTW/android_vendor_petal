@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.petalos.hub"
+    android:sharedUserId="android.uid.system"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.READ_SEARCH_INDEXABLES" />
+
+    <application
+        android:defaultToDeviceProtectedStorage="true"
+        android:directBootAware="true"
+        android:hardwareAccelerated="true"
+        android:icon="@drawable/ic_settings_hub"
+        android:label="@string/hub_title"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PetalHub">
+
+        <!--
+             Deliberately no LAUNCHER category: petalOS Hub has no app icon and is
+             only reachable through the Settings app (see the activity-alias below).
+        -->
+        <activity
+            android:name=".HubActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- petalOS version page, launched from the Settings version row. -->
+        <activity
+            android:name=".PetalVersionActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:exported="true"
+            android:label="@string/petal_version_title" />
+
+        <!-- Feeds hub screens to settings search. -->
+        <provider
+            android:name=".PetalHubSearchIndexablesProvider"
+            android:authorities="org.petalos.hub.search"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.READ_SEARCH_INDEXABLES">
+            <intent-filter>
+                <action android:name="android.content.action.SEARCH_INDEXABLES_PROVIDER" />
+            </intent-filter>
+        </provider>
+
+        <!-- Settings > System entry point. -->
+        <activity-alias
+            android:name=".HubEntry"
+            android:exported="true"
+            android:label="@string/hub_title"
+            android:targetActivity=".HubActivity">
+            <intent-filter>
+                <action android:name="com.android.settings.action.IA_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="com.android.settings.category"
+                android:value="com.android.settings.category.ia.system" />
+            <meta-data
+                android:name="com.android.settings.icon"
+                android:resource="@drawable/ic_settings_hub" />
+            <meta-data
+                android:name="com.android.settings.icon_tintable"
+                android:value="true" />
+            <meta-data
+                android:name="com.android.settings.order"
+                android:value="-250" />
+            <meta-data
+                android:name="com.android.settings.profile"
+                android:value="primary_profile_only" />
+            <meta-data
+                android:name="com.android.settings.summary"
+                android:resource="@string/hub_summary" />
+        </activity-alias>
+
+    </application>
+</manifest>

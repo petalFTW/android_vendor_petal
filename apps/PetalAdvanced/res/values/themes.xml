@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <style name="Theme.PetalAdvanced" parent="Theme.AppCompat.DayNight.DarkActionBar">
+        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
+        <item name="colorPrimary">@color/petal_advanced_primary</item>
+        <item name="colorPrimaryDark">@color/petal_advanced_primary_dark</item>
+        <item name="colorAccent">@color/petal_advanced_accent</item>
+    </style>
+</resources>

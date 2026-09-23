@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+
+    <!-- Viewfinder -->
+    <style name="Theme.PetalCam" parent="@style/Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/cam_void</item>
+        <item name="android:colorBackground">@color/cam_void</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:fontFamily">@font/petal_rubik</item>
+        <item name="android:colorAccent">@color/petal_accent_primary</item>
+        <item name="android:windowAnimationStyle">@style/Animation.PetalCam</item>
+    </style>
+
+    <style name="Theme.PetalCam.Settings" parent="@style/Theme.PetalCam">
+        <item name="android:windowBackground">@drawable/petal_aurora_background</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:colorBackground">@color/cam_void</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:textColorPrimary">@color/cam_text_primary</item>
+        <item name="android:textColorSecondary">@color/cam_text_secondary</item>
+        <item name="android:textColorTertiary">@color/cam_text_secondary</item>
+        <item name="android:colorAccent">@color/petal_accent_primary</item>
+        <item name="colorControlActivated">@color/petal_accent_primary</item>
+        <item name="preferenceTheme">@style/PreferenceTheme.PetalCam</item>
+    </style>
+
+    <style name="PreferenceTheme.PetalCam" parent="@style/PreferenceThemeOverlay">
+        <item name="android:fontFamily">@font/petal_rubik</item>
+    </style>
+
+    <!-- petal droplet open/close, mirrors the dynamic island feel. -->
+    <style name="Animation.PetalCam" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/petal_droplet_in</item>
+        <item name="android:activityOpenExitAnimation">@android:anim/fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/petal_droplet_out</item>
+    </style>
+
+    <style name="PetalCamText">
+        <item name="android:fontFamily">@font/petal_rubik</item>
+        <item name="android:textColor">@color/cam_text_primary</item>
+        <item name="android:letterSpacing">0.03</item>
+    </style>
+
+    <!-- Round glass control used across the viewfinder chrome. -->
+    <style name="PetalCam.IconButton" parent="">
+        <item name="android:layout_width">@dimen/cam_control_height</item>
+        <item name="android:layout_height">@dimen/cam_control_height</item>
+        <item name="android:background">@drawable/cam_control_background</item>
+        <item name="android:padding">12dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:tint">@color/cam_control_on</item>
+    </style>
+
+</resources>

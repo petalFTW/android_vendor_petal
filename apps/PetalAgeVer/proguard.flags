@@ -1,0 +1,29 @@
+# petalOS PetalAgeVer
+
+# Filament + gltfio reach into Java from native (JNI callbacks, material
+# reflection) and must keep their names and members.
+-keep class com.google.android.filament.** { *; }
+-keep class com.google.android.filament.gltfio.** { *; }
+-dontwarn com.google.android.filament.**
+
+# MediaPipe Tasks Vision / framework classes are entered from native.
+-keep class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
+
+# Guava is pulled in by the MediaPipe Tasks framework.
+-dontwarn com.google.common.**
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn com.google.j2objc.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn org.checkerframework.**
+
+# protobuf-lite generated code relies on reflection on its own fields.
+-keep class com.google.protobuf.** { *; }
+-dontwarn com.google.protobuf.**
+
+# Transport runtime is reflectively loaded by MediaPipe's stats logger.
+-keep class com.google.android.datatransport.** { *; }
+-dontwarn com.google.android.datatransport.**
+
+# Keep our native-called entry points.
+-keep class org.petalos.agever.render.AvatarStage { *; }

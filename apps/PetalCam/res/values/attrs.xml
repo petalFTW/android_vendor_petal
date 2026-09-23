@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <declare-styleable name="PetalGlassLayout">
+        <attr name="petalCornerRadius" format="dimension" />
+        <attr name="petalGlassTint" format="color" />
+        <attr name="petalGlassRimTop" format="color" />
+        <attr name="petalGlassRimBottom" format="color" />
+        <attr name="petalGlassGrain" format="integer" />
+    </declare-styleable>
+</resources>

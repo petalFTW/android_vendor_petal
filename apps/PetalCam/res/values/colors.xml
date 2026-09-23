@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+
+     petalOS camera palette. The viewfinder is always cinematic-dark; the
+     settings surface follows the ROM (see values-night).
+-->
+<resources>
+    <!-- Viewfinder chrome -->
+    <color name="cam_void">#FF05060A</color>
+    <color name="cam_void_soft">#FF0B0D14</color>
+    <color name="cam_scrim_top">#B3000000</color>
+    <color name="cam_scrim_bottom">#CC000000</color>
+
+    <!-- Liquid glass -->
+    <color name="cam_glass_tint">#730F1014</color>
+    <color name="cam_glass_tint_strong">#66101218</color>
+    <color name="cam_glass_rim_top">#59FFFFFF</color>
+    <color name="cam_glass_rim_bottom">#14FFFFFF</color>
+    <color name="cam_glass_inactive">#5E10121A</color>
+
+    <!-- Petal accents -->
+    <color name="petal_accent_primary">#FF7C5CFF</color>
+    <color name="petal_accent_pink">#FFFF6FAE</color>
+    <color name="petal_accent_violet">#FF9B7BFF</color>
+    <color name="petal_accent_teal">#FF57E0D2</color>
+    <color name="petal_accent_amber">#FFFFC46B</color>
+
+    <!-- Aurora blobs behind glass -->
+    <color name="cam_aurora_pink">#40FF6FAE</color>
+    <color name="cam_aurora_violet">#4D7C5CFF</color>
+    <color name="cam_aurora_teal">#3357E0D2</color>
+    <color name="cam_aurora_fade">#00000000</color>
+
+    <!-- Controls -->
+    <color name="cam_shutter_ring">#FFFFFFFF</color>
+    <color name="cam_shutter_fill">#FFFFFFFF</color>
+    <color name="cam_shutter_video">#FFFF4D6D</color>
+    <color name="cam_shutter_disabled">#66FFFFFF</color>
+    <color name="cam_control_on">#FFFFFFFF</color>
+    <color name="cam_control_off">#B3FFFFFF</color>
+    <color name="cam_text_primary">#FFFFFFFF</color>
+    <color name="cam_text_secondary">#99FFFFFF</color>
+    <color name="cam_focus_ring">#CCFFF3A0</color>
+    <color name="cam_level_ok">#FF57E0D2</color>
+    <color name="cam_level_warn">#FFFFC46B</color>
+    <color name="cam_grid">#33FFFFFF</color>
+    <color name="cam_safe_frame">#4DFFFFFF</color>
+    <color name="cam_rec">#FFFF4D6D</color>
+
+    <!-- Adaptive launcher icon backdrop, matches the camera pill body -->
+    <color name="ic_launcher_background">#FFFDFBF2</color>
+
+    <!-- Settings surface (light default, night in values-night) -->
+    <color name="petal_window_base">#FFF6F6FA</color>
+    <color name="petal_text_secondary">#99000000</color>
+    <color name="petal_ripple">#247C5CFF</color>
+</resources>

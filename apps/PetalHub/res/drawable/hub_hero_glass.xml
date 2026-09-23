@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+
+     Hero card surface: petal aurora gradient with a soft glass rim.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/petal_hero_radius" />
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#F2262A66"
+                android:centerColor="#F27A5CFF"
+                android:endColor="#F2FF7FBF" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/petal_hero_radius" />
+            <solid android:color="@android:color/transparent" />
+            <stroke
+                android:width="1dp"
+                android:color="#40FFFFFF" />
+        </shape>
+    </item>
+
+</layer-list>

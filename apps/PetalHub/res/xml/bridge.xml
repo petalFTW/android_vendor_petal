@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <SwitchPreferenceCompat
+        android:key="petal_bridge_enabled"
+        android:defaultValue="false"
+        android:title="@string/bridge_enabled_title"
+        android:summary="@string/bridge_enabled_summary" />
+    <SwitchPreferenceCompat
+        android:key="petal_bridge_ask"
+        android:dependency="petal_bridge_enabled"
+        android:defaultValue="false"
+        android:title="@string/bridge_ask_title"
+        android:summary="@string/bridge_ask_summary" />
+    <ListPreference
+        android:key="petal_bridge_style"
+        android:dependency="petal_bridge_enabled"
+        android:defaultValue="3"
+        android:title="@string/bridge_style_title"
+        android:summary="@string/bridge_style_summary"
+        android:entries="@array/bridge_style_entries"
+        android:entryValues="@array/bridge_style_values" />
+    <SwitchPreferenceCompat
+        android:key="petal_bridge_preserve_album"
+        android:dependency="petal_bridge_enabled"
+        android:defaultValue="true"
+        android:title="@string/bridge_preserve_album_title"
+        android:summary="@string/bridge_preserve_album_summary" />
+</PreferenceScreen>
