@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <string-array name="profile_entries">
+        <item>Balanced</item>
+        <item>Performance</item>
+        <item>Extreme</item>
+        <item>Battery saver</item>
+        <item>Custom</item>
+    </string-array>
+    <string-array name="profile_values">
+        <item>balanced</item>
+        <item>performance</item>
+        <item>extreme</item>
+        <item>battery</item>
+        <item>custom</item>
+    </string-array>
+
+    <string-array name="cooldown_entries">
+        <item>Off</item>
+        <item>Cool down</item>
+        <item>Cool down plus</item>
+    </string-array>
+    <string-array name="cooldown_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="refresh_entries">
+        <item>60 Hz</item>
+        <item>90 Hz</item>
+        <item>120 Hz</item>
+        <item>144 Hz</item>
+        <item>165 Hz</item>
+    </string-array>
+    <string-array name="refresh_values">
+        <item>60</item>
+        <item>90</item>
+        <item>120</item>
+        <item>144</item>
+        <item>165</item>
+    </string-array>
+
+    <string-array name="animation_entries">
+        <item>0.0x</item>
+        <item>0.5x</item>
+        <item>1.0x</item>
+    </string-array>
+    <string-array name="animation_values">
+        <item>0.0</item>
+        <item>0.5</item>
+        <item>1.0</item>
+    </string-array>
+</resources>

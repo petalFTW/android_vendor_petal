@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: The petalOS Project
+# SPDX-License-Identifier: Apache-2.0
+#
+# The SoC extcon block is exposed under /sys/devices/... (the target of the
+# /sys/class/extcon symlink), so the generic "/class/extcon" genfscon never
+# labels it. system_server's ExtconUEventObserver then cannot read the cable
+# "name" nodes and logs:
+#   "Unable to read .../extcon3/cable.N/name. This probably means the selinux
+#    policies need to be changed."
+# With cable state unreadable, USB/charging stays reported as connected after
+# the cable is pulled (and the USB debugging notification sticks around).
+# Label the audio-codec extcon block so the existing
+# r_dir_file(system_server, sysfs_extcon) rule applies.
+genfscon sysfs /devices/platform/soc/soc:spf_core_platform/soc:spf_core_platform:lpass-cdc/wcd9378-codec/extcon u:object_r:sysfs_extcon:s0

@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+
+    <string name="tuner_title">PetalTuner</string>
+    <string name="tuner_summary">Charging bypass, overclocks and distraction-free game mode</string>
+    <string name="tile_game_mode">Game Mode</string>
+    <string name="tile_bypass">Bypass charging</string>
+
+    <string name="overlay_notification_channel">Game mode overlay</string>
+    <string name="overlay_notification_title">PetalTuner game mode</string>
+    <string name="overlay_notification_text">Tap to open, dismiss to stop the overlay</string>
+    <string name="overlay_action_profile">Profile</string>
+    <string name="overlay_action_bypass">Bypass</string>
+    <string name="overlay_action_boost">Boost</string>
+    <string name="overlay_action_kill">Free RAM</string>
+    <string name="overlay_action_recents">Recents</string>
+    <string name="overlay_action_close">Close</string>
+
+    <string name="dashboard_section_quick">Quick controls</string>
+    <string name="dashboard_section_power">Power &amp; charging</string>
+    <string name="dashboard_section_perf">Performance</string>
+    <string name="dashboard_section_display">Display &amp; focus</string>
+    <string name="dashboard_section_system">System</string>
+
+    <string name="category_charging">Charging</string>
+    <string name="charging_summary">Bypass charging, charge limit, thermal limits</string>
+    <string name="category_performance">Performance</string>
+    <string name="performance_summary">CPU, GPU, scheduler and I/O tuning</string>
+    <string name="category_memory">Memory</string>
+    <string name="memory_summary">ZRAM, LMK and virtual memory tuning</string>
+    <string name="category_network">Network</string>
+    <string name="network_summary">TCP congestion control and buffer tuning</string>
+    <string name="category_display">Display</string>
+    <string name="display_summary">Refresh rate, resolution and animations</string>
+    <string name="category_distraction">Focus</string>
+    <string name="distraction_summary">Hide notifications, mute and lock brightness</string>
+    <string name="category_profiles">Game profiles</string>
+    <string name="profiles_summary">Per-game tuning and automatic profiles</string>
+    <string name="category_expert">Expert</string>
+    <string name="expert_summary">Unsafe tweaks, thermal override and raw node editor</string>
+    <string name="category_about">About</string>
+    <string name="about_summary">Version, supported hardware and credits</string>
+
+    <string name="bypass_title">Bypass charging</string>
+    <string name="bypass_summary">Power the system directly from the charger and skip the battery while gaming</string>
+    <string name="bypass_active">Bypass active</string>
+    <string name="bypass_inactive">Normal charging</string>
+    <string name="bypass_unavailable">Bypass charging is not available on this device</string>
+    <string name="bypass_unplugged">Connect a charger to use bypass charging</string>
+    <string name="bypass_auto_title">Bypass while a game runs</string>
+    <string name="bypass_auto_summary">Enable bypass automatically when a selected game is in the foreground while charging</string>
+
+    <string name="charge_limit_title">Charge limit</string>
+    <string name="charge_limit_summary">Stop charging at the selected level and resume when it drops below</string>
+    <string name="charge_limit_value_title">Limit level</string>
+    <string name="charge_resume_value_title">Resume level</string>
+    <string name="cooldown_title">Charger cool down</string>
+    <string name="cooldown_summary">Throttle charging input to keep the device cooler while gaming</string>
+    <string name="cooldown_level_title">Cool down level</string>
+    <string name="slow_charge_title">Slow charging</string>
+    <string name="slow_charge_summary">Reduce charging power to limit heat</string>
+    <string name="endurance_title">Super endurance charging</string>
+    <string name="endurance_summary">Limit charging to extend battery lifespan</string>
+    <string name="battery_status_title">Battery status</string>
+    <string name="battery_level_title">Level</string>
+    <string name="battery_temp_title">Temperature</string>
+    <string name="battery_current_title">Current</string>
+    <string name="battery_health_title">Health</string>
+    <string name="battery_power_title">Charging power</string>
+    <string name="battery_tech_title">Charging technology</string>
+    <string name="charging_controls_title">Charging controls</string>
+    <string name="charging_state_category">Battery state</string>
+    <string name="charging_advanced_category">Advanced charging</string>
+
+    <string name="profile_active_title">Active profile</string>
+    <string name="profile_auto_title">Automatic profiles</string>
+    <string name="profile_auto_summary">Apply a profile while selected games are in the foreground</string>
+    <string name="profile_boost_title">Boost now</string>
+    <string name="profile_boost_summary">Apply the active profile immediately</string>
+    <string name="profile_restore_title">Restore defaults</string>
+    <string name="profile_restore_summary">Put back every value captured before tuning</string>
+
+    <string name="cpu_category">CPU</string>
+    <string name="cpu_governor_title">Governor</string>
+    <string name="cpu_min_freq_title">Minimum frequency</string>
+    <string name="cpu_max_freq_title">Maximum frequency</string>
+    <string name="cpu_cores_online">Online cores</string>
+    <string name="gpu_category">GPU</string>
+    <string name="gpu_governor_title">Governor</string>
+    <string name="gpu_min_freq_title">Minimum frequency</string>
+    <string name="gpu_max_freq_title">Maximum frequency</string>
+    <string name="gpu_min_pwrlevel_title">Minimum power level</string>
+    <string name="gpu_max_pwrlevel_title">Maximum power level</string>
+    <string name="io_category">Storage I/O</string>
+    <string name="io_scheduler_title">I/O scheduler</string>
+    <string name="io_readahead_title">Read-ahead size</string>
+    <string name="sched_category">Scheduler</string>
+    <string name="sched_tunables_title">Kernel scheduler tunables</string>
+    <string name="sched_tunables_summary">Apply latency, migration and boost tunables</string>
+    <string name="thermal_category">Thermal</string>
+    <string name="thermal_profile_title">Thermal profile</string>
+    <string name="thermal_disable_title">Disable thermal throttling</string>
+    <string name="thermal_disable_summary">Sustained performance at the cost of heat. Use with care</string>
+    <string name="touch_category">Touch</string>
+    <string name="touch_rate_title">Touch sampling boost</string>
+    <string name="touch_rate_summary">Raise the touch polling rate during games</string>
+
+    <string name="memory_apply_title">Apply memory tuning</string>
+    <string name="memory_state_summary">Free memory, pressure and reclaim tuning</string>
+    <string name="memory_zram_title">ZRAM</string>
+    <string name="memory_swap_title">Swappiness</string>
+    <string name="memory_lmk_title">Low memory killer</string>
+    <string name="memory_free_kb_title">Extra free memory</string>
+    <string name="memory_kill_bg_title">Kill background apps</string>
+    <string name="memory_kill_bg_summary">Free RAM by killing cached background processes</string>
+
+    <string name="network_tcp_title">TCP congestion control</string>
+    <string name="network_buffer_title">Socket buffers</string>
+    <string name="network_qdisc_title">Queue discipline</string>
+    <string name="network_disable_scans_title">Suppress background scans</string>
+    <string name="network_disable_scans_summary">Disable Wi-Fi and Bluetooth location scanning while gaming</string>
+
+    <string name="display_refresh_title">Peak refresh rate</string>
+    <string name="display_min_refresh_title">Minimum refresh rate</string>
+    <string name="display_density_title">Display density</string>
+    <string name="display_animations_title">Animation scale</string>
+    <string name="display_force_gpu_title">Force GPU rendering</string>
+    <string name="display_disable_hw_overlays_title">Disable HW overlays</string>
+    <string name="display_immersive_title">Immersive mode</string>
+    <string name="display_immersive_summary">Hide status and navigation bars while the overlay is running</string>
+
+    <string name="focus_dnd_title">Do not disturb</string>
+    <string name="focus_dnd_summary">Suppress all interruptions except alarms</string>
+    <string name="focus_heads_up_title">Block heads-up notifications</string>
+    <string name="focus_heads_up_summary">Stop notifications from covering the game</string>
+    <string name="focus_mute_title">Mute media</string>
+    <string name="focus_mute_summary">Silence media volume while focus mode is active</string>
+    <string name="focus_brightness_title">Lock brightness</string>
+    <string name="focus_brightness_summary">Disable adaptive brightness and fix the current level</string>
+    <string name="focus_autorotate_title">Lock rotation</string>
+    <string name="focus_autorotate_summary">Disable auto-rotate while gaming</string>
+    <string name="focus_theme_title">Game mode active</string>
+    <string name="focus_theme_summary">Master switch for every focus rule</string>
+
+    <string name="expert_unlock_title">Unlock expert features</string>
+    <string name="expert_unlock_summary">Dangerous tweaks below can destabilise or overheat the device</string>
+    <string name="expert_fsync_title">Disable fsync</string>
+    <string name="expert_fsync_summary">Faster storage writes but a real risk of data loss on a crash</string>
+    <string name="expert_thermal_title">Thermal override</string>
+    <string name="expert_thermal_summary">Force all thermal zones to disabled</string>
+    <string name="expert_raw_title">Raw sysfs editor</string>
+    <string name="expert_raw_summary">Read and write arbitrary nodes</string>
+    <string name="expert_warning">These settings can damage hardware or cause data loss. petalOS is not responsible for damage. Continue only if you understand the risks.</string>
+
+    <string name="about_device_title">Device</string>
+    <string name="about_soc_title">SoC</string>
+    <string name="about_kernel_title">Kernel</string>
+    <string name="about_health_title">Charging control backend</string>
+    <string name="about_version_title">PetalTuner version</string>
+    <string name="about_credit_title">Credits</string>
+    <string name="about_credit_summary">Research from OnePlus SM8850/SM8845 development, LineageOS health, and the oplus_chg driver</string>
+
+    <string name="action_apply">Apply</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_reset">Reset</string>
+    <string name="value_unknown">Unknown</string>
+    <string name="value_default">Default</string>
+    <string name="value_on">On</string>
+    <string name="value_off">Off</string>
+    <string name="dialog_restore_confirm">Restore every captured node value and disable active tuning?</string>
+    <string name="dialog_expert_warning">Enable expert features?</string>
+    <string name="toast_applied">%1$s applied</string>
+    <string name="toast_failed">%1$s could not be applied</string>
+    <string name="toast_no_root">Not writable: %1$s</string>
+    <string name="toast_restored">Defaults restored</string>
+
+</resources>

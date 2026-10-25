@@ -1,0 +1,6 @@
+id=proton4a
+name=Proton4A
+version=0.1.0
+versionCode=1
+author=petalOS
+description=Proton 11 + Box64 + Turnip (KGSL) runtime for testing Windows programs on Android without a ROM build.

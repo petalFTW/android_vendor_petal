@@ -17,12 +17,14 @@
 package org.petalos.advanced;
 
 import android.os.Bundle;
+import android.view.MenuItem;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
-/** single activity, swaps fragments based on what the Hub asked for */
-public class AdvancedActivity extends AppCompatActivity {
+import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity;
+
+/** same collapsing toolbar shell the rest of the hub uses */
+public class AdvancedActivity extends CollapsingToolbarBaseActivity {
 
     public static final String EXTRA_SCREEN = ":petal:screen";
 
@@ -33,8 +35,8 @@ public class AdvancedActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_advanced);
 
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        if (getActionBar() != null) {
+            getActionBar().setDisplayHomeAsUpEnabled(true);
         }
 
         final Fragment fragment;
@@ -55,14 +57,17 @@ public class AdvancedActivity extends AppCompatActivity {
         }
 
         getSupportFragmentManager().beginTransaction()
-                .replace(R.id.advanced_content, fragment)
+                .replace(R.id.main_content, fragment)
                 .commit();
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
-        finish();
-        return true;
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            onBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private String resolveScreen() {

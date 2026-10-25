@@ -13,6 +13,7 @@
 
     <!-- Petal accents, shared by both themes. -->
     <color name="petal_accent_primary">#FF7C5CFF</color>
+    <color name="petal_accent_text">#FF6844D6</color>
     <color name="petal_accent_pink">#FFFF6FAE</color>
     <color name="petal_accent_violet">#FF9B7BFF</color>
     <color name="petal_accent_teal">#FF57E0D2</color>

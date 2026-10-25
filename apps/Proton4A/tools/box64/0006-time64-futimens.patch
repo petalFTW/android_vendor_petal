@@ -1,0 +1,62 @@
+--- a/src/wrapped32/wrappedlibc.c
++++ b/src/wrapped32/wrappedlibc.c
+@@ -2493,7 +2493,7 @@
+ {
+     struct timespec times_l[2] = {0};
+     if (times) {
+-        int32_t* t32 = (int32_t*)from_ptrv(times);
++        int32_t* t32 = (int32_t*)times;
+         times_l[0].tv_sec = (int64_t)t32[0];
+         times_l[0].tv_nsec = (int64_t)t32[1];
+         times_l[1].tv_sec = (int64_t)t32[2];
+@@ -3346,6 +3346,34 @@
+     return ret;
+ }
+ 
++// Proton4A: glibc's time64 __futimens64 wrapper. The i386 struct __timespec64
++// is { int64 tv_sec; int32 tv_nsec; int32 :pad; } (16 bytes), not the host
++// aarch64 struct timespec ({ int64 tv_sec; int64 tv_nsec; }). Forwarding the
++// guest pointer unchanged made the host read the 4 padding bytes as the high
++// half of tv_nsec, so the kernel returned EINVAL and Wine mapped it to
++// STATUS_INVALID_PARAMETER ("Invalid parameter" in .NET/Squirrel installers).
++EXPORT int my32___futimens64(x64emu_t* emu, int fd, void* times)
++{
++    struct timespec tm[2];
++    if (times) {
++        uint8_t* t = (uint8_t*)times;
++        tm[0].tv_sec  = *(int64_t*)(t + 0);
++        tm[0].tv_nsec = *(int32_t*)(t + 8);
++        tm[1].tv_sec  = *(int64_t*)(t + 16);
++        tm[1].tv_nsec = *(int32_t*)(t + 24);
++    }
++    int ret = futimens(fd, times ? tm : NULL);
++    static int box64_log_time = -1;
++    if (box64_log_time < 0) box64_log_time = getenv("BOX64_LOG_TIME") != NULL;
++    if (box64_log_time) {
++        printf_log(LOG_INFO, "my32___futimens64(%d, %p) = %d errno=%d sec=%lld nsec=%lld sec1=%lld nsec1=%lld\n",
++                fd, times, ret, (ret<0) ? errno : 0,
++                times ? (long long)tm[0].tv_sec : 0, times ? (long long)tm[0].tv_nsec : 0,
++                times ? (long long)tm[1].tv_sec : 0, times ? (long long)tm[1].tv_nsec : 0);
++    }
++    return ret;
++}
++
+ EXPORT long my32_strtol(const char* s, char** endp, int base)
+ {
+     long ret = strtol(s, endp, base);
+--- a/src/wrapped32/wrappedlibc_private.h
++++ b/src/wrapped32/wrappedlibc_private.h
+@@ -456,7 +456,12 @@
+ GOM(ftw64, iEEppi)       //%%
+ GOW(funlockfile, vFS)
+ GOM(futimens, iEEip)
+-GO2(__futimens64, iEip, futimens)
++// Proton4A: __futimens64 takes a 64-bit-time struct __timespec64
++// { int64 tv_sec; int32 tv_nsec; int32 pad; } which is NOT layout-compatible
++// with the host struct timespec { int64 tv_sec; int64 tv_nsec; }. Forwarding
++// it directly made the host read the struct padding as the high half of
++// tv_nsec, so every SetFileTime returned STATUS_INVALID_PARAMETER (EINVAL).
++GOM(__futimens64, iEEip)
+ GOWM(futimes, iEEip)
+ //GO(futimesat, iEippp)
+ // fwide

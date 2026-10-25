@@ -1,2 +1,18 @@
 keys/
 __pycache__/
+docs/
+
+# let the verifier's public half out, keep the signing shit private
+!/build/maintainer/keys/
+/build/maintainer/keys/*
+!/build/maintainer/keys/README.md
+!/build/maintainer/keys/petal-owner-2026.pem
+
+**/*private*.pem
+**/*private*.key
+**/petal-maintainer-authority/
+**/petal-maintainer-certificates/
+/build/maintainer/certificates/
+**/macanc.json
+
+*.md

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.google.android.gms" android:versionCode="1" android:versionName="stub">
+    <application android:hasCode="false" android:label="Play services setup"
+        android:forceQueryable="true">
+        <meta-data android:name="org.petalos.services.PLACEHOLDER" android:value="true" />
+    </application>
+</manifest>

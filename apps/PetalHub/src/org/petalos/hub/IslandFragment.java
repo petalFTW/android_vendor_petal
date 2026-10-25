@@ -19,7 +19,10 @@ package org.petalos.hub;
 import android.os.Bundle;
 import android.provider.Settings;
 
+import androidx.preference.SeekBarPreference;
 import androidx.preference.SwitchPreferenceCompat;
+
+import org.petalos.config.PetalConfig;
 
 // island settings, stored in secure
 public class IslandFragment extends PetalPreferenceFragment {
@@ -42,6 +45,55 @@ public class IslandFragment extends PetalPreferenceFragment {
         glass.setChecked(getSecureInt(KEY_GLASS_NOTIFICATIONS, 1) == 1);
         glass.setOnPreferenceChangeListener((pref, newValue) -> {
             putSecureInt(KEY_GLASS_NOTIFICATIONS, (Boolean) newValue ? 1 : 0);
+            return true;
+        });
+
+        SeekBarPreference blur = findPreference("island_blur_intensity");
+        blur.setMin(0);
+        blur.setMax(100);
+        int blurValue = getInt(PetalConfig.KEY_ISLAND_BLUR_INTENSITY,
+                PetalConfig.DEFAULT_ISLAND_BLUR_INTENSITY);
+        blur.setValue(blurValue);
+        blur.setSummary(getString(R.string.island_blur_summary, blurValue));
+        blur.setOnPreferenceChangeListener((pref, newValue) -> {
+            int value = (int) newValue;
+            putInt(PetalConfig.KEY_ISLAND_BLUR_INTENSITY, value);
+            blur.setSummary(getString(R.string.island_blur_summary, value));
+            return true;
+        });
+
+        SwitchPreferenceCompat bubble = findPreference("island_bubble");
+        bubble.setChecked(PetalConfig.isIslandBubbleEnabled(requireContext()));
+        bubble.setOnPreferenceChangeListener((pref, newValue) -> {
+            putInt(PetalConfig.KEY_ISLAND_BUBBLE, (Boolean) newValue ? 1 : 0);
+            return true;
+        });
+
+        SeekBarPreference popout = findPreference("island_popout");
+        popout.setMin(0);
+        popout.setMax(100);
+        int popoutValue = getInt(PetalConfig.KEY_ISLAND_POPOUT,
+                PetalConfig.DEFAULT_ISLAND_POPOUT);
+        popout.setValue(popoutValue);
+        popout.setSummary(getString(R.string.island_popout_summary, popoutValue));
+        popout.setOnPreferenceChangeListener((pref, newValue) -> {
+            int value = (int) newValue;
+            putInt(PetalConfig.KEY_ISLAND_POPOUT, value);
+            popout.setSummary(getString(R.string.island_popout_summary, value));
+            return true;
+        });
+
+        SeekBarPreference chroma = findPreference("island_chroma");
+        chroma.setMin(0);
+        chroma.setMax(100);
+        int chromaValue = getInt(PetalConfig.KEY_ISLAND_CHROMA,
+                PetalConfig.DEFAULT_ISLAND_CHROMA);
+        chroma.setValue(chromaValue);
+        chroma.setSummary(getString(R.string.island_chroma_summary, chromaValue));
+        chroma.setOnPreferenceChangeListener((pref, newValue) -> {
+            int value = (int) newValue;
+            putInt(PetalConfig.KEY_ISLAND_CHROMA, value);
+            chroma.setSummary(getString(R.string.island_chroma_summary, value));
             return true;
         });
     }

@@ -1,0 +1,11 @@
+--- a/play-services-location/core/src/main/kotlin/org/microg/gms/location/manager/LocationRequestManager.kt
++++ b/play-services-location/core/src/main/kotlin/org/microg/gms/location/manager/LocationRequestManager.kt
+@@ -306,6 +306,8 @@
+         binderRequests.clear()
+         pendingIntentRequests.clear()
+         recalculateRequests()
++        // finish the damn indicators before the service disappears
++        updateAppOps()
+     }
+ 
+     fun start() {

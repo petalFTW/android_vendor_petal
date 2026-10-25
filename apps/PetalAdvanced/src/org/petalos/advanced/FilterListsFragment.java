@@ -16,19 +16,20 @@
 
 package org.petalos.advanced;
 
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.widget.Toast;
 
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
-import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.SwitchPreference;
 
 import java.util.List;
 
 /** the list picker plus the github refresh button */
-public class FilterListsFragment extends PreferenceFragmentCompat {
+public class FilterListsFragment extends PetalPreferenceFragment {
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -67,11 +68,30 @@ public class FilterListsFragment extends PreferenceFragmentCompat {
             sw.setSummary(s.group + " · " + s.url);
             sw.setChecked(Prefs.isSourceEnabled(requireContext(), s.id));
             sw.setOnPreferenceChangeListener((pref, value) -> {
-                Prefs.setSourceEnabled(requireContext(), s.id, (Boolean) value);
+                final boolean on = (Boolean) value;
+                final Context ctx = requireContext().getApplicationContext();
+                Prefs.setSourceEnabled(ctx, s.id, on);
+                // a list change is useless until it's folded in, so rebuild now
+                if (Prefs.isEnabled(ctx)) {
+                    rebuildNow(ctx);
+                }
                 return true;
             });
             category.addPreference(sw);
         }
+    }
+
+    private void rebuildNow(Context ctx) {
+        BlocklistManager.run(() -> {
+            final BlocklistManager.Result r = BlocklistManager.update(ctx);
+            BlocklistManager.post(() -> {
+                if (isAdded()) {
+                    Toast.makeText(requireContext(),
+                            getString(R.string.update_ok, r.count, r.sources),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
     }
 
     private void refreshCatalog(Preference pref) {

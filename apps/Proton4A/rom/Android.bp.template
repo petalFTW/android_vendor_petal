@@ -1,0 +1,16 @@
+// Proton4A runtime host (org.petalos.proton4a).
+//
+// Stage a build with tools/stage-rom.sh before enabling this module. Soong
+// (re)signs the APK with the product certificate so it can be preinstalled; the
+// embedded program-signing key used to build per-EXE APKs is unaffected.
+//
+// It must be an ordinary product app: PetalHub is system_app and cannot execute
+// or map its own storage, so the Hub "Import Windows EXE" target lives here.
+android_app_import {
+    name: "Proton4ARuntime",
+    apk: "prebuilt/Proton4A.apk",
+    default_dev_cert: true,
+    product_specific: true,
+    privileged: false,
+    dex_preopt: { enabled: false },
+}

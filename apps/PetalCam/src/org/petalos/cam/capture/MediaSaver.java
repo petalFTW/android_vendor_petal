@@ -142,7 +142,8 @@ public final class MediaSaver {
     @NonNull
     public static Result saveImage(@NonNull Context context, @NonNull ImageProxy image,
             boolean mirror, boolean watermark, @Nullable Double lat, @Nullable Double lon,
-            int rotationDegrees, boolean portrait, float denoise, @Nullable Meta meta,
+            int rotationDegrees, boolean portrait, float denoise, @NonNull String aspectRatio,
+            int jpegQuality, @Nullable Meta meta,
             @Nullable java.util.concurrent.Executor uiExecutor, @Nullable ProcessCallback callback) {
         byte[] jpeg = toJpegBytes(image);
         if (jpeg == null) {
@@ -152,7 +153,7 @@ public final class MediaSaver {
             return new Result(null, false);
         }
         return saveJpeg(context, jpeg, mirror, watermark, lat, lon, rotationDegrees,
-                portrait, denoise, meta, uiExecutor, callback);
+                portrait, denoise, aspectRatio, jpegQuality, meta, uiExecutor, callback);
     }
 
     public static byte[] toJpegBytes(ImageProxy image) {
@@ -173,12 +174,14 @@ public final class MediaSaver {
     @NonNull
     public static Result saveJpeg(@NonNull Context context, @NonNull byte[] jpeg,
             boolean mirror, boolean watermark, @Nullable Double lat, @Nullable Double lon,
-            int rotationDegrees, boolean portrait, float denoise, @Nullable Meta meta,
+            int rotationDegrees, boolean portrait, float denoise, @NonNull String aspectRatio,
+            int jpegQuality, @Nullable Meta meta,
             @Nullable java.util.concurrent.Executor uiExecutor, @Nullable ProcessCallback callback) {
-        // Fast path: mirror/watermark only. The denoiser is never run here, so
+        // Fast path: crop, mirror and watermark. The denoiser never runs here, so
         // the shutter (and the ripple over it) returns immediately; the cleaned
         // pixels replace the file later on the background thread.
-        byte[] payload = transform(context, jpeg, mirror, watermark, rotationDegrees);
+        byte[] payload = transform(context, jpeg, mirror, watermark, rotationDegrees,
+                aspectRatio, jpegQuality);
         boolean baked = mirror || (watermark && rotationDegrees != 0);
         int exifOrientation = exifFromDegrees(baked ? 0 : rotationDegrees);
 
@@ -217,7 +220,8 @@ public final class MediaSaver {
             final Uri saved = uri;
             if (portrait || denoise > 0f) {
                 scheduleProcessing(context, jpeg, mirror, watermark, lat, lon,
-                        rotationDegrees, portrait, denoise, meta, saved, uiExecutor, callback);
+                        rotationDegrees, portrait, denoise, aspectRatio, jpegQuality, meta,
+                        saved, uiExecutor, callback);
             } else if (callback != null && uiExecutor != null) {
                 uiExecutor.execute(() -> callback.onProcessed(saved, true));
             }
@@ -241,8 +245,8 @@ public final class MediaSaver {
      * vertically (the "selfie upside down" bug).
      */
     private static byte[] transform(Context context, byte[] jpeg, boolean mirror,
-            boolean watermark, int rotationDegrees) {
-        if (!mirror && !watermark) {
+            boolean watermark, int rotationDegrees, String aspectRatio, int jpegQuality) {
+        if (!mirror && !watermark && "4:3".equals(aspectRatio)) {
             return jpeg;
         }
         Bitmap decoded = null;
@@ -254,22 +258,44 @@ public final class MediaSaver {
         if (decoded == null) {
             return jpeg;
         }
-        Bitmap out = decoded;
-        if (mirror || rotationDegrees != 0) {
+        Bitmap out = cropToRatio(decoded, aspectRatio);
+        if (mirror || (watermark && rotationDegrees != 0)) {
             Matrix m = new Matrix();
             m.postRotate(rotationDegrees);
             if (mirror) {
                 m.postScale(-1f, 1f);
             }
-            out = Bitmap.createBitmap(decoded, 0, 0, decoded.getWidth(),
-                    decoded.getHeight(), m, false);
+            out = Bitmap.createBitmap(out, 0, 0, out.getWidth(),
+                    out.getHeight(), m, false);
         }
         if (watermark) {
             out = drawWatermark(context, out);
         }
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        out.compress(Bitmap.CompressFormat.JPEG, 96, bos);
+        out.compress(Bitmap.CompressFormat.JPEG, jpegQuality, bos);
         return bos.toByteArray();
+    }
+
+    /** Center crop in sensor coordinates; rotation and mirroring follow afterward. */
+    private static Bitmap cropToRatio(Bitmap source, String aspectRatio) {
+        float ratio;
+        switch (aspectRatio) {
+            case "1:1": ratio = 1f; break;
+            case "16:9": ratio = 16f / 9f; break;
+            default: ratio = 4f / 3f;
+        }
+        int width = source.getWidth();
+        int height = source.getHeight();
+        boolean landscape = width >= height;
+        int longSide = Math.max(width, height);
+        int shortSide = Math.min(width, height);
+        if ((float) longSide / shortSide > ratio) longSide = Math.round(shortSide * ratio);
+        else shortSide = Math.round(longSide / ratio);
+        int cropWidth = landscape ? longSide : shortSide;
+        int cropHeight = landscape ? shortSide : longSide;
+        if (cropWidth == width && cropHeight == height) return source;
+        return Bitmap.createBitmap(source, (width - cropWidth) / 2,
+                (height - cropHeight) / 2, cropWidth, cropHeight);
     }
 
     /**
@@ -280,7 +306,8 @@ public final class MediaSaver {
      */
     private static void scheduleProcessing(Context context, byte[] sourceJpeg,
             boolean mirror, boolean watermark, @Nullable Double lat, @Nullable Double lon,
-            int rotationDegrees, boolean portrait, float denoise, @Nullable Meta meta,
+            int rotationDegrees, boolean portrait, float denoise, String aspectRatio,
+            int jpegQuality, @Nullable Meta meta,
             @NonNull Uri uri, @Nullable java.util.concurrent.Executor uiExecutor,
             @Nullable ProcessCallback callback) {
         final Context app = context.getApplicationContext();
@@ -298,7 +325,7 @@ public final class MediaSaver {
                 if (decoded == null) {
                     ok = false;
                 } else {
-                    Bitmap working = decoded;
+                    Bitmap working = cropToRatio(decoded, aspectRatio);
                     if (upright) {
                         working = rotate(working, rotationDegrees);
                     }
@@ -320,7 +347,7 @@ public final class MediaSaver {
                         working = drawWatermark(app, working);
                     }
                     ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                    working.compress(Bitmap.CompressFormat.JPEG, 96, bos);
+                    working.compress(Bitmap.CompressFormat.JPEG, jpegQuality, bos);
                     ContentResolver resolver = app.getContentResolver();
                     try (OutputStream os = resolver.openOutputStream(uri, "wt")) {
                         if (os == null) {

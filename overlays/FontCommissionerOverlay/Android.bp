@@ -1,0 +1,5 @@
+runtime_resource_overlay {
+    name: "FontCommissionerOverlay",
+    theme: "FontCommissioner",
+    system_ext_specific: true,
+}

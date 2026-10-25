@@ -1,0 +1,238 @@
+#!/system/bin/sh
+# Proton4A runtime helper (KernelSU / Magisk).
+#
+# Root is assumed. Box64 is a glibc ELF, so it is started through the bundled
+# loader with an explicit library path; Android has no /lib/ld-linux-aarch64.so.1.
+#
+#   proton4a install-runtime [tarball]   unpack the payload into /data/adb/proton4a
+#   proton4a xvfb [start|stop]           manage the headless X server
+#   proton4a test                        box64 -v, wine --version, wineboot
+#   proton4a run <exe> [args...]         run a Windows program
+#   proton4a status                      show what is currently running
+#   proton4a stop                        stop Xvfb and all emulated processes
+#   proton4a kill                        stop emulated processes only
+#   proton4a fix-layout                  make the Wine library layout Box64-safe
+#   proton4a env                         print the environment as shell exports
+#   proton4a input tap X Y               inject a tap into the virtual display
+#   proton4a input key KEY               inject an X11 key (e.g. Return)
+set -u
+
+DATA=${PROTON4A_DATA:-/data/adb/proton4a}
+RUNTIME=$DATA/runtime
+ROOTFS=$RUNTIME/rootfs
+PROTON=$RUNTIME/proton
+BOX64=$RUNTIME/box64
+LOADER=$ROOTFS/lib/ld-linux-aarch64.so.1
+WINE=$PROTON/files/bin/wine
+XVFB=$ROOTFS/usr/bin/Xvfb
+
+LIBS="$ROOTFS/usr/lib/aarch64-linux-gnu:$ROOTFS/lib/aarch64-linux-gnu:$ROOTFS/usr/lib:$ROOTFS/lib"
+
+# Prepend the guest tools but keep /system/bin so the helper's own toybox
+# utilities still resolve. HOME/TMPDIR/LD_LIBRARY_PATH are forced because the
+# ambient `su` environment (HOME=/, Android paths) is wrong for a glibc guest;
+# /data/adb/proton4a/env can override them.
+case ":$PATH:" in
+    *":$PROTON/files/bin:"*) ;;
+    *) PATH="$ROOTFS/usr/bin:$ROOTFS/bin:$PROTON/files/bin:$PATH" ;;
+esac
+export PATH
+export LD_LIBRARY_PATH="$LIBS"
+export BOX64_LD_LIBRARY_PATH="$PROTON/files/lib:$PROTON/files/lib/x86_64-linux-gnu:$PROTON/files/lib/wine/x86_64-unix"
+export WINEPREFIX="${WINEPREFIX:-$DATA/prefix}"
+# The loader cannot derive its own libdir under Box64, so ntdll.so and the PE
+# dlls must be reachable directly through WINEDLLPATH. Include the arch dirs.
+export WINEDLLPATH="${WINEDLLPATH:-$PROTON/files/lib/wine/x86_64-unix:$PROTON/files/lib/wine/x86_64-windows:$PROTON/files/lib/vkd3d:$PROTON/files/lib/wine}"
+export WINESERVER="${WINESERVER:-$PROTON/files/bin/wineserver}"
+export WINELOADER="${WINELOADER:-$PROTON/files/bin/wine}"
+export WINELOADERNOEXEC="${WINELOADERNOEXEC:-1}"
+export WINEDEBUG="${WINEDEBUG:--all}"
+export HOME="$DATA/home"
+export TMPDIR="$DATA/tmp"
+export XDG_RUNTIME_DIR="$DATA/tmp"
+export DISPLAY="${DISPLAY:-127.0.0.1:0}"
+# Point fontconfig at the bundled config/fonts (there is no /etc/fonts on Android).
+export FONTCONFIG_FILE="${FONTCONFIG_FILE:-$ROOTFS/etc/fonts/fonts.conf}"
+export FONTCONFIG_PATH="${FONTCONFIG_PATH:-$ROOTFS/etc/fonts}"
+export VK_DRIVER_FILES="${VK_DRIVER_FILES:-$ROOTFS/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json}"
+export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
+export BOX64_NOBANNER=1
+export BOX64_DYNAREC=1
+
+# Sourced last so an admin override file wins over the defaults above.
+[ -f "$DATA/env" ] && . "$DATA/env"
+FB_DIR=${PROTON4A_FB_DIR:-$DATA/fb}
+
+usage() {
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+    exit 1
+}
+
+proton4a_pids() {
+    # Everything Proton4A can leave running: the X server and Box64/Wine.
+    if [ -f "$DATA/xvfb.pid" ]; then
+        pid=$(cat "$DATA/xvfb.pid")
+        ps -A -o PID,PPID,ARGS 2>/dev/null | grep "^[[:space:]]*$pid[[:space:]]" | grep -v grep
+    fi
+    ps -A 2>/dev/null | grep -Ei 'box64|wine|wineserver' | grep -v grep
+}
+
+require_runtime() {
+    [ -x "$RUNTIME/box64" ] || { echo "proton4a: runtime missing; run 'proton4a install-runtime'" >&2; exit 1; }
+}
+
+# Box64 is linked with a device-side interpreter + ORIGIN rpath, so it can be
+# exec'd directly (needed so it can re-exec itself for wineserver/child procs).
+# Other rootfs binaries (Xvfb, ...) still go through the bundled loader.
+box64_bin() { "$BOX64" "$@"; }
+wine_bin()  { "$BOX64" "$WINE" "$@"; }
+loader_bin() { "$LOADER" --library-path "$LIBS" "$@"; }
+
+# Under Box64 the Wine loader may not append the arch subdir, so expose the
+# x86_64 unix/PE libraries directly in lib/wine as well.
+fix_layout() {
+    wl="$PROTON/files/lib/wine"
+    [ -d "$wl" ] || return 0
+    for arch in x86_64-unix x86_64-windows; do
+        [ -d "$wl/$arch" ] || continue
+        for entry in "$wl/$arch"/*; do
+            [ -e "$entry" ] || continue
+            name=$(basename "$entry")
+            [ -e "$wl/$name" ] || ln -s "$arch/$name" "$wl/$name"
+        done
+    done
+}
+
+extract() {
+    tarball=$1
+    [ -f "$tarball" ] || { echo "proton4a: no tarball at $tarball" >&2; exit 1; }
+    mkdir -p "$DATA"
+    TAR="tar"
+    command -v busybox >/dev/null 2>&1 && TAR="busybox tar"
+    echo "proton4a: extracting $tarball"
+    $TAR -xzf "$tarball" -C "$DATA" || { echo "proton4a: extraction failed" >&2; exit 1; }
+    chmod 0755 "$RUNTIME/box64" 2>/dev/null
+    fix_layout
+    echo "proton4a: runtime installed"
+}
+
+case "${1:-}" in
+    install-runtime)
+        extract "${2:-$DATA/proton4a-runtime.tar.gz}"
+        ;;
+    fix-layout)
+        require_runtime
+        fix_layout
+        echo "proton4a: wine library layout flattened"
+        ;;
+    xvfb)
+        require_runtime
+        case "${2:-start}" in
+            start)
+                if [ -f "$DATA/xvfb.pid" ] && kill -0 "$(cat "$DATA/xvfb.pid")" 2>/dev/null; then
+                    if [ "$(cat "$DATA/xvfb.fbdir" 2>/dev/null)" = "$FB_DIR" ]; then
+                        echo "Xvfb already running on $DISPLAY (framebuffer in $FB_DIR)"
+                        exit 0
+                    fi
+                    kill "$(cat "$DATA/xvfb.pid")" 2>/dev/null
+                fi
+                mkdir -p "$FB_DIR"
+                # Xvfb's bundled XKB compiler is resolved relative to this dir.
+                cd "$ROOTFS/usr/bin" || exit 1
+                "$LOADER" --library-path "$LIBS" "$XVFB" :0 -screen 0 1280x720x24 \
+                    -xkbdir "$ROOTFS/usr/share/X11/xkb" \
+                    -ac -nolisten unix -listen tcp -fbdir "$FB_DIR" \
+                    >"$DATA/xvfb.log" 2>&1 </dev/null &
+                echo $! > "$DATA/xvfb.pid"
+                echo "$FB_DIR" > "$DATA/xvfb.fbdir"
+                echo "Xvfb started on $DISPLAY (framebuffer in $FB_DIR)"
+                ;;
+            stop)
+                [ -f "$DATA/xvfb.pid" ] && kill "$(cat "$DATA/xvfb.pid")" 2>/dev/null
+                rm -f "$DATA/xvfb.pid"
+                rm -f "$DATA/xvfb.fbdir"
+                echo "Xvfb stopped"
+                ;;
+            *) usage ;;
+        esac
+        ;;
+    test)
+        require_runtime
+        echo "== box64 =="
+        box64_bin -v
+        echo "== wine =="
+        wine_bin --version
+        echo "== wineboot =="
+        wine_bin wineboot
+        echo "== vulkan =="
+        ls -l "$ROOTFS/usr/share/vulkan/icd.d" 2>/dev/null
+        ;;
+    run)
+        require_runtime
+        shift
+        [ $# -ge 1 ] || usage
+        [ -e "$WINEPREFIX/system.reg" ] || wine_bin wineboot
+        wine_bin "$@"
+        ;;
+    input)
+        require_runtime
+        action=${2:-}
+        case "$action" in
+            tap|down|up|move)
+                x=${3:-}
+                y=${4:-}
+                case "$x:$y" in *[!0-9:]*|:*|*:) usage ;; esac
+                case "$action" in
+                    tap) set -- mousemove "$x" "$y" click 1 ;;
+                    down) set -- mousemove "$x" "$y" mousedown 1 ;;
+                    up) set -- mousemove "$x" "$y" mouseup 1 ;;
+                    move) set -- mousemove "$x" "$y" ;;
+                esac
+                ;;
+            key)
+                [ $# -eq 3 ] || usage
+                set -- key --clearmodifiers "$3"
+                ;;
+            text)
+                [ $# -eq 3 ] || usage
+                set -- type --clearmodifiers -- "$3"
+                ;;
+            *) usage ;;
+        esac
+        loader_bin "$ROOTFS/usr/bin/xdotool" "$@"
+        ;;
+    status)
+        running=$(proton4a_pids)
+        if [ -n "$running" ]; then
+            echo "Proton4A is running:"
+            echo "$running"
+        else
+            echo "Proton4A is idle (nothing running)"
+        fi
+        ;;
+    stop)
+        if [ -f "$DATA/xvfb.pid" ]; then
+            kill "$(cat "$DATA/xvfb.pid")" 2>/dev/null
+            rm -f "$DATA/xvfb.pid"
+            rm -f "$DATA/xvfb.fbdir"
+        fi
+        [ -x "$RUNTIME/box64" ] && box64_bin -k >/dev/null 2>&1
+        # Catch anything that outlived its parent.
+        pkill -f "$DATA/runtime" 2>/dev/null
+        echo "Proton4A stopped"
+        ;;
+    kill)
+        require_runtime
+        box64_bin -k
+        ;;
+    env)
+        for name in PATH LD_LIBRARY_PATH BOX64_LD_LIBRARY_PATH WINEPREFIX WINEDLLPATH \
+                    WINEDEBUG HOME TMPDIR DISPLAY VK_DRIVER_FILES BOX64_NOBANNER BOX64_DYNAREC; do
+            eval "value=\$$name"
+            echo "export $name='$value'"
+        done
+        ;;
+    *)
+        usage
+        ;;
+esac

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <color name="tuner_window_base">#FF07080C</color>
+    <color name="tuner_surface">#FF12141B</color>
+    <color name="tuner_accent_primary">#FF7C5CFF</color>
+    <color name="tuner_accent_pink">#FFFF6FAE</color>
+    <color name="tuner_accent_teal">#FF57E0D2</color>
+    <color name="tuner_accent_amber">#FFFFC15E</color>
+    <color name="tuner_accent_red">#FFFF5C6C</color>
+    <color name="tuner_text_secondary">#99FFFFFF</color>
+    <color name="tuner_ripple">#33FFFFFF</color>
+    <color name="tuner_overlay_bg">#E6101218</color>
+    <color name="tuner_overlay_rim">#33FFFFFF</color>
+</resources>

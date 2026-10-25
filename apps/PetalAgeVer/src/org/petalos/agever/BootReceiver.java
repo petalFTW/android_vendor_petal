@@ -21,11 +21,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-/**
- * Restores the session after a reboot if the user had it armed and left
- * "restore on boot" enabled. Camera foreground services are restricted from
- * boot on recent releases, so failures are swallowed rather than crashing.
- */
+// restore only opted-in sessions; a denied start shouldn't crash boot
 public final class BootReceiver extends BroadcastReceiver {
 
     private static final String TAG = "AgeVerBoot";

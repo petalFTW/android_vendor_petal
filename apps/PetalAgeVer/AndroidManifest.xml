@@ -5,11 +5,10 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.petalos.agever"
-    android:versionCode="1"
-    android:versionName="0.1">
+    android:versionCode="2"
+    android:versionName="0.2">
 
-    <!-- No real camera is used any more: the overlay stick places a 3D avatar
-         and that feed is published as the virtual front camera. -->
+    <!-- Avatar feed, not the actual front camera. -->
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -19,18 +18,13 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- petalOS virtual camera provider. This is a signature permission defined
-         by this app and accepted by the patched virtual_camera HAL, because the
-         stock android.permission.CREATE_VIRTUAL_DEVICE is internal|role and is
-         not grantable to a regular privileged system app. -->
+    <!-- The patched HAL accepts this; CREATE_VIRTUAL_DEVICE won't grant here. -->
     <permission
         android:name="org.petalos.agever.permission.MANAGE_VIRTUAL_CAMERA"
         android:protectionLevel="signature" />
     <uses-permission android:name="org.petalos.agever.permission.MANAGE_VIRTUAL_CAMERA" />
 
-    <!-- Platform signature permission guarding CameraService's
-         setPetalFrontCameraOverride; granted automatically to this
-         platform-signed app. -->
+    <!-- CameraService checks the platform signature for this bit. -->
     <uses-permission android:name="android.permission.CAMERA_INJECT_EXTERNAL_CAMERA" />
 
     <application
@@ -44,10 +38,14 @@
 
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize"
             android:exported="true"
             android:label="@string/app_name"
-            android:launchMode="singleTop">
+            android:launchMode="singleTask">
+            <!-- Hub can open it without stuffing another icon in the drawer. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.INFO" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -83,7 +81,7 @@
         <service
             android:name=".StageService"
             android:exported="false"
-            android:stopWithTask="true"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

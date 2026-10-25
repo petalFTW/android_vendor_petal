@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+    <overlay package="org.lineageos.settings.doze.overlay"
+        enabled="true" mutable="false" />
+    <overlay package="org.petalos.overlay.font.commissioner"
+        enabled="true" mutable="true" />
+</config>

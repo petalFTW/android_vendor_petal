@@ -1,0 +1,8 @@
+// Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0
+prebuilt_etc {
+    name: "PetalDefaultWallpaper",
+    src: "DefaultWallpaper.png",
+    filename: "default_wallpaper.png",
+    sub_dir: "petal",
+    product_specific: true,
+}

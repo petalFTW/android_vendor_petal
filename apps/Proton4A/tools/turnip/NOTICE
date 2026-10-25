@@ -1,0 +1,11 @@
+The patch files in this directory are vendored from WinNative-Emu/WinNative,
+`tools/linuxfs/turnip/` (GPL-3.0 project) and modify Mesa, which is licensed
+under the MIT license. They are used here only to apply to Mesa source during
+the Turnip cross-build.
+
+    kgsl-drm-node.patch
+    kgsl-no-calibrated-timestamps.patch
+    wn-gpu-fixes.patch
+
+Upstream: https://github.com/WinNative-Emu/WinNative
+Mesa:     https://gitlab.freedesktop.org/mesa/mesa

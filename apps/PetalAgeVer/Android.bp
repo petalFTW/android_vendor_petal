@@ -14,10 +14,7 @@
 // limitations under the License.
 //
 
-// petalOS privacy camera. renders a 3D avatar and feeds it into the camera
-// provider HAL so age-verification apps can pick it as a front cam. the model
-// is placed/tilted from an overlay stick; no face tracking. native deps are
-// vendored, no gradle needed.
+// Full avatar app; Hub installs this over PetalAgeVerStub.
 android_app {
     name: "PetalAgeVer",
 
@@ -45,10 +42,10 @@ android_app {
     static_libs: [
         "androidx.appcompat_appcompat",
         "androidx.core_core",
+        "androidx.lifecycle_lifecycle-viewmodel",
+        "androidx.lifecycle_lifecycle-livedata",
 
-        // AIDL bindings for the AOSP virtual camera provider
-        // (frameworks/av/services/camera/virtualcamera). Registers the avatar
-        // feed as a front camera on the default device.
+        // AIDL glue for the avatar's front-camera feed.
         "virtual_camera_service_aidl-java",
 
         // 3D / glTF
@@ -57,13 +54,7 @@ android_app {
     ],
 }
 
-// ---------------------------------------------------------------------------
-// Vendored prebuilts
-//
-// NOTE: module names are prefixed with "agever-" to avoid colliding with the
-// identically-sourced modules declared by vendor/petal/apps/PetalDepth when
-// both apps are present in the same build.
-// ---------------------------------------------------------------------------
+// Prefix these so PetalDepth's copies don't clash with this lot.
 
 android_library_import {
     name: "agever-filament-android",

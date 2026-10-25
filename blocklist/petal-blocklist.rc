@@ -9,7 +9,7 @@ service petal-blocklist /system_ext/bin/petal-blocklist.sh
     capabilities
 
 on post-fs-data
-    mkdir /data/petal 0770 root root
+    mkdir /data/petal 0771 root root
     mkdir /data/petal/blocklist 0777 root root
     restorecon_recursive /data/petal
     start petal-blocklist

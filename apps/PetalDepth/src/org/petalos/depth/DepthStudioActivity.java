@@ -40,10 +40,13 @@ import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.petalos.config.PetalConfig;
+import org.petalos.config.DepthNotificationPlacement;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -60,11 +63,14 @@ public class DepthStudioActivity extends Activity {
 
     private DepthWidgets.PresetCard[] mPresetCards;
     private DepthWidgets.InkSwatch[] mInkSwatches;
-    private LiquidPill mDateChip;
+    private Switch mDateToggle;
     private LiquidPill mStackChip;
     private final LiquidPill[] mRefineTools = new LiquidPill[2];
     private DepthWidgets.FancySlider mSizeSlider;
     private DepthWidgets.FancySlider mMotionSlider;
+    private Switch mNotificationToggle;
+    private SeekBar mNotificationSlider;
+    private TextView mNotificationPositionLabel;
     private LiquidPill mSubjectChip;
     private LinearLayout mSheet;
     private OutlinePrompt mLastPrompt;
@@ -198,6 +204,7 @@ public class DepthStudioActivity extends Activity {
             button.setChecked(i == 0);
             button.setOnClickListener(v -> {
                 setRefinementMode(0);
+                mPreview.setShowNotificationGuide(selected == 2);
                 for (int j = 0; j < panels.length; j++) {
                     panels[j].setVisibility(j == selected ? View.VISIBLE : View.GONE);
                     buttons[j].setChecked(j == selected);
@@ -293,6 +300,16 @@ public class DepthStudioActivity extends Activity {
     private LinearLayout buildClockPanel() {
         LinearLayout panel = editorPanel(R.string.depth_clock_heading,
                 R.string.depth_clock_help);
+        mDateToggle = new Switch(this);
+        mDateToggle.setText(R.string.depth_show_date);
+        mDateToggle.setTextColor(COLOR_GLYPH_LIGHT);
+        mDateToggle.setChecked(PetalConfig.isDepthClockDateEnabled(this));
+        mDateToggle.setOnCheckedChangeListener((button, checked) -> {
+            Settings.System.putInt(getContentResolver(),
+                    PetalConfig.KEY_DEPTH_CLOCK_DATE, checked ? 1 : 0);
+            mPreview.setDateOn(checked);
+        });
+        panel.addView(mDateToggle, new LinearLayout.LayoutParams(-1, dp(48)));
         LinearLayout gallery = new LinearLayout(this);
         gallery.setOrientation(LinearLayout.VERTICAL);
         mPresetCards = new DepthWidgets.PresetCard[DepthPresets.ALL.length];
@@ -319,7 +336,7 @@ public class DepthStudioActivity extends Activity {
             row.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
         }
         panel.addView(gallery);
-        // Keep the new material and the tuning controls within a short scroll.
+        // hide the rest till someone wants a browse
         for (int i = 1; i < gallery.getChildCount(); i++) {
             gallery.getChildAt(i).setVisibility(View.GONE);
         }
@@ -346,7 +363,7 @@ public class DepthStudioActivity extends Activity {
             mPreview.invalidate();
         });
         panel.addView(size, new LinearLayout.LayoutParams(-1, dp(64)));
-        // ink colours plus date toggle
+        // ink colours
         LinearLayout inks = new LinearLayout(this);
         inks.setOrientation(LinearLayout.HORIZONTAL);
         int[] palette = {
@@ -386,20 +403,6 @@ public class DepthStudioActivity extends Activity {
         LinearLayout options = new LinearLayout(this);
         options.setOrientation(LinearLayout.HORIZONTAL);
         options.setPadding(0, dp(8), 0, 0);
-        mDateChip = new LiquidPill(this);
-        mDateChip.setLabel(getString(R.string.depth_date));
-        mDateChip.setCompact(true);
-        mDateChip.setOnClickListener(v -> {
-            boolean next = !PetalConfig.isDepthClockDateEnabled(this);
-            Settings.System.putInt(getContentResolver(),
-                    PetalConfig.KEY_DEPTH_CLOCK_DATE, next ? 1 : 0);
-            mPreview.setDateOn(next);
-            refreshSelections();
-        });
-        LinearLayout.LayoutParams dateLp = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        dateLp.setMargins(dp(8), dp(8), 0, 0);
-        options.addView(mDateChip, dateLp);
-
         // stack the digits or not
         mStackChip = new LiquidPill(this);
         mStackChip.setLabel(getString(R.string.depth_layout_stacked));
@@ -448,6 +451,43 @@ public class DepthStudioActivity extends Activity {
         });
         panel.addView(blur, new LinearLayout.LayoutParams(-1, dp(58)));
 
+        TextView notificationHeading = sectionLabel(getString(R.string.depth_notification_start));
+        notificationHeading.setPadding(0, dp(20), 0, dp(8));
+        panel.addView(notificationHeading);
+        TextView notificationHelp = new TextView(this);
+        notificationHelp.setText(R.string.depth_notification_help);
+        notificationHelp.setTextColor(COLOR_GLYPH_DIM);
+        notificationHelp.setTextSize(13);
+        panel.addView(notificationHelp);
+        mNotificationToggle = new Switch(this);
+        mNotificationToggle.setText(R.string.depth_notification_custom);
+        mNotificationToggle.setTextColor(COLOR_GLYPH_LIGHT);
+        panel.addView(mNotificationToggle, new LinearLayout.LayoutParams(-1, dp(48)));
+        mNotificationPositionLabel = new TextView(this);
+        mNotificationPositionLabel.setTextColor(COLOR_GLYPH_DIM);
+        mNotificationPositionLabel.setTextSize(13);
+        panel.addView(mNotificationPositionLabel);
+        mNotificationSlider = new SeekBar(this);
+        mNotificationSlider.setId(View.generateViewId());
+        mNotificationPositionLabel.setLabelFor(mNotificationSlider.getId());
+        mNotificationSlider.setContentDescription(getString(R.string.depth_notification_start));
+        mNotificationSlider.setMin(DepthNotificationPlacement.MIN_PERCENT);
+        mNotificationSlider.setMax(DepthNotificationPlacement.MAX_PERCENT);
+        mNotificationSlider.setProgress(getPreferences(0).getInt("notification_start_last",
+                DepthNotificationPlacement.DEFAULT_PERCENT));
+        mNotificationSlider.setProgressTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+        mNotificationSlider.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+        panel.addView(mNotificationSlider, new LinearLayout.LayoutParams(-1, dp(48)));
+        mNotificationSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar slider, int progress, boolean fromUser) {
+                if (fromUser) saveNotificationStart(progress);
+            }
+            @Override public void onStartTrackingTouch(SeekBar slider) {}
+            @Override public void onStopTrackingTouch(SeekBar slider) {}
+        });
+        updateNotificationStartControls(PetalConfig.getDepthNotificationStartPct(this));
+        mNotificationToggle.setOnCheckedChangeListener((button, checked) -> saveNotificationStart(
+                checked ? mNotificationSlider.getProgress() : DepthNotificationPlacement.AUTOMATIC));
 
         LiquidPill disable = new LiquidPill(this);
         disable.setColors(0x29FF453A, COLOR_DANGER);
@@ -457,6 +497,28 @@ public class DepthStudioActivity extends Activity {
         disableLp.topMargin = dp(16);
         panel.addView(disable, disableLp);
         return panel;
+    }
+
+    private void saveNotificationStart(int percent) {
+        percent = DepthNotificationPlacement.clampPercent(percent);
+        Settings.System.putInt(getContentResolver(), PetalConfig.KEY_DEPTH_NOTIFICATION_START, percent);
+        if (percent != DepthNotificationPlacement.AUTOMATIC) {
+            getPreferences(0).edit().putInt("notification_start_last", percent).apply();
+        }
+        updateNotificationStartControls(percent);
+    }
+
+    private void updateNotificationStartControls(int percent) {
+        boolean custom = percent != DepthNotificationPlacement.AUTOMATIC;
+        mNotificationToggle.setChecked(custom);
+        mNotificationSlider.setEnabled(custom);
+        mNotificationSlider.setAlpha(custom ? 1f : 0.4f);
+        if (custom) mNotificationSlider.setProgress(percent);
+        String label = custom ? getString(R.string.depth_notification_percent, percent)
+                : getString(R.string.depth_notification_automatic);
+        mNotificationPositionLabel.setText(label);
+        mNotificationSlider.setStateDescription(label);
+        mPreview.setNotificationStart(percent);
     }
 
     private void setRefinementMode(int mode) {
@@ -479,8 +541,11 @@ public class DepthStudioActivity extends Activity {
     private void refreshSelections() {
         mSizeSlider.setValue(PetalConfig.getDepthClockScalePct(this));
         mMotionSlider.setValue(motionSliderValue());
+        updateNotificationStartControls(PetalConfig.getDepthNotificationStartPct(this));
         int currentInk = PetalConfig.getDepthClockColor(this);
-        mDateChip.setChecked(PetalConfig.isDepthClockDateEnabled(this));
+        boolean showDate = PetalConfig.isDepthClockDateEnabled(this);
+        mDateToggle.setChecked(showDate);
+        mPreview.setDateOn(showDate);
         boolean stacked = PetalConfig.isDepthClockStackVertical(this)
                 || org.petalos.config.DepthClockMaterials.isSquare(
                         PetalConfig.getDepthClockStyle(this));
@@ -1030,6 +1095,11 @@ public class DepthStudioActivity extends Activity {
         private float mClockAnchorX;
         private float mClockAnchorY;
         private boolean mDraggingClock;
+        private boolean mDraggingNotificationStart;
+        private boolean mShowNotificationGuide;
+        private int mNotificationStartPercent = DepthNotificationPlacement.AUTOMATIC;
+        private final Paint mNotificationGuidePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF mNotificationGuideRect = new RectF();
 
         private class Droplet {
             float x;
@@ -1050,6 +1120,7 @@ public class DepthStudioActivity extends Activity {
             mEmptyLabelPaint.setColor(0x99FFFFFF);
             mEmptyLabelPaint.setTextAlign(Paint.Align.CENTER);
             setOnTouchListener((v, event) -> {
+                if (!mBusy && handleNotificationDrag(event)) return true;
                 if (mBase == null || mBusy) return false;
                 if (mBrushMode == 3) {
                     int action = event.getActionMasked();
@@ -1145,6 +1216,71 @@ public class DepthStudioActivity extends Activity {
             mClockAnchorX = Math.max(0.10f, Math.min(0.90f, Math.round(x / getWidth() * 20f) / 20f));
             mClockAnchorY = Math.max(0.05f, Math.min(0.85f, Math.round(y / getHeight() * 20f) / 20f));
             invalidate();
+        }
+
+        void setShowNotificationGuide(boolean show) {
+            mShowNotificationGuide = show;
+            invalidate();
+        }
+
+        void setNotificationStart(int percent) {
+            mNotificationStartPercent = DepthNotificationPlacement.clampPercent(percent);
+            invalidate();
+        }
+
+        private boolean handleNotificationDrag(MotionEvent event) {
+            if (!mShowNotificationGuide || mBrushMode != 0 || getHeight() <= 0
+                    || mNotificationStartPercent == DepthNotificationPlacement.AUTOMATIC) return false;
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                float guideY = getHeight() * mNotificationStartPercent / 100f;
+                mDraggingNotificationStart = Math.abs(event.getY() - guideY) < getHeight() * 0.045f;
+                if (!mDraggingNotificationStart) return false;
+                getParent().requestDisallowInterceptTouchEvent(true);
+            }
+            if (!mDraggingNotificationStart) return false;
+            if (action == MotionEvent.ACTION_CANCEL) {
+                updateNotificationStartControls(PetalConfig.getDepthNotificationStartPct(DepthStudioActivity.this));
+            } else {
+                int percent = DepthNotificationPlacement.clampPercent(Math.round(event.getY() / getHeight() * 100f));
+                updateNotificationStartControls(percent);
+                if (action == MotionEvent.ACTION_UP) saveNotificationStart(percent);
+            }
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                mDraggingNotificationStart = false;
+                getParent().requestDisallowInterceptTouchEvent(false);
+            }
+            return true;
+        }
+
+        private void drawNotificationGuide(Canvas canvas) {
+            if (!mShowNotificationGuide || mBrushMode != 0
+                    || mNotificationStartPercent == DepthNotificationPlacement.AUTOMATIC) return;
+            float width = getWidth();
+            float y = getHeight() * mNotificationStartPercent / 100f;
+            float inset = width * 0.045f;
+            mNotificationGuidePaint.setColor(0xEEFFFFFF);
+            mNotificationGuidePaint.setStrokeWidth(Math.max(1f, width * 0.005f));
+            canvas.drawLine(inset, y, width - inset, y, mNotificationGuidePaint);
+            mNotificationGuidePaint.setTextSize(width * 0.045f);
+            canvas.drawText(getString(R.string.depth_notification_start), inset, y - width * 0.03f,
+                    mNotificationGuidePaint);
+            mNotificationGuideRect.set(width * 0.40f, y - width * 0.009f,
+                    width * 0.60f, y + width * 0.009f);
+            canvas.drawRoundRect(mNotificationGuideRect, width * 0.01f, width * 0.01f, mNotificationGuidePaint);
+            float cardTop = y + width * 0.035f;
+            float cardHeight = getHeight() * 0.065f;
+            mNotificationGuidePaint.setColor(0xAA34343B);
+            mNotificationGuideRect.set(inset, cardTop, width - inset, cardTop + cardHeight);
+            canvas.drawRoundRect(mNotificationGuideRect, width * 0.045f, width * 0.045f, mNotificationGuidePaint);
+            mNotificationGuidePaint.setColor(0xBBFFFFFF);
+            canvas.drawCircle(inset + cardHeight * 0.5f, cardTop + cardHeight * 0.5f,
+                    cardHeight * 0.18f, mNotificationGuidePaint);
+            canvas.drawLine(inset + cardHeight, cardTop + cardHeight * 0.38f,
+                    width * 0.70f, cardTop + cardHeight * 0.38f, mNotificationGuidePaint);
+            mNotificationGuidePaint.setColor(0x66FFFFFF);
+            canvas.drawLine(inset + cardHeight, cardTop + cardHeight * 0.65f,
+                    width * 0.56f, cardTop + cardHeight * 0.65f, mNotificationGuidePaint);
         }
 
         void reloadComposition() {
@@ -1330,6 +1466,7 @@ public class DepthStudioActivity extends Activity {
                 mEmptyLabelPaint.setTextSize(sp(13));
                 canvas.drawText(getString(R.string.depth_empty_preview), w * 0.5f,
                         h * 0.72f, mEmptyLabelPaint);
+                drawNotificationGuide(canvas);
                 return;
             }
 
@@ -1342,6 +1479,7 @@ public class DepthStudioActivity extends Activity {
             int ink = resolveInk();
 
             java.util.Calendar cal = java.util.Calendar.getInstance();
+            mDateFmt.setTimeZone(cal.getTimeZone());
             String hour = String.format(Locale.US, "%02d", cal.get(java.util.Calendar.HOUR_OF_DAY));
             String minute = String.format(Locale.US, "%02d", cal.get(java.util.Calendar.MINUTE));
             String date = mDateFmt.format(cal.getTime()).toUpperCase(Locale.getDefault());
@@ -1363,6 +1501,8 @@ public class DepthStudioActivity extends Activity {
                         null, mDst, mPaint);
                 mPaint.setAlpha(255);
             }
+
+            drawNotificationGuide(canvas);
 
             if (mAuroraOutline != null && (mBrushMode == 1 || mBrushMode == 2)) {
                 if (mAurora == null || mAuroraWidth != getWidth()) {

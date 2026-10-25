@@ -25,5 +25,13 @@ public final class PetalAgeVerApp extends Application {
     public void onCreate() {
         super.onCreate();
         Prefs.init(this);
+        final long startedAt = System.currentTimeMillis();
+        new Thread(() -> {
+            java.io.File[] pending = new java.io.File(getFilesDir(), "avatars")
+                    .listFiles((dir, name) -> name.endsWith(".pending"));
+            if (pending != null) for (java.io.File file : pending) {
+                if (file.lastModified() < startedAt) file.delete();
+            }
+        }, "agever-import-cleanup").start();
     }
 }

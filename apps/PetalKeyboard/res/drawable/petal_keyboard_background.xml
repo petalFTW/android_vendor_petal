@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- petal sheen: base glass colour with a violet bloom bleeding off the top edge -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <color android:color="@color/keyboard_background_you"/>
+    </item>
+    <item>
+        <shape>
+            <gradient
+                android:type="radial"
+                android:centerX="0.5"
+                android:centerY="0.0"
+                android:gradientRadius="720dp"
+                android:startColor="#338E7CFF"
+                android:endColor="#008E7CFF" />
+        </shape>
+    </item>
+</layer-list>

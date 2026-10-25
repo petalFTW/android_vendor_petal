@@ -4,6 +4,8 @@
      SPDX-License-Identifier: Apache-2.0
 -->
 <resources>
-    <color name="settingslib_materialColorPrimary">#FFB9A5FF</color>
+    <color name="settingslib_materialColorPrimary">@android:color/system_accent1_300</color>
+    <color name="petal_accent_primary">@android:color/system_accent1_300</color>
+    <color name="petal_accent_text">@android:color/system_accent1_200</color>
     <color name="settingslib_materialColorOnPrimary">#FF1B1330</color>
 </resources>

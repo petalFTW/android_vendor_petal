@@ -10,6 +10,22 @@
         android:layout="@layout/preference_petal_category"
         android:title="@string/settings_capture_title">
 
+        <ListPreference
+            android:key="photo_quality"
+            android:defaultValue="high"
+            android:title="@string/settings_photo_quality"
+            android:entries="@array/photo_quality_entries"
+            android:entryValues="@array/photo_quality_values"
+            android:summary="%s" />
+
+        <ListPreference
+            android:key="video_quality"
+            android:defaultValue="fhd"
+            android:title="@string/settings_video_quality"
+            android:entries="@array/video_quality_entries"
+            android:entryValues="@array/video_quality_values"
+            android:summary="%s" />
+
         <SwitchPreference
             android:layout="@layout/preference_petal_switch"
             android:key="petal_engine"

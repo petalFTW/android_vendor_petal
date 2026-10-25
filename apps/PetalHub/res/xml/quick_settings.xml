@@ -6,10 +6,29 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <org.petalos.hub.ColorPickerPreference
+        android:key="petal_monet_palette"
+        android:title="@string/petal_monet_palette_title"
+        android:summary="@string/petal_monet_palette_summary" />
+
+    <Preference
+        android:key="petal_monet_reset"
+        android:title="@string/petal_monet_reset_title"
+        android:summary="@string/petal_monet_reset_summary" />
+
     <SwitchPreferenceCompat
         android:key="qs_skin_enabled"
         android:title="@string/qs_skin_enabled_title"
         android:summary="@string/qs_skin_enabled_summary" />
+
+    <ListPreference
+        android:key="qs_reach_mode"
+        android:persistent="false"
+        android:title="@string/qs_reach_title"
+        android:entries="@array/qs_reach_entries"
+        android:entryValues="@array/qs_reach_values"
+        app:dependency="qs_skin_enabled"
+        app:useSimpleSummaryProvider="true" />
 
     <SeekBarPreference
         android:key="qs_emission"
@@ -21,5 +40,17 @@
         android:key="qs_blur_intensity"
         android:persistent="false"
         android:title="@string/qs_blur_title" />
+
+    <SeekBarPreference
+        android:key="qs_media_art_blur"
+        android:persistent="false"
+        android:title="@string/qs_media_art_blur_title"
+        app:dependency="qs_skin_enabled" />
+
+    <SeekBarPreference
+        android:key="qs_media_refraction"
+        android:persistent="false"
+        android:title="@string/qs_media_refraction_title"
+        app:dependency="qs_skin_enabled" />
 
 </PreferenceScreen>

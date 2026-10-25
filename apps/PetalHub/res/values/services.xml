@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <string name="services_title">Google Play and microG</string>
+    <string name="services_summary">Service provider setup and installed components</string>
+    <string name="services_provider_title">Service provider</string>
+    <string name="services_setup_title">Provider installation</string>
+    <string name="services_google_steps">Apply to restore the placeholders and install bundled Play services 26.32.34 and Play Store 44.5.24, including all Play services splits. GMSCompat applies automatically to these Google-signed packages.</string>
+    <string name="services_microg_steps">Apply to restore the shared placeholders, then install official microG Services and microG Companion. Enable device registration and Cloud Messaging in microG Settings, and allow unrestricted battery use for microG Services. Reboot after setup. GsfProxy is optional for legacy C2DM apps; on Android 16 its old target SDK requires an ADB install with --bypass-low-target-sdk-block.</string>
+    <string name="services_apply_title">Apply selected provider</string>
+    <string name="services_apply_summary">Removes the current provider updates and their app data before switching. Google is installed from the ROM bundle; microG is downloaded manually.</string>
+    <string name="services_bundle_missing">The Google provider bundle is missing from this ROM</string>
+    <string name="services_google_installed">Bundled Google Play services and Play Store installed</string>
+    <string name="services_microg_ready">Placeholders restored. Install microG from the official downloads page.</string>
+    <string name="services_install_failed">Provider setup failed: %1$s</string>
+    <string name="services_placeholder">Shared setup placeholder · no provider installed</string>
+    <string name="services_already_active">This provider is already installed; its apps and data were kept</string>
+    <string name="services_microg_download">Official microG downloads</string>
+    <string name="services_google_guide">Sandboxed Google Play documentation</string>
+    <string name="services_gmscompat">GMSCompat app information</string>
+    <string name="services_installed_title">Installed components · tap for app information</string>
+    <string name="services_gms_title">Play services / microG Services</string>
+    <string name="services_store_title">Play Store / microG Companion</string>
+    <string name="services_gsf_title">Google Services Framework</string>
+    <string name="services_package_installed">%1$s · %2$s</string>
+    <string name="services_package_missing">Not installed</string>
+    <string name="services_no_handler">No app available to open this link</string>
+    <string-array name="services_provider_entries"><item>Google Play with GMSCompat</item><item>microG</item></string-array>
+    <string-array name="services_provider_values"><item>google</item><item>microg</item></string-array>
+</resources>

@@ -30,21 +30,6 @@ import org.petalos.config.PetalConfig;
 /** matches the systemui clock preview */
 public final class ClockStylePickerDialog {
 
-    private static final String[] STYLE_NAMES = {
-            "Stock",
-            "HyperOS Light",
-            "HyperOS Bold",
-            "OxygenOS",
-            "iOS",
-            "iOS Light",
-            "Pixel Bold",
-            "Slim",
-            "Mono",
-            "Serif",
-            "Cursive",
-            "Neon",
-    };
-
     private static final String SAMPLE_TIME = "09:41";
 
     private ClockStylePickerDialog() {}
@@ -69,9 +54,10 @@ public final class ClockStylePickerDialog {
         root.addView(preview, previewLp);
 
         RadioGroup group = new RadioGroup(context);
-        for (int i = 0; i < STYLE_NAMES.length; i++) {
+        String[] styleNames = context.getResources().getStringArray(R.array.clock_style_entries);
+        for (int i = 0; i < styleNames.length; i++) {
             RadioButton button = new RadioButton(context);
-            button.setText(STYLE_NAMES[i]);
+            button.setText(styleNames[i]);
             button.setId(i);
             group.addView(button);
         }
@@ -106,7 +92,9 @@ public final class ClockStylePickerDialog {
 
         preview.setTypeface(typeface);
         preview.setText(singleLine ? SAMPLE_TIME : SAMPLE_TIME.replace(':', '\n'));
-        preview.setTextColor(accent ? 0xFF3B7BFF : 0xFFFFFFFF);
+        preview.setTextColor(accent
+                ? preview.getContext().getColor(R.color.petal_accent_primary)
+                : 0xFFFFFFFF);
     }
 
     private static Typeface typefaceFor(int style) {

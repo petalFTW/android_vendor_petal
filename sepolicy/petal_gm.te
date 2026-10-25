@@ -1,0 +1,8 @@
+# petalOS game mode (org.petalos.petaltuner) is signed with the app-center key
+# rather than the platform key, so it runs as priv_app instead of system_app.
+#
+# Charging bypass goes through the Lineage health HAL and the Oplus charger HAL.
+# The direct sysfs fallback stays unavailable: the kernel nodes are root-owned,
+# so a normal uid cannot write them regardless of SELinux.
+hal_client_domain(priv_app, hal_lineage_health)
+hal_client_domain(priv_app, vendor_hal_oplus_charger)

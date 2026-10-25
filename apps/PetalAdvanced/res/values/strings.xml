@@ -40,6 +40,7 @@
 
     <string name="status_disabled">Off</string>
     <string name="status_no_sources">On, but no sources enabled yet</string>
+    <string name="status_sources_pending">%1$d sources enabled · tap Update now</string>
     <string name="status_blocked">%1$d domains blocked · %2$s</string>
     <string name="status_never">never updated</string>
     <string name="status_helper_missing">System helper not reachable, using app storage</string>

@@ -20,13 +20,7 @@ import android.view.Surface;
 
 import androidx.annotation.NonNull;
 
-/**
- * Where the rendered avatar frames go.
- *
- * <p>The renderer only ever knows about a {@link Surface} it can draw into. That
- * keeps the same 3D pipeline usable for the on-screen preview today and for the
- * camera-provider HAL input surface later, with no renderer changes.
- */
+// output surfaces keep preview and camera plumbing out of the renderer
 public interface FrameSink {
 
     interface Callback {

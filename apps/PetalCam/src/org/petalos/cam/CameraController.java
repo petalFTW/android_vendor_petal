@@ -169,6 +169,9 @@ public class CameraController {
     private boolean mTorch;
     private boolean mEngineReady;
     private boolean mHdrEnabled = true;
+    private String mAspectRatio;
+    private int mPhotoQuality;
+    private String mVideoQuality;
     private VendorCameraInfo mVendorInfo;
     private float mPendingZoom = 1f;
 
@@ -183,6 +186,9 @@ public class CameraController {
         mExecutor = ContextCompat.getMainExecutor(context);
         mQrAnalyzer = new QrAnalyzer(
                 text -> mExecutor.execute(() -> mListener.onQrDetected(text)));
+        mAspectRatio = PetalCamPrefs.aspectRatio(context);
+        mPhotoQuality = PetalCamPrefs.photoJpegQuality(context);
+        mVideoQuality = PetalCamPrefs.videoQuality(context);
     }
 
     public ExtensionBridge engine() {
@@ -260,6 +266,24 @@ public class CameraController {
         bindCurrentMode(false);
     }
 
+    public void setAspectRatio(@NonNull String ratio) {
+        if (!mAspectRatio.equals(ratio)) {
+            mAspectRatio = ratio;
+            if (!MODE_VIDEO.equals(mMode)) bindCurrentMode(false);
+        }
+    }
+
+    /** Apply settings changed while the settings screen was open. */
+    public void refreshQuality() {
+        int photo = PetalCamPrefs.photoJpegQuality(mContext);
+        String video = PetalCamPrefs.videoQuality(mContext);
+        if (photo != mPhotoQuality || !video.equals(mVideoQuality)) {
+            mPhotoQuality = photo;
+            mVideoQuality = video;
+            if (mBound && mRecording == null) bindCurrentMode(false);
+        }
+    }
+
     /** Toggle the OEM HDR pipeline in photo mode. */
     public void setHdrEnabled(boolean enabled) {
         if (mHdrEnabled != enabled) {
@@ -326,15 +350,23 @@ public class CameraController {
 
         mProvider.unbindAll();
         try {
+            int targetRatio = MODE_VIDEO.equals(mMode) || "16:9".equals(mAspectRatio)
+                    ? AspectRatio.RATIO_16_9 : AspectRatio.RATIO_4_3;
             mPreview = new Preview.Builder()
-                    .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                    .setTargetAspectRatio(targetRatio)
                     .build();
             mPreview.setSurfaceProvider(mPreviewView.getSurfaceProvider());
 
             if (MODE_VIDEO.equals(mMode)) {
+                List<Quality> qualities;
+                switch (mVideoQuality) {
+                    case "uhd": qualities = Arrays.asList(Quality.UHD, Quality.FHD,
+                            Quality.HD, Quality.SD); break;
+                    case "hd": qualities = Arrays.asList(Quality.HD, Quality.SD); break;
+                    default: qualities = Arrays.asList(Quality.FHD, Quality.HD, Quality.SD);
+                }
                 Recorder recorder = new Recorder.Builder()
-                        .setQualitySelector(QualitySelector.fromOrderedList(
-                                Arrays.asList(Quality.FHD, Quality.HD, Quality.SD)))
+                        .setQualitySelector(QualitySelector.fromOrderedList(qualities))
                         .build();
                 mVideoCapture = VideoCapture.withOutput(recorder);
                 mImageCapture = null;
@@ -344,7 +376,8 @@ public class CameraController {
             } else {
                 ImageCapture.Builder icb = new ImageCapture.Builder()
                         .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-                        .setJpegQuality(96)
+                        .setTargetAspectRatio(targetRatio)
+                        .setJpegQuality(mPhotoQuality)
                         .setFlashMode(mFlashMode);
                 mVideoCapture = null;
 
@@ -684,6 +717,8 @@ public class CameraController {
             return;
         }
         mListener.onCaptureStarted();
+        final String aspectRatio = mAspectRatio;
+        final int jpegQuality = mPhotoQuality;
         mImageCapture.takePicture(mCaptureExecutor, new ImageCapture.OnImageCapturedCallback() {
             @Override
             public void onCaptureSuccess(@NonNull ImageProxy image) {
@@ -700,7 +735,8 @@ public class CameraController {
                         : (mPendingZoom < 0.95f ? 1f : 0.45f);
                 boolean portrait = MODE_PORTRAIT.equals(mMode);
                 MediaSaver.Result result = MediaSaver.saveImage(mContext, image, mirror,
-                        watermark, lat, lon, rotation, portrait, denoise, buildCaptureMeta(),
+                        watermark, lat, lon, rotation, portrait, denoise, aspectRatio,
+                        jpegQuality, buildCaptureMeta(),
                         mExecutor, mListener::onPhotoProcessed);
                 mExecutor.execute(() -> mListener.onPhotoSaved(result.uri, result.ok));
             }

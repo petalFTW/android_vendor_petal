@@ -17,24 +17,42 @@
 package org.petalos.hub;
 
 import android.app.AlertDialog;
+import android.content.om.OverlayManager;
 import android.os.Bundle;
+import android.os.Process;
+import android.provider.Settings;
 
 import androidx.preference.Preference;
 import androidx.preference.SeekBarPreference;
+import androidx.preference.ListPreference;
 
 import org.petalos.config.PetalConfig;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.json.JSONObject;
 
 /** Launcher icon pack and app drawer appearance. */
 public class LauncherFragment extends PetalPreferenceFragment {
+
+    private static final String COMMISSIONER_OVERLAY =
+            "org.petalos.overlay.font.commissioner";
+    private static final String FONT_CATEGORY = "android.theme.customization.font";
+    private static final String KEY_FONT_DEFAULT_APPLIED = "petal_font_default_applied";
 
     private Preference mIconPack;
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         setPreferencesFromResource(R.xml.launcher, rootKey);
+
+        ListPreference font = findPreference("system_font");
+        refreshFontPreference(font);
+        font.setOnPreferenceChangeListener((pref, value) -> {
+            setSystemFont("commissioner".equals(value));
+            refreshFontPreference((ListPreference) pref);
+            return true;
+        });
 
         SeekBarPreference blur = findPreference("apps_blur_intensity");
         blur.setMin(0);
@@ -98,5 +116,63 @@ public class LauncherFragment extends PetalPreferenceFragment {
         }
         String label = IconPackHelper.labelFor(requireContext(), current);
         mIconPack.setSummary(label != null ? label : getString(R.string.icon_pack_disabled));
+    }
+
+    /** Font overlay currently recorded in the system theme setting, or "". */
+    private String readFontOverlay() {
+        try {
+            String setting = Settings.Secure.getString(getContentResolver(),
+                    Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES);
+            if (setting != null) {
+                return new JSONObject(setting).optString(FONT_CATEGORY, "");
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
+
+    private void refreshFontPreference(ListPreference font) {
+        if (font == null) {
+            return;
+        }
+        boolean commissioner = COMMISSIONER_OVERLAY.equals(readFontOverlay());
+        font.setValue(commissioner ? "commissioner" : "default");
+        font.setSummary(font.getEntry());
+    }
+
+    private void setSystemFont(boolean commissioner) {
+        // The theme framework reconciles font overlays against
+        // THEME_CUSTOMIZATION_OVERLAY_PACKAGES, so write the setting first and flip
+        // the overlay as a best effort for immediate feedback.
+        try {
+            String setting = Settings.Secure.getString(getContentResolver(),
+                    Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES);
+            JSONObject theme = new JSONObject(setting == null ? "{}" : setting);
+            if (commissioner) {
+                theme.put(FONT_CATEGORY, COMMISSIONER_OVERLAY);
+            } else {
+                theme.remove(FONT_CATEGORY);
+            }
+            theme.put("_applied_timestamp", System.currentTimeMillis());
+            Settings.Secure.putString(getContentResolver(),
+                    Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES, theme.toString());
+            Settings.Secure.putInt(getContentResolver(), KEY_FONT_DEFAULT_APPLIED, 1);
+        } catch (Exception ignored) {
+        }
+
+        OverlayManager overlays = requireContext().getSystemService(OverlayManager.class);
+        if (overlays == null) {
+            return;
+        }
+        try {
+            if (commissioner) {
+                overlays.setEnabledExclusiveInCategory(COMMISSIONER_OVERLAY,
+                        Process.myUserHandle());
+            } else {
+                overlays.setEnabled(COMMISSIONER_OVERLAY, false, Process.myUserHandle());
+            }
+        } catch (Exception ignored) {
+            // the theme framework will apply it from the setting
+        }
     }
 }

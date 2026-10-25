@@ -5,25 +5,43 @@
 -->
 <resources>
 
-    <!--
-         petalOS Hub theme: keeps every SettingsLib/Preference widget intact but swaps
-         the flat window for the ROM's aurora glass and tints the preference surfaces.
-    -->
+    <!-- same canvas and surfaces as Settings -->
     <style name="Theme.PetalHub" parent="@style/Theme.SubSettingsBase.Expressive">
-        <item name="android:windowBackground">@drawable/petal_window_background</item>
-        <item name="android:colorBackground">@color/petal_window_base</item>
+        <item name="android:windowBackground">@color/petal_settings_canvas</item>
+        <item name="android:colorBackground">@color/petal_settings_canvas</item>
+        <item name="android:textColorPrimary">@color/petal_settings_text</item>
+        <item name="android:textColorSecondary">@color/petal_settings_secondary</item>
+        <item name="android:listPreferredItemHeight">72dp</item>
+        <item name="android:colorAccent">@color/petal_settings_accent</item>
+        <item name="colorSurface">@color/petal_settings_surface</item>
+        <item name="alertDialogTheme">@style/Theme.PetalHub.Dialog</item>
+        <item name="android:alertDialogTheme">@style/Theme.PetalHub.Dialog.Platform</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">@bool/petal_window_light_bars</item>
         <item name="android:windowLightNavigationBar">@bool/petal_window_light_bars</item>
-        <item name="android:fontFamily">@font/petal_rubik</item>
+        <item name="android:fontFamily">@*android:string/config_bodyFontFamily</item>
         <item name="preferenceTheme">@style/PreferenceTheme.PetalHub</item>
-        <item name="colorControlActivated">@color/petal_control_activated</item>
-        <item name="colorAccent">@color/petal_accent_primary</item>
+        <item name="colorControlActivated">@color/petal_settings_accent</item>
+        <item name="colorAccent">@color/petal_settings_accent</item>
     </style>
 
     <style name="PreferenceTheme.PetalHub" parent="@style/PreferenceTheme.SettingsLib.Expressive">
-        <item name="preferenceCategoryTitleTextColor">@color/petal_accent_primary</item>
+        <item name="preferenceCategoryTitleTextColor">@color/petal_settings_accent</item>
+    </style>
+
+    <style name="Theme.PetalHub.Dialog" parent="Theme.AlertDialog.SettingsLib.Expressive">
+        <item name="android:windowBackground">@drawable/settings_dialog_background</item>
+        <item name="android:colorBackground">@color/petal_settings_surface</item>
+        <item name="colorAccent">@color/petal_settings_accent</item>
+        <item name="android:fontFamily">@*android:string/config_bodyFontFamily</item>
+        <item name="dialogCornerRadius">28dp</item>
+    </style>
+    <style name="Theme.PetalHub.Dialog.Platform" parent="Theme.DeviceDefault.AlertDialog.SettingsLib.Expressive">
+        <item name="android:windowBackground">@drawable/settings_dialog_background</item>
+        <item name="android:colorBackground">@color/petal_settings_surface</item>
+        <item name="android:colorAccent">@color/petal_settings_accent</item>
+        <item name="android:fontFamily">@*android:string/config_bodyFontFamily</item>
     </style>
 
 </resources>

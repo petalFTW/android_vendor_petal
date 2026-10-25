@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.petalos.agever"
+    android:versionCode="1"
+    android:versionName="0.1-stub">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Keep this permission owned by the same signed package. -->
+    <permission
+        android:name="org.petalos.agever.permission.MANAGE_VIRTUAL_CAMERA"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="org.petalos.agever.permission.MANAGE_VIRTUAL_CAMERA" />
+    <uses-permission android:name="android.permission.CAMERA_INJECT_EXTERNAL_CAMERA" />
+
+    <application
+        android:allowBackup="false"
+        android:label="petal IDHelper"
+        android:supportsRtl="true">
+        <meta-data android:name="org.petalos.appcenter.PLACEHOLDER" android:value="true" />
+    </application>
+</manifest>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- petalOS First Bloom pack, dusk symbol -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1000"
+    android:viewportHeight="1000">
+    <path android:pathData="M500,772 C480,655 432,539 395,467 C349,375 372,294 402,238 C433,181 480,132 492,122 C497,117 503,117 508,122 C520,132 567,181 598,238 C628,294 651,375 605,467 C568,539 520,655 500,772 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="473.7886" android:startY="118.25"
+                android:endX="526.2114" android:endY="772">
+                <item android:offset="0" android:color="#F5DCEB" />
+                <item android:offset="0.25" android:color="#D9BDE4" />
+                <item android:offset="0.5" android:color="#AF98D4" />
+                <item android:offset="0.76" android:color="#786DA9" />
+                <item android:offset="1" android:color="#434668" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M485,800 C428,744 389,716 311,679 C213,634 169,596 131,511 C107,455 91,414 61,374 C48,357 53,348 75,343 C174,320 285,374 363,464 C433,545 469,678 485,800 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="140.1284" android:startY="337.702"
+                android:endX="420.3366" android:endY="800">
+                <item android:offset="0" android:color="#F5DCEB" />
+                <item android:offset="0.25" android:color="#D9BDE4" />
+                <item android:offset="0.5" android:color="#AF98D4" />
+                <item android:offset="0.76" android:color="#786DA9" />
+                <item android:offset="1" android:color="#434668" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M515,800 C572,744 611,716 689,679 C787,634 831,596 869,511 C893,455 909,414 939,374 C952,357 947,348 925,343 C826,320 715,374 637,464 C567,545 531,678 515,800 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="881.4261" android:startY="337.702"
+                android:endX="579.6634" android:endY="800">
+                <item android:offset="0" android:color="#F5DCEB" />
+                <item android:offset="0.25" android:color="#D9BDE4" />
+                <item android:offset="0.5" android:color="#AF98D4" />
+                <item android:offset="0.76" android:color="#786DA9" />
+                <item android:offset="1" android:color="#434668" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

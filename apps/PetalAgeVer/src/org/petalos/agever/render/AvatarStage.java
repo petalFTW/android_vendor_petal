@@ -46,24 +46,18 @@ import org.petalos.agever.core.ControlSnapshot;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
-/**
- * Owns a Filament engine rendering the avatar on a flat white stage.
- *
- * <p>All Filament work happens on a single dedicated thread. The rest of the app
- * talks to it through a handful of thread-safe setters and a {@link Listener}.
- * The stage renders into whatever {@link Surface} it is handed, so the preview
- * and (later) the camera-provider input surface share exactly one pipeline.
- */
+// one Filament thread, shared by preview and camera output
 public final class AvatarStage {
 
     private static final String TAG = "AgeVerStage";
-    private static final long FRAME_INTERVAL_MS = 33L; // ~30 fps
-
     public interface Listener {
         void onStageReady();
 
         void onStageError(@NonNull String message);
+        void onAvatarReady(String ref, int expressionMask);
+        void onAvatarError(String message);
     }
 
     private HandlerThread mThread;
@@ -75,6 +69,10 @@ public final class AvatarStage {
     private volatile ControlSnapshot mControl = ControlSnapshot.neutral();
     private volatile boolean mIdleMotion = true;
     private volatile boolean mMirror = true;
+    private volatile Supplier<ControlSnapshot> mControlSource;
+    private volatile int mFrameRate = 24;
+    private double mNextFrameMs;
+    private volatile int mAvatarRequest;
 
     // Filament objects (render thread only).
     private Engine mEngine;
@@ -83,6 +81,10 @@ public final class AvatarStage {
     private View mView;
     private Camera mCamera;
     private int mCameraEntity;
+    private int mProjectionWidth = -1;
+    private int mProjectionHeight = -1;
+    private int mViewportWidth = -1;
+    private int mViewportHeight = -1;
     private IndirectLight mIndirectLight;
     private AssetLoader mAssetLoader;
     private ResourceLoader mResourceLoader;
@@ -113,15 +115,23 @@ public final class AvatarStage {
             if (!mRunning) {
                 return;
             }
-            renderFrame();
-            if (mRunning && mHandler != null) {
-                mHandler.postDelayed(this, FRAME_INTERVAL_MS);
+            try {
+                renderFrame();
+            } catch (RuntimeException | OutOfMemoryError e) {
+                mRunning = false;
+                postError("Rendering stopped: " + e.getMessage());
+            }
+            if (mRunning && mHandler != null && mAsset != null && !mTargets.isEmpty()) {
+                long now = android.os.SystemClock.uptimeMillis();
+                double interval = 1000.0 / mFrameRate;
+                mNextFrameMs = Math.max(mNextFrameMs + interval, now + 1);
+                mHandler.postAtTime(this, (long) Math.ceil(mNextFrameMs));
             }
         }
     };
 
     public void start(@NonNull Listener listener) {
-        if (mRunning) {
+        if (mThread != null) {
             return;
         }
         mListener = listener;
@@ -134,15 +144,18 @@ public final class AvatarStage {
             try {
                 initEngine();
                 mRunning = true;
-                mHandler.post(mFrame);
+                scheduleFrame();
             } catch (Throwable e) {
                 Log.e(TAG, "stage init failed", e);
+                try { destroyEngine(); }
+                catch (RuntimeException cleanup) { Log.w(TAG, "Stage cleanup failed", cleanup); }
                 postError("Could not start the 3D stage: " + e.getMessage());
             }
         });
     }
 
     public void stop() {
+        mListener = null;
         final Handler handler = mHandler;
         final HandlerThread thread = mThread;
         mHandler = null;
@@ -168,6 +181,16 @@ public final class AvatarStage {
         if (snapshot != null) {
             mControl = snapshot;
         }
+    }
+
+    public void setControlSource(Supplier<ControlSnapshot> source) { mControlSource = source; }
+    public void setFrameRate(int fps) { mFrameRate = fps == 30 ? 30 : 24; }
+
+    private void scheduleFrame() {
+        if (!mRunning || mHandler == null || mTargets.isEmpty()) return;
+        mHandler.removeCallbacks(mFrame);
+        mNextFrameMs = android.os.SystemClock.uptimeMillis();
+        mHandler.post(mFrame);
     }
 
     public void setMirror(boolean mirror) {
@@ -197,6 +220,8 @@ public final class AvatarStage {
                 return;
             }
             Target target = mTargets.get(id);
+            if (target != null && target.surface == surface && target.width == width
+                    && target.height == height && target.swapChain != null) return;
             if (target == null) {
                 target = new Target();
                 mTargets.put(id, target);
@@ -205,6 +230,7 @@ public final class AvatarStage {
             target.width = width;
             target.height = height;
             rebuildSwapChain(target);
+            scheduleFrame();
         });
     }
 
@@ -222,7 +248,10 @@ public final class AvatarStage {
         if (handler == null) {
             return;
         }
-        handler.post(() -> loadAvatar(bytes, name));
+        final int request = ++mAvatarRequest;
+        handler.post(() -> {
+            if (request == mAvatarRequest) loadAvatar(bytes, name, request);
+        });
     }
 
     public boolean isRunning() {
@@ -232,9 +261,7 @@ public final class AvatarStage {
     // ------------------------------------------------------------ render thread
 
     private void initEngine() {
-        // Filament's native entry points are registered by the static
-        // initializers of Filament and Gltfio; touch them before first use so
-        // libfilament-jni/libgltfio-jni are loaded.
+        // poke the JNI loaders before Filament gets grumpy
         Filament.init();
         Gltfio.init();
         mEngine = Engine.create();
@@ -267,8 +294,7 @@ public final class AvatarStage {
     }
 
     private void setupAmbient() {
-        // 3-band spherical harmonics: a soft, shadowless studio dome. Only the
-        // constant term is non-zero, so this is effectively uniform ambient.
+        // constant ambient term keeps the stage evenly lit
         float[] sh = new float[27];
         sh[0] = 1.0f;
         sh[1] = 1.0f;
@@ -304,6 +330,9 @@ public final class AvatarStage {
     }
 
     private void applyCamera(int width, int height) {
+        if (mProjectionWidth == width && mProjectionHeight == height) return;
+        mProjectionWidth = width;
+        mProjectionHeight = height;
         double aspect = (width > 0 && height > 0) ? (double) width / (double) height : 1.0;
         // Head-and-shoulders framing for the bundled avatar (head at y=1.70).
         mCamera.setProjection(36.0, aspect, 0.05, 50.0, Camera.Fov.VERTICAL);
@@ -333,41 +362,55 @@ public final class AvatarStage {
         }
     }
 
-    private void loadAvatar(byte[] bytes, String name) {
+    private void loadAvatar(byte[] bytes, String name, int request) {
         if (mAssetLoader == null) {
             return;
         }
-        if (mAsset != null) {
-            for (int e : mAsset.getEntities()) {
-                mScene.removeEntity(e);
-            }
-            mAssetLoader.destroyAsset(mAsset);
-            mAsset = null;
-            mRig = null;
-        }
+        FilamentAsset replacement = null;
         try {
             ByteBuffer buffer = ByteBuffer.allocateDirect(bytes.length);
             buffer.put(bytes);
             buffer.rewind();
             FilamentAsset asset = mAssetLoader.createAsset(buffer);
             if (asset == null) {
-                postError("Could not parse avatar: " + name);
+                postAvatarError("Could not parse avatar", request);
                 return;
             }
-            // Parsing creates entities; upload mesh buffers and textures before
-            // releasing the GLB source data or attempting to render them.
+            replacement = asset;
+            // upload first, then drop the source buffer
             mResourceLoader.loadResources(asset);
+            boolean renderable = false;
+            for (int entity : asset.getEntities()) {
+                if (mEngine.getRenderableManager().hasComponent(entity)) { renderable = true; break; }
+            }
+            if (!renderable) throw new IllegalArgumentException("Avatar has no renderable geometry");
+            AvatarRig rig = new AvatarRig(mEngine, asset);
+            if (request != mAvatarRequest) {
+                mAssetLoader.destroyAsset(asset);
+                return;
+            }
+            if (mAsset != null) {
+                for (int e : mAsset.getEntities()) mScene.removeEntity(e);
+                mAssetLoader.destroyAsset(mAsset);
+            }
             for (int e : asset.getEntities()) {
                 mScene.addEntity(e);
             }
             asset.releaseSourceData();
             mAsset = asset;
-            mAssetBuffer = buffer;
-            mRig = new AvatarRig(mEngine, asset);
-            Log.i(TAG, "Loaded avatar " + name + " (" + asset.getEntities().length + " entities)");
-        } catch (RuntimeException e) {
+            mAssetBuffer = null;
+            mRig = rig;
+            scheduleFrame();
+            replacement = null;
+            int expressions = rig.expressionMask();
+            mMainHandler.post(() -> {
+                if (mListener != null && request == mAvatarRequest) mListener.onAvatarReady(name, expressions);
+            });
+            Log.i(TAG, "Avatar loaded (" + asset.getEntities().length + " entities)");
+        } catch (RuntimeException | OutOfMemoryError e) {
             Log.e(TAG, "avatar load failed", e);
-            postError("Could not load avatar: " + e.getMessage());
+            if (replacement != null) mAssetLoader.destroyAsset(replacement);
+            postAvatarError("Could not load avatar: " + e.getMessage(), request);
         }
     }
 
@@ -386,6 +429,8 @@ public final class AvatarStage {
             return;
         }
         long now = System.nanoTime();
+        Supplier<ControlSnapshot> source = mControlSource;
+        if (source != null) mControl = source.get();
         double timeSec = (now - mStartNanos) / 1_000_000_000.0;
         boolean applied = false;
         for (Target target : mTargets.values()) {
@@ -395,8 +440,7 @@ public final class AvatarStage {
             if (!mRenderer.beginFrame(target.swapChain, now)) {
                 continue;
             }
-            // Filament allocates the world-transform storage during beginFrame,
-            // so the control sample must be applied after the first beginFrame.
+            // beginFrame allocates the transform storage, so pose it after that
             if (!applied) {
                 AvatarRig rig = mRig;
                 if (rig != null) {
@@ -405,7 +449,11 @@ public final class AvatarStage {
                 applied = true;
             }
             if (target.width > 0 && target.height > 0) {
-                mView.setViewport(new Viewport(0, 0, target.width, target.height));
+                if (mViewportWidth != target.width || mViewportHeight != target.height) {
+                    mView.setViewport(new Viewport(0, 0, target.width, target.height));
+                    mViewportWidth = target.width;
+                    mViewportHeight = target.height;
+                }
                 applyCamera(target.width, target.height);
             }
             mRenderer.render(mView);
@@ -418,11 +466,13 @@ public final class AvatarStage {
             destroySwapChain(target);
         }
         mTargets.clear();
+        mProjectionWidth = mProjectionHeight = mViewportWidth = mViewportHeight = -1;
         if (mAsset != null && mAssetLoader != null) {
             mAssetLoader.destroyAsset(mAsset);
             mAsset = null;
         }
         mAssetBuffer = null;
+        mControlSource = null;
         mRig = null;
         if (mResourceLoader != null) {
             mResourceLoader.destroy();
@@ -494,5 +544,11 @@ public final class AvatarStage {
                 }
             });
         }
+    }
+
+    private void postAvatarError(String message, int request) {
+        if (mMainHandler != null) mMainHandler.post(() -> {
+            if (mListener != null && request == mAvatarRequest) mListener.onAvatarError(message);
+        });
     }
 }

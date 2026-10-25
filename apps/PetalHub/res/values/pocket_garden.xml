@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <string name="garden_title">Pocket Garden</string>
+    <string name="garden_back">Back</string>
+    <string name="garden_eyebrow">petalOS</string>
+    <string name="garden_hint">Plant a seed, help a sprout grow, or pick a bloom. One pot per day.</string>
+    <string name="garden_footer">Your plants stay as you left them.</string>
+    <string name="garden_status">%1$d / 12 blooming · %2$d / 6 discovered</string>
+    <string name="garden_seed_book">Seed book</string>
+    <string name="garden_empty_plot">Pot %1$d. Empty. Tap to plant a seed.</string>
+    <string name="garden_growing_plot">Pot %1$d. %2$s. Tap to help it grow.</string>
+    <string name="garden_bloom_plot">Pot %1$d. %2$s. Tap to pick the bloom.</string>
+    <string name="garden_golden_name">Golden %1$s</string>
+    <string name="garden_golden_found">%1$s · golden bloom found</string>
+    <string name="garden_undiscovered">An undiscovered flower</string>
+    <string name="garden_seed">A little seed</string>
+    <string name="garden_sprout">A new sprout</string>
+    <string name="garden_bud">A bud</string>
+    <string name="garden_daily_ready">Choose one pot today</string>
+    <string name="garden_daily_resting">Tended for today</string>
+    <string name="garden_daily_hint">One tap plants, grows, or picks. Your next visit is available after midnight.</string>
+    <string name="garden_return_tomorrow">Pot %1$d is tended. Come back tomorrow for another visit.</string>
+    <string name="garden_return_date">Your next visit is available on %1$s.</string>
+    <string name="garden_saving">Saving your visit…</string>
+    <string name="garden_saving_hint">Keeping your garden for next time.</string>
+    <string name="garden_save_failed">Your visit could not be saved. Please try again.</string>
+    <string name="garden_planted">Seed planted</string>
+    <string name="garden_watered">Plant tended</string>
+    <string name="garden_bloomed">A new bloom</string>
+    <string name="garden_picked">Bloom picked</string>
+    <string-array name="garden_flowers">
+        <item>Dusk</item>
+        <item>Sage</item>
+        <item>Aurora</item>
+        <item>Sunrise</item>
+        <item>Seafoam</item>
+        <item>Pulse</item>
+    </string-array>
+    <color name="garden_soil">#5E4B60</color>
+    <color name="garden_stem">#52756A</color>
+    <style name="Theme.PetalHub.Garden" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/petal_window_base</item>
+        <item name="android:colorBackground">@color/petal_window_base</item>
+        <item name="android:colorAccent">@color/petal_accent_primary</item>
+        <item name="android:fontFamily">@font/petal_rubik</item>
+        <item name="android:windowLightStatusBar">@bool/petal_window_light_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/petal_window_light_bars</item>
+        <item name="android:navigationBarColor">@color/petal_window_base</item>
+        <item name="android:textColorPrimary">@color/petal_settings_text</item>
+        <item name="android:textColorSecondary">@color/petal_settings_secondary</item>
+    </style>
+</resources>

@@ -1,81 +1,67 @@
-/*
- * Copyright (C) 2026 petalOS
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
+/* Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 */
 package org.petalos.agever;
 
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
-
-import androidx.annotation.RequiresApi;
-
 import org.petalos.agever.output.ProviderFrameSink;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-/** Quick Settings tile: mirrors whether the front camera is overridden. */
-@RequiresApi(Build.VERSION_CODES.N)
 public final class StageTile extends TileService {
-
-    @Override
-    public void onStartListening() {
-        super.onStartListening();
-        updateTile();
-    }
-
-    @Override
-    public void onTileAdded() {
-        super.onTileAdded();
-        updateTile();
-    }
-
-    @Override
-    public void onClick() {
+    private final ExecutorService mWorker = Executors.newSingleThreadExecutor();
+    private final Handler mMain = new Handler(Looper.getMainLooper());
+    private boolean mDestroyed;
+    @Override public void onStartListening() { super.onStartListening(); refresh(); }
+    @Override public void onTileAdded() { super.onTileAdded(); refresh(); }
+    @Override public void onClick() {
         super.onClick();
-        boolean running = StageService.isRunning();
-        Intent intent = new Intent(this, StageService.class)
-                .setAction(running ? StageService.ACTION_STOP : StageService.ACTION_START);
-        if (running) {
-            startService(intent);
-        } else {
-            startForegroundService(intent);
-        }
-        // Optimistic flip, then re-sync once the override has armed/disarmed.
-        setTileState(!running);
-        new Handler(Looper.getMainLooper()).postDelayed(this::updateTile, 1500L);
+        unlockAndRun(() -> mWorker.execute(() -> {
+            int actual = ProviderFrameSink.queryOverrideState();
+            mMain.post(() -> {
+                if (mDestroyed) return;
+                Intent intent = new Intent(this, StageService.class);
+                boolean stop = actual > 0 || StageService.isCameraRequested();
+                intent.setAction(stop ? StageService.ACTION_STOP : StageService.ACTION_START);
+                try {
+                    if (stop) startService(intent); else startForegroundService(intent);
+                } catch (RuntimeException e) {
+                    Tile tile = getQsTile();
+                    if (tile != null) {
+                        tile.setState(Tile.STATE_UNAVAILABLE);
+                        tile.setSubtitle(getString(R.string.state_error));
+                        tile.updateTile();
+                    }
+                }
+            });
+        }));
     }
-
-    private void updateTile() {
-        setTileState(ProviderFrameSink.isOverrideArmed());
+    private void refresh() {
+        mWorker.execute(() -> {
+            int actual = ProviderFrameSink.queryOverrideState();
+            mMain.post(() -> {
+                if (mDestroyed) return;
+                Tile tile = getQsTile();
+                if (tile == null) return;
+                tile.setState(actual < 0 ? Tile.STATE_UNAVAILABLE
+                        : actual > 0 ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+                tile.setSubtitle(getString(actual == 1 ? R.string.state_camera_blocked
+                        : actual == 2 ? R.string.state_camera_ready : StageService.state().label));
+                tile.updateTile();
+            });
+        });
     }
-
-    /** Ask SystemUI to re-run {@link #onStartListening()} so the tile reflects a change. */
+    @Override public void onDestroy() {
+        mDestroyed = true;
+        mWorker.shutdownNow();
+        mMain.removeCallbacksAndMessages(null);
+        super.onDestroy();
+    }
     public static void requestRefresh(Context context) {
         requestListeningState(context, new ComponentName(context, StageTile.class));
-    }
-
-    private void setTileState(boolean active) {
-        Tile tile = getQsTile();
-        if (tile == null) {
-            return;
-        }
-        tile.setState(active ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
-        tile.updateTile();
     }
 }

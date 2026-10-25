@@ -97,13 +97,13 @@ public final class BezelPlacementView extends View {
                 canvas.drawCircle(dp(8), -dp(13), dp(4), mPaint);
                 mPaint.setColor(0xff34c759);
                 canvas.drawCircle(dp(8), 0, dp(4), mPaint);
-                mPaint.setColor(0xff3b7bff);
+                mPaint.setColor(getContext().getColor(R.color.petal_accent_primary));
                 canvas.drawCircle(dp(8), dp(13), dp(4), mPaint);
             }
         }
         canvas.restoreToCount(saved);
         // keep the drag handle on top
-        mPaint.setColor(0xff6c55da);
+        mPaint.setColor(getContext().getColor(R.color.petal_accent_text));
         canvas.drawCircle(x, y, dp(7), mPaint);
         mPaint.setColor(Color.WHITE);
         canvas.drawCircle(x, y, dp(2), mPaint);

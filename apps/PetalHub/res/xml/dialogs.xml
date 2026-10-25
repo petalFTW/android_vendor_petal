@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListPreference
+        android:key="petal_ui_dialog_style"
+        android:title="@string/dialog_style_title"
+        android:persistent="false"
+        android:entries="@array/dialog_style_entries"
+        android:entryValues="@array/dialog_style_values" />
     <org.petalos.hub.BezelPlacementPreference
         android:key="volume_placement"
         android:title="@string/volume_anchor_title"

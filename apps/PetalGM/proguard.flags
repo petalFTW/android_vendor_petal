@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: The petalOS Project
+# SPDX-License-Identifier: Apache-2.0
+
+-keep class org.petalos.petaltuner.fragments.*Fragment
+-keep class org.petalos.petaltuner.TunerApp
+-keep class org.petalos.petaltuner.OverlayService
+-keep class org.petalos.petaltuner.core.StateReceiver
+-keep class org.petalos.petaltuner.util.** { *; }

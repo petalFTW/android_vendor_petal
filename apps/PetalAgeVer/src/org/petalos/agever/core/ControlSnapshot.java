@@ -33,11 +33,16 @@ public final class ControlSnapshot {
     /** Model placement from the on-screen stick: x = across, y = height. */
     public final float offsetX;
     public final float offsetY;
-    public final float jawOpen;
+    /** Distance stick: + = closer to the virtual camera, - = further away. */
+    public final float offsetZ;
+    public final float mouthOpen;
     public final float mouthSmile;
+    public final float mouthFrown;
+    public final float browUp;
+    public final float browDown;
+    public final float eyeWide;
     public final float eyeBlinkLeft;
     public final float eyeBlinkRight;
-    public final float browInnerUp;
     public final boolean faceTracked;
     public final long timestampMs;
 
@@ -49,11 +54,15 @@ public final class ControlSnapshot {
             float bodyPitch,
             float offsetX,
             float offsetY,
-            float jawOpen,
+            float offsetZ,
+            float mouthOpen,
             float mouthSmile,
+            float mouthFrown,
+            float browUp,
+            float browDown,
+            float eyeWide,
             float eyeBlinkLeft,
             float eyeBlinkRight,
-            float browInnerUp,
             boolean faceTracked,
             long timestampMs) {
         this.headYaw = headYaw;
@@ -63,17 +72,21 @@ public final class ControlSnapshot {
         this.bodyPitch = bodyPitch;
         this.offsetX = offsetX;
         this.offsetY = offsetY;
-        this.jawOpen = jawOpen;
+        this.offsetZ = offsetZ;
+        this.mouthOpen = mouthOpen;
         this.mouthSmile = mouthSmile;
+        this.mouthFrown = mouthFrown;
+        this.browUp = browUp;
+        this.browDown = browDown;
+        this.eyeWide = eyeWide;
         this.eyeBlinkLeft = eyeBlinkLeft;
         this.eyeBlinkRight = eyeBlinkRight;
-        this.browInnerUp = browInnerUp;
         this.faceTracked = faceTracked;
         this.timestampMs = timestampMs;
     }
 
     public static ControlSnapshot neutral() {
-        return new ControlSnapshot(0f, 0f, 0f, 0f, 0f, 0f, 0f,
-                0f, 0f, 0f, 0f, 0f, false, 0L);
+        return new ControlSnapshot(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f,
+                0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, false, 0L);
     }
 }

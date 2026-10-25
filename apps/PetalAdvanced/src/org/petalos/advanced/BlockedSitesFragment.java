@@ -24,13 +24,12 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
-import androidx.preference.PreferenceFragmentCompat;
 
 import java.util.Set;
 import java.util.regex.Pattern;
 
 /** add and remove custom domains */
-public class BlockedSitesFragment extends PreferenceFragmentCompat {
+public class BlockedSitesFragment extends PetalPreferenceFragment {
 
     private static final Pattern DOMAIN = Pattern.compile(
             "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"

@@ -29,6 +29,7 @@ final class Prefs {
     private static final String KEY_ENABLED = "enabled";
     private static final String KEY_LAST_UPDATE = "last_update";
     private static final String KEY_LAST_COUNT = "last_count";
+    private static final String KEY_LAST_SOURCES = "last_sources";
     private static final String KEY_CATALOG = "catalog_json";
     private static final String KEY_SOURCES = "enabled_sources";
     private static final String KEY_CUSTOM = "custom_domains";
@@ -62,6 +63,14 @@ final class Prefs {
 
     static void setLastCount(Context c, int v) {
         sp(c).edit().putInt(KEY_LAST_COUNT, v).apply();
+    }
+
+    static int lastSources(Context c) {
+        return sp(c).getInt(KEY_LAST_SOURCES, 0);
+    }
+
+    static void setLastSources(Context c, int v) {
+        sp(c).edit().putInt(KEY_LAST_SOURCES, v).apply();
     }
 
     static String catalog(Context c) {

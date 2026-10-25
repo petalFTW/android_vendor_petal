@@ -6,7 +6,7 @@
 
 type petal_blocklist, domain, mlstrustedsubject, coredomain;
 type petal_blocklist_exec, system_file_type, exec_type, file_type;
-type petal_blocklist_data_file, file_type, data_file_type, core_data_file_type;
+type petal_blocklist_data_file, file_type, data_file_type, core_data_file_type, mlstrustedobject;
 
 system_internal_prop(petal_blocklist_prop)
 

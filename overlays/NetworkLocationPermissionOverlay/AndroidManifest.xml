@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.petalos.overlay.networklocation.permissions">
+    <!-- Override the Lineage common overlay's Google Play location-provider list. -->
+    <overlay android:targetPackage="android"
+        android:isStatic="true"
+        android:priority="100" />
+</manifest>

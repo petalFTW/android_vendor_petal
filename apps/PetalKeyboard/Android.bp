@@ -1,0 +1,61 @@
+// petalOS keyboard. latinime fork with the petal glass slap on top. same package and
+// key as the stock keyboard so it can be adb installed as an update, no reflash needed.
+android_app {
+    name: "PetalKeyboard",
+
+    srcs: ["src/**/*.java"],
+
+    resource_dirs: ["res"],
+
+    manifest: "AndroidManifest.xml",
+
+    // same package + same shared cert as the stock keyboard, so adb install -r drops
+    // the petal skin over it and uninstalling rolls straight back to aosp.
+    certificate: "shared",
+    jni_libs: ["libjni_petalkeyboard"],
+    use_embedded_native_libs: true,
+
+    static_libs: [
+        "android-common",
+        "jsr305",
+        "latinime-common",
+        "androidx.legacy_legacy-support-v4",
+        "androidx.recyclerview_recyclerview",
+        "androidx.viewpager2_viewpager2",
+    ],
+
+    // dictionaries stay uncompressed so they mmap at runtime, same as aosp
+    aaptflags: ["-0 .dict"],
+    aapt_include_all_resources: true,
+
+    min_sdk_version: "30",
+    target_sdk_version: "34",
+    sdk_version: "35",
+    product_specific: true,
+
+    // not a system app, we side-load it. product partition only, and we never add it
+    // to PRODUCT_PACKAGES so it stays out of the image.
+    privileged: false,
+
+    optimize: {
+        proguard_flags_files: ["proguard.flags"],
+    },
+}
+
+// our rehomed latinime engine. prebuilt so it can ride inside the apk.
+cc_prebuilt_library_shared {
+    name: "libjni_petalkeyboard",
+    arch: {
+        arm64: {
+            srcs: ["prebuilt/arm64-v8a/libjni_petalkeyboard.so"],
+        },
+    },
+    compile_multilib: "64",
+    sdk_version: "35",
+    stl: "none",
+    // must strip or the apk packer asks for a symbols copy we never made
+    strip: {
+        none: false,
+    },
+}
+

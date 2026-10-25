@@ -1,0 +1,62 @@
+//
+// Copyright (C) 2026 petalOS
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+// Reserve the package and permissions; Hub slaps the real app on top.
+
+android_app {
+    name: "PetalAssistantStub",
+    srcs: ["PetalAssistantStub/src/**/*.java"],
+    manifest: "PetalAssistantStub/AndroidManifest.xml",
+    // product modules must declare sdk_version; the shell uses no hidden APIs.
+    sdk_version: "current",
+    // New package id + dedicated key, so nothing on a dirty flash clashes with it.
+    certificate: ":petal_appcenter",
+    product_specific: true,
+    privileged: false,
+    optimize: {
+        enabled: false,
+    },
+}
+
+android_app {
+    name: "PetalTunerStub",
+    srcs: ["PetalTunerStub/src/**/*.java"],
+    manifest: "PetalTunerStub/AndroidManifest.xml",
+    platform_apis: true,
+    // New package id + dedicated key, so nothing on a dirty flash clashes with it.
+    certificate: ":petal_appcenter",
+    system_ext_specific: true,
+    privileged: true,
+    privapp_allowlist: "PetalTunerStub/org.petalos.petaltuner.xml",
+    optimize: {
+        enabled: false,
+    },
+}
+
+android_app {
+    name: "PetalAgeVerStub",
+    srcs: ["PetalAgeVerStub/src/**/*.java"],
+    manifest: "PetalAgeVerStub/AndroidManifest.xml",
+    platform_apis: true,
+    // CameraService still needs the platform-signed package, yeah.
+    certificate: "platform",
+    system_ext_specific: true,
+    privileged: true,
+    privapp_allowlist: "PetalAgeVerStub/org.petalos.agever.xml",
+    optimize: {
+        enabled: false,
+    },
+}

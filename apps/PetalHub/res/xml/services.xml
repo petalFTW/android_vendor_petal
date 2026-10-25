@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListPreference android:key="petal_services_setup_provider"
+        android:title="@string/services_provider_title" android:persistent="false"
+        android:entries="@array/services_provider_entries"
+        android:entryValues="@array/services_provider_values" />
+    <Preference android:key="services_setup_note" android:selectable="false"
+        android:title="@string/services_setup_title" />
+    <Preference android:key="services_apply_provider" android:title="@string/services_apply_title"
+        android:summary="@string/services_apply_summary" />
+    <Preference android:key="services_microg_download" android:title="@string/services_microg_download" />
+    <Preference android:key="services_google_guide" android:title="@string/services_google_guide" />
+    <Preference android:key="services_gmscompat" android:title="@string/services_gmscompat" />
+    <PreferenceCategory android:title="@string/services_installed_title">
+        <Preference android:key="services_gms" android:title="@string/services_gms_title" />
+        <Preference android:key="services_store" android:title="@string/services_store_title" />
+        <Preference android:key="services_gsf" android:title="@string/services_gsf_title" />
+    </PreferenceCategory>
+</PreferenceScreen>

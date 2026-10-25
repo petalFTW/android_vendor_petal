@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.petalos.proton4a.trace" android:versionCode="1">
+    <application android:label="Proton4A syscall probe"
+        android:extractNativeLibs="true" android:allowBackup="false">
+        <activity android:name=".TraceActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,74 @@
+diff --git a/src/emu/x86syscall.c b/src/emu/x86syscall.c
+index 7e831b42..e3d55223 100755
+--- a/src/emu/x86syscall.c
++++ b/src/emu/x86syscall.c
+@@ -234,6 +234,9 @@ struct i386_user_desc {
+ void EXPORT x86Syscall(x64emu_t *emu)
+ {
+     uint32_t s = R_EAX;
++    static int box64_log_sc32 = -1;
++    if(box64_log_sc32<0) box64_log_sc32 = getenv("BOX64_LOG_SYSCALL32")!=NULL;
++    if(box64_log_sc32) printf_log(LOG_INFO, "sc32 nr=%d a=%x %x %x %x %x\n", s, R_EBX, R_ECX, R_EDX, R_ESI, R_EDI);
+     printf_log(LOG_DEBUG, "%p: Calling 32bits syscall 0x%02X (%d) %p %p %p %p %p", (void*)R_RIP, s, s, (void*)(uintptr_t)R_EBX, (void*)(uintptr_t)R_ECX, (void*)(uintptr_t)R_EDX, (void*)(uintptr_t)R_ESI, (void*)(uintptr_t)R_EDI); 
+     if(my_syscall_user_dispatch(emu, R_RIP - 2, s, 1))
+         return;
+diff --git a/src/emu/x86syscall_32.c b/src/emu/x86syscall_32.c
+index edac2ae4..123116c9 100644
+--- a/src/emu/x86syscall_32.c
++++ b/src/emu/x86syscall_32.c
+@@ -311,6 +311,9 @@ static int clone32_fn(void* arg)
+ void EXPORT x86Syscall(x64emu_t *emu)
+ {
+     uint32_t s = R_EAX;
++    static int box64_log_sc32 = -1;
++    if(box64_log_sc32<0) box64_log_sc32 = getenv("BOX64_LOG_SYSCALL32")!=NULL;
++    if(box64_log_sc32) printf_log(LOG_INFO, "sc32 nr=%d a=%x %x %x %x %x\n", s, R_EBX, R_ECX, R_EDX, R_ESI, R_EDI);
+     printf_log(LOG_DEBUG, "%04d|%p: Calling 32bits syscall 0x%02X (%d) %p %p %p %p %p", GetTID(), (void*)R_RIP, s, s, (void*)(uintptr_t)R_EBX, (void*)(uintptr_t)R_ECX, (void*)(uintptr_t)R_EDX, (void*)(uintptr_t)R_ESI, (void*)(uintptr_t)R_EDI); 
+     if(my_syscall_user_dispatch(emu, R_RIP - 2, s, 1))
+         return;
+diff --git a/src/wrapped32/wrappedlibc.c b/src/wrapped32/wrappedlibc.c
+index ae0af7f5..81add2a4 100755
+--- a/src/wrapped32/wrappedlibc.c
++++ b/src/wrapped32/wrappedlibc.c
+@@ -2493,10 +2493,21 @@ EXPORT int my32_utimensat(int dirfd, void* name, void* times, int flags)
+ {
+     struct timespec times_l[2] = {0};
+     if (times) {
+-        from_struct_LL((struct_LL_t*)&times_l[0], to_ptrv(times));
+-        from_struct_LL((struct_LL_t*)&times_l[1], to_ptrv(times)+8);
++        int32_t* t32 = (int32_t*)from_ptrv(times);
++        times_l[0].tv_sec = (int64_t)t32[0];
++        times_l[0].tv_nsec = (int64_t)t32[1];
++        times_l[1].tv_sec = (int64_t)t32[2];
++        times_l[1].tv_nsec = (int64_t)t32[3];
++    }
++    int ret = utimensat(dirfd, name, times ? times_l : NULL, flags);
++    static int box64_log_time = -1;
++    if (box64_log_time < 0) box64_log_time = getenv("BOX64_LOG_TIME") != NULL;
++    if (box64_log_time) {
++        printf_log(LOG_INFO, "my32_utimensat(%d, \"%s\", %p, %d) = %d errno=%d sec=%lld nsec=%lld\n",
++                dirfd, name ? (char*)name : "(null)", times, flags, ret, ret ? errno : 0,
++                times ? (long long)times_l[0].tv_sec : 0, times ? (long long)times_l[0].tv_nsec : 0);
+     }
+-    return utimensat(dirfd, name, times ? times_l : NULL, flags);
++    return ret;
+ }
+ 
+ #ifndef ANDROID
+@@ -3324,7 +3335,15 @@ EXPORT int my32_futimens(x64emu_t* emu, int fd, uint32_t* times)
+         tm[1].tv_sec = times[2];
+         tm[1].tv_nsec = times[3];
+     }
+-    return futimens(fd, times ? tm : NULL);
++    int ret = futimens(fd, times ? tm : NULL);
++    static int box64_log_time = -1;
++    if (box64_log_time < 0) box64_log_time = getenv("BOX64_LOG_TIME") != NULL;
++    if (box64_log_time) {
++        printf_log(LOG_INFO, "my32_futimens(%d, %p) = %d errno=%d sec=%lld nsec=%lld\n",
++                fd, times, ret, (ret<0) ? errno : 0,
++                times ? (long long)tm[0].tv_sec : 0, times ? (long long)tm[0].tv_nsec : 0);
++    }
++    return ret;
+ }
+ 
+ EXPORT long my32_strtol(const char* s, char** endp, int base)

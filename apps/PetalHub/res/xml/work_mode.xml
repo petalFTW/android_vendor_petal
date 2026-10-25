@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/wm_mode_category">
+        <ListPreference
+            android:key="petal_work_mode"
+            android:defaultValue="1"
+            android:title="@string/wm_mode_title"
+            android:entries="@array/wm_mode_entries"
+            android:entryValues="@array/wm_mode_values" />
+        <Preference
+            android:selectable="false"
+            android:summary="@string/wm_allow_summary" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/wm_exempt_category">
+        <MultiSelectListPreference
+            android:key="petal_work_mode_apps"
+            android:title="@string/wm_apps_title"
+            android:summary="@string/wm_apps_none" />
+        <Preference
+            android:key="petal_work_mode_add_contact"
+            android:title="@string/wm_add_contact_title"
+            android:summary="@string/wm_add_contact_summary" />
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:key="petal_work_mode_contacts_list"
+        android:title="@string/wm_add_contact_title" />
+</PreferenceScreen>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <string-array name="petal_kb_font_entries">
+        <item>System default</item>
+        <item>Commissioner</item>
+        <item>Condensed</item>
+        <item>Serif</item>
+        <item>Monospace</item>
+    </string-array>
+    <string-array name="petal_kb_font_values">
+        <item>system</item>
+        <item>commissioner</item>
+        <item>condensed</item>
+        <item>serif</item>
+        <item>monospace</item>
+    </string-array>
+</resources>

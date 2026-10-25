@@ -17,6 +17,7 @@
 package org.petalos.hub;
 
 import android.os.Bundle;
+import androidx.preference.ListPreference;
 
 import org.petalos.config.PetalConfig;
 
@@ -25,6 +26,13 @@ public class DialogsFragment extends PetalPreferenceFragment {
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         setPreferencesFromResource(R.xml.dialogs, rootKey);
+        ListPreference style = findPreference(PetalConfig.KEY_DIALOG_STYLE);
+        style.setValue(Integer.toString(getInt(PetalConfig.KEY_DIALOG_STYLE, 0)));
+        style.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
+        style.setOnPreferenceChangeListener((preference, value) -> {
+            putInt(PetalConfig.KEY_DIALOG_STYLE, Integer.parseInt((String) value));
+            return true;
+        });
         configure("volume_placement", PetalConfig.KEY_VOLUME_EDGE,
                 PetalConfig.KEY_VOLUME_ANCHOR_PCT, 0, 29, 0);
         configure("power_placement", PetalConfig.KEY_POWER_EDGE,

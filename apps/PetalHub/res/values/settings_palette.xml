@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="petal_settings_canvas">#F6F6FA</color>
+    <color name="petal_settings_surface">#FCFCFF</color>
+    <color name="petal_settings_text">#171921</color>
+    <color name="petal_settings_secondary">#646A79</color>
+    <color name="petal_settings_accent">#6844D6</color>
+    <color name="petal_settings_ripple">#247C5CFF</color>
+</resources>

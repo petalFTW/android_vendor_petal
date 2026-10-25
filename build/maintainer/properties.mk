@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-PETAL_VERSION := 0.5.4
+PETAL_VERSION := 1.0.1
 override LINEAGE_BUILDTYPE := UNOFFICIAL
 override LINEAGE_EXTRAVERSION :=
 # stamped when the config gets read, close enough to the actual build

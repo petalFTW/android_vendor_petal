@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/gm_games_category">
+        <MultiSelectListPreference
+            android:key="petal_gm_games"
+            android:title="@string/gm_games_title"
+            android:summary="@string/gm_games_none" />
+        <SwitchPreferenceCompat
+            android:key="petal_gm_overlay"
+            android:defaultValue="true"
+            android:title="@string/gm_overlay_title"
+            android:summary="@string/gm_overlay_summary" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/gm_session_category">
+        <ListPreference
+            android:key="petal_gm_profile"
+            android:defaultValue="performance"
+            android:title="@string/gm_profile_title"
+            android:entries="@array/gm_profile_entries"
+            android:entryValues="@array/gm_profile_values" />
+        <SwitchPreferenceCompat
+            android:key="petal_gm_bypass"
+            android:defaultValue="true"
+            android:title="@string/gm_bypass_title"
+            android:summary="@string/gm_bypass_summary" />
+        <SwitchPreferenceCompat
+            android:key="petal_gm_max_hz"
+            android:defaultValue="true"
+            android:title="@string/gm_max_hz_title"
+            android:summary="@string/gm_max_hz_summary" />
+        <SwitchPreferenceCompat
+            android:key="petal_gm_max_res"
+            android:defaultValue="true"
+            android:title="@string/gm_max_res_title"
+            android:summary="@string/gm_max_res_summary" />
+        <SwitchPreferenceCompat
+            android:key="petal_gm_focus"
+            android:defaultValue="true"
+            android:title="@string/gm_focus_title"
+            android:summary="@string/gm_focus_summary" />
+        <SwitchPreferenceCompat
+            android:key="petal_gm_free_ram"
+            android:defaultValue="true"
+            android:title="@string/gm_free_ram_title"
+            android:summary="@string/gm_free_ram_summary" />
+    </PreferenceCategory>
+    <Preference
+        android:key="petal_gm_open_tuner"
+        android:title="@string/gm_open_tuner_title"
+        android:summary="@string/gm_open_tuner_summary" />
+</PreferenceScreen>

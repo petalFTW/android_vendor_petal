@@ -6,7 +6,7 @@ import android.os.Bundle;
 import org.petalos.config.PetalConfig;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.os.PowerManager;
+import android.os.PowerExemptionManager;
 import androidx.preference.ListPreference;
 import androidx.preference.MultiSelectListPreference;
 import androidx.preference.Preference;
@@ -35,6 +35,7 @@ public final class PowerFragment extends PetalPreferenceFragment {
         enabled.setChecked(getInt(KEY_ENABLED, 1) != 0);
         enabled.setOnPreferenceChangeListener((preference, value) -> {
             putInt(KEY_ENABLED, (Boolean) value ? 1 : 0);
+            idlePolicyChanged(KEY_ENABLED);
             return true;
         });
 
@@ -55,6 +56,8 @@ public final class PowerFragment extends PetalPreferenceFragment {
             @SuppressWarnings("unchecked") Set<String> selected = (Set<String>) value;
             putString(KEY_PACKAGES, String.join(",", selected));
             updatePackageSummary(packages, selected);
+            idlePolicyChanged(KEY_PACKAGES);
+            updateAudit();
             return true;
         });
 
@@ -71,6 +74,7 @@ public final class PowerFragment extends PetalPreferenceFragment {
         preference.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
         preference.setOnPreferenceChangeListener((unused, newValue) -> {
             putInt(key, Integer.parseInt((String) newValue));
+            idlePolicyChanged(key);
             return true;
         });
     }
@@ -80,6 +84,7 @@ public final class PowerFragment extends PetalPreferenceFragment {
         preference.setChecked(getInt(key, defaultOn ? 1 : 0) != 0);
         preference.setOnPreferenceChangeListener((unused, value) -> {
             putInt(key, (Boolean) value ? 1 : 0);
+            idlePolicyChanged(key);
             return true;
         });
     }
@@ -143,14 +148,20 @@ public final class PowerFragment extends PetalPreferenceFragment {
             audit.setSummary(R.string.power_audit_empty);
             return;
         }
-        PowerManager power = requireContext().getSystemService(PowerManager.class);
+        PowerExemptionManager exemptions = requireContext().getSystemService(PowerExemptionManager.class);
         int allowlisted = 0;
         int selected = 0;
         for (String pkg : raw.split(",")) {
             if (pkg.trim().isEmpty()) continue;
             selected++;
-            if (power != null && power.isIgnoringBatteryOptimizations(pkg.trim())) allowlisted++;
+            if (exemptions != null && exemptions.isAllowListed(pkg.trim(), true)) allowlisted++;
         }
         audit.setSummary(getString(R.string.power_audit_summary, selected, allowlisted));
+    }
+
+    private void idlePolicyChanged(String key) {
+        if (!key.startsWith("petal_idle_")) return;
+        requireContext().sendBroadcast(new android.content.Intent(
+                "org.petalos.power.action.UPDATE_IDLE_POLICY").setPackage("org.petalos.power"));
     }
 }

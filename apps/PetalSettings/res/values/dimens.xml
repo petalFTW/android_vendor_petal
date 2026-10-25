@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <!-- Match Settings/res/layout/homepage_preference.xml. -->
+    <dimen name="settings_title_size">16sp</dimen>
+    <dimen name="settings_summary_size">13sp</dimen>
+</resources>

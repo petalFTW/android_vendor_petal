@@ -11,3 +11,9 @@
 -keep public class * extends androidx.preference.* {
     public <init>(android.content.Context, android.util.AttributeSet);
 }
+
+# Manifest-declared boot receiver.
+-keep class org.petalos.hub.FontDefaultReceiver { *; }
+
+# Android instantiates this content provider from the manifest for APK install URIs.
+-keep class org.petalos.hub.Proton4AApkProvider { *; }

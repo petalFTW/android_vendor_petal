@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: 2022 The LineageOS Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- petal glass, light side. frosted white keys on a soft canvas -->
+    <color name="keyboard_background_you">#F2F3F3F6</color>
+    <!-- faint glass rim on every key -->
+    <color name="keyboard_key_rim_you">#1A000000</color>
+    <!-- Keys -->
+    <color name="keyboard_key_normal_color_you">#E6FFFFFF</color>
+    <color name="keyboard_key_pressed_color_you">#CCD9D2F2</color>
+    <color name="keyboard_key_text_color_you">#FF17171A</color>
+    <color name="keyboard_key_functional_normal_color_you">#D9E9E6F2</color>
+    <color name="keyboard_key_functional_pressed_color_you">#CCA99CFF</color>
+    <color name="keyboard_key_functional_text_color_you">#FF565663</color>
+    <color name="keyboard_key_action_normal_color_you">#FF8E7CFF</color>
+    <color name="keyboard_key_action_pressed_color_you">#FF6E5AE8</color>
+    <color name="shift_normal_color_you">#FF565663</color>
+    <color name="shift_locked_color_you">#FF8E7CFF</color>
+    <color name="icon_color_you">#FF565663</color>
+    <color name="key_hint_letter_color_you">#FF8A8A95</color>
+    <!-- Suggestion bar -->
+    <color name="typed_word_color_you">#FF17171A</color>
+    <color name="auto_correct_color_you">#FF17171A</color>
+    <color name="suggested_word_color_you">#FF565663</color>
+    <!-- Gesture input -->
+    <color name="gesture_trail_color_you">#FF8E7CFF</color>
+    <color name="gesture_floating_preview_text_color_you">#FF17171A</color>
+    <!-- Misc -->
+    <color name="highlight_color_you">#FF8E7CFF</color>
+    <color name="emoji_tab_page_indicator_background_you">#F2F3F3F6</color>
+</resources>

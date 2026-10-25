@@ -1,337 +1,109 @@
-<?xml version="1.0" ?>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/agever_root"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/agever_void"
-    android:fillViewport="true"
-    android:scrollbars="none">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="@dimen/agever_gutter"
-        android:paddingEnd="@dimen/agever_gutter"
-        android:paddingTop="8dp"
-        android:paddingBottom="32dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+    android:id="@+id/agever_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/agever_void" android:fillViewport="true" android:scrollbars="none">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:paddingStart="20dp" android:paddingEnd="20dp"
+        android:paddingTop="8dp" android:paddingBottom="32dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:gravity="center_vertical">
+            <ImageButton android:id="@+id/button_back" android:layout_width="48dp" android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless" android:padding="10dp"
+                android:contentDescription="@string/action_back" android:src="@drawable/ic_back" />
+            <TextView style="@style/AgeVer.Body" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/brand_petal" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:fontFamily="@font/petal_rubik" android:textSize="30sp" android:accessibilityHeading="true"
+            android:text="@string/title_agever" android:textColor="@color/agever_text_primary" />
+        <TextView style="@style/AgeVer.Body" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="@string/main_subtitle" />
 
-            <ImageButton
-                android:id="@+id/button_back"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="-8dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/action_back"
-                android:padding="10dp"
-                android:src="@drawable/ic_back" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:fontFamily="@font/petal_rubik"
-                android:text="@string/brand_petal"
-                android:textColor="@color/agever_text_secondary"
-                android:textSize="15sp" />
+        <TextView style="@style/AgeVer.SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:accessibilityHeading="true" android:text="@string/section_stage" />
+        <LinearLayout style="@style/AgeVer.Card" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <Spinner android:id="@+id/avatar_spinner" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:minHeight="56dp" android:contentDescription="@string/label_avatar" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                <Button android:id="@+id/button_import" style="@style/AgeVer.Button" android:layout_width="0dp"
+                    android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/button_pick_avatar" />
+                <Button android:id="@+id/button_library" style="@style/AgeVer.Button" android:layout_width="0dp"
+                    android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_button_ghost" android:textColor="@color/agever_accent"
+                    android:text="@string/library_title" />
+            </LinearLayout>
+            <TextView android:id="@+id/library_storage" style="@style/AgeVer.Body" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="8dp" />
+            <TextView style="@style/AgeVer.Body" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="4dp" android:text="@string/import_help" />
+            <ProgressBar android:id="@+id/import_progress" style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="wrap_content" android:indeterminate="true"
+                android:contentDescription="@string/importing_avatar" android:visibility="gone" />
+            <Button android:id="@+id/button_cancel_import" style="@style/AgeVer.Button" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="@string/cancel_import" android:visibility="gone" />
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:accessibilityHeading="true"
-            android:fontFamily="@font/petal_rubik"
-            android:text="@string/title_agever"
-            android:textColor="@color/agever_text_primary"
-            android:textSize="34sp" />
-
-        <TextView
-            style="@style/AgeVer.Body"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/main_subtitle" />
-
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/agever_preview_height"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/bg_preview"
-            android:clipToOutline="true">
-
-            <SurfaceView
-                android:id="@+id/preview_surface"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
+        <FrameLayout android:layout_width="match_parent" android:layout_height="@dimen/agever_preview_height"
+            android:layout_marginTop="20dp" android:background="@drawable/bg_preview" android:clipToOutline="true">
+            <SurfaceView android:id="@+id/preview_surface" android:layout_width="match_parent" android:layout_height="match_parent"
                 android:contentDescription="@string/desc_preview" />
-
-            <TextView
-                android:id="@+id/preview_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="top|start"
-                android:layout_margin="12dp"
-                android:accessibilityLiveRegion="polite"
-                android:background="@drawable/bg_preview_status"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"
-                android:text="@string/status_stopped"
-                android:textColor="@color/agever_preview_text"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+            <TextView android:id="@+id/preview_status" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="top|start" android:layout_margin="12dp" android:padding="10dp"
+                android:background="@drawable/bg_preview_status" android:accessibilityLiveRegion="polite"
+                android:text="@string/state_off" android:textColor="@color/agever_preview_text" />
         </FrameLayout>
+        <TextView android:id="@+id/status_detail" style="@style/AgeVer.Body" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="12dp"
+            android:accessibilityLiveRegion="polite" android:text="@string/detail_off" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:orientation="horizontal">
+            <Button android:id="@+id/button_preview" style="@style/AgeVer.Button" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:background="@drawable/bg_button_ghost"
+                android:textColor="@color/agever_accent" android:text="@string/button_preview" />
+            <Button android:id="@+id/button_toggle" style="@style/AgeVer.Button" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp"
+                android:text="@string/button_start" />
+        </LinearLayout>
+        <TextView style="@style/AgeVer.Body" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="@string/session_scope" />
 
-        <Button
-            android:id="@+id/button_toggle"
-            style="@style/AgeVer.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/button_start" />
-
-        <TextView
-            style="@style/AgeVer.Body"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center"
-            android:text="@string/tile_hint" />
-
-        <TextView
-            style="@style/AgeVer.SectionTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:accessibilityHeading="true"
-            android:text="@string/section_control" />
-
-        <LinearLayout
-            style="@style/AgeVer.Card"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+        <TextView style="@style/AgeVer.SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:accessibilityHeading="true" android:text="@string/section_control" />
+        <LinearLayout style="@style/AgeVer.Card" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:minHeight="60dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:paddingEnd="12dp">
-
-                    <TextView
-                        style="@style/AgeVer.RowTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_mode" />
-
-                    <TextView
-                        style="@style/AgeVer.RowSummary"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/summary_mode" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <RadioGroup
-                android:id="@+id/mode_group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:orientation="horizontal">
-
-                <RadioButton
-                    android:id="@+id/mode_joystick"
-                    style="@style/AgeVer.Mode"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/mode_joystick" />
-
-                <RadioButton
-                    android:id="@+id/mode_idle"
-                    style="@style/AgeVer.Mode"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:text="@string/mode_idle" />
+            <RadioGroup android:id="@+id/mode_group" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <RadioButton android:id="@+id/mode_joystick" style="@style/AgeVer.Mode" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:text="@string/mode_joystick" />
+                <RadioButton android:id="@+id/mode_idle" style="@style/AgeVer.Mode" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/mode_idle" />
             </RadioGroup>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="14dp"
-                android:layout_marginBottom="4dp"
-                android:background="@color/agever_outline" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:minHeight="60dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:paddingEnd="12dp">
-
-                    <TextView
-                        style="@style/AgeVer.RowTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_mirror" />
-
-                    <TextView
-                        style="@style/AgeVer.RowSummary"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/summary_mirror" />
-                </LinearLayout>
-
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/switch_mirror"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:minHeight="60dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:paddingEnd="12dp">
-
-                    <TextView
-                        style="@style/AgeVer.RowTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_idle_motion" />
-
-                    <TextView
-                        style="@style/AgeVer.RowSummary"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/summary_idle_motion" />
-                </LinearLayout>
-
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/switch_idle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:minHeight="60dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:paddingEnd="12dp">
-
-                    <TextView
-                        style="@style/AgeVer.RowTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_joystick" />
-
-                    <TextView
-                        style="@style/AgeVer.RowSummary"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/summary_joystick" />
-                </LinearLayout>
-
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/switch_joystick"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
+            <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_mirror" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:minHeight="56dp" android:text="@string/label_mirror" />
+            <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_idle" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:minHeight="56dp" android:text="@string/label_idle_motion" />
+            <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_joystick" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:minHeight="56dp" android:text="@string/label_joystick" />
+            <TextView style="@style/AgeVer.Body" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/summary_joystick" />
         </LinearLayout>
 
-        <TextView
-            style="@style/AgeVer.SectionTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:accessibilityHeading="true"
-            android:text="@string/section_stage" />
-
-        <LinearLayout
-            style="@style/AgeVer.Card"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+        <TextView style="@style/AgeVer.SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:accessibilityHeading="true" android:text="@string/advanced_title" />
+        <LinearLayout style="@style/AgeVer.Card" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="vertical">
-
-            <Spinner
-                android:id="@+id/avatar_spinner"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_button_ghost"
-                android:minHeight="52dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp" />
-
-            <Button
-                android:id="@+id/button_import"
-                style="@style/AgeVer.Button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_button_ghost"
-                android:text="@string/button_pick_avatar"
-                android:textColor="@color/agever_accent" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/status_injection"
-                style="@style/AgeVer.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/status_injection_missing" />
-
-            <TextView
-                android:id="@+id/status_detail"
-                style="@style/AgeVer.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:accessibilityLiveRegion="polite"
-                android:text="@string/status_stopped" />
+            <TextView style="@style/AgeVer.RowTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:labelFor="@id/fps_spinner" android:text="@string/frame_rate" />
+            <Spinner android:id="@+id/fps_spinner" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:minHeight="56dp" android:contentDescription="@string/frame_rate" />
+            <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_restore" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:minHeight="56dp" android:text="@string/restore_on_boot" />
+            <TextView style="@style/AgeVer.Body" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/restore_on_boot_summary" />
+            <TextView style="@style/AgeVer.Body" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="16dp" android:autoLink="web" android:text="@string/avatar_credits" />
         </LinearLayout>
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

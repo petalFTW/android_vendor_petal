@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <Preference
+        android:selectable="false"
+        android:title="@string/network_intro_title"
+        android:summary="@string/network_intro_summary" />
+    <MultiSelectListPreference
+        android:key="petal_network_denied_packages"
+        android:title="@string/network_packages_title"
+        android:summary="@string/network_packages_none" />
+    <Preference
+        android:selectable="false"
+        android:title="@string/network_warning_title"
+        android:summary="@string/network_warning_summary" />
+</PreferenceScreen>

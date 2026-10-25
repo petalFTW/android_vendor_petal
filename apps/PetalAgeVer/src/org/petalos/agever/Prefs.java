@@ -79,6 +79,8 @@ public final class Prefs {
     public void setAvatar(String avatar) {
         mPrefs.edit().putString(KEY_AVATAR, avatar).apply();
     }
+    public String getLastGoodAvatar() { return mPrefs.getString("last_good_avatar", DEFAULT_AVATAR); }
+    public void setLastGoodAvatar(String ref) { mPrefs.edit().putString("last_good_avatar", ref).apply(); }
 
     public boolean getMirror() {
         return mPrefs.getBoolean(KEY_MIRROR, true);
@@ -113,10 +115,35 @@ public final class Prefs {
     }
 
     public boolean getRestoreOnBoot() {
-        return mPrefs.getBoolean(KEY_RESTORE_ON_BOOT, true);
+        return mPrefs.getBoolean(KEY_RESTORE_ON_BOOT, false);
     }
 
     public void setRestoreOnBoot(boolean v) {
         mPrefs.edit().putBoolean(KEY_RESTORE_ON_BOOT, v).apply();
     }
+
+    public float getExpressionSpeed() { return mPrefs.getFloat("expression_speed", 0.75f); }
+    public void setExpressionSpeed(float value) {
+        mPrefs.edit().putFloat("expression_speed", Math.max(0f, Math.min(1f, value))).apply();
+    }
+    public int getFrameRate() { return mPrefs.getInt("frame_rate", 24) == 30 ? 30 : 24; }
+    public void setFrameRate(int value) {
+        mPrefs.edit().putInt("frame_rate", value == 30 ? 30 : 24).apply();
+    }
+    public int getPanelX() { return mPrefs.getInt("panel_x", -1); }
+    public int getPanelY() { return mPrefs.getInt("panel_y", -1); }
+    public void setPanelPosition(int x, int y) {
+        mPrefs.edit().putInt("panel_x", x).putInt("panel_y", y).apply();
+    }
+    public boolean getPanelCollapsed() { return mPrefs.getBoolean("panel_collapsed", false); }
+    public void setPanelCollapsed(boolean value) {
+        mPrefs.edit().putBoolean("panel_collapsed", value).apply();
+    }
+    public String getAvatarLabel(String ref, String fallback) {
+        return mPrefs.getString("label:" + ref, fallback);
+    }
+    public void setAvatarLabel(String ref, String label) {
+        mPrefs.edit().putString("label:" + ref, label).apply();
+    }
+    public void removeAvatarLabel(String ref) { mPrefs.edit().remove("label:" + ref).apply(); }
 }

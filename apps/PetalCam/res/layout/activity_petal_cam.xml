@@ -49,8 +49,8 @@
         android:gravity="center_vertical"
         android:paddingTop="12dp"
         android:paddingBottom="10dp"
-        android:paddingStart="@dimen/cam_edge_pad"
-        android:paddingEnd="@dimen/cam_edge_pad"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
         android:background="@drawable/cam_scrim_top">
 
         <ImageButton
@@ -70,6 +70,18 @@
             style="@style/PetalCam.IconButton"
             android:contentDescription="@string/settings_petal_engine"
             android:src="@drawable/ic_cam_hdr" />
+
+        <TextView
+            android:id="@+id/btn_aspect"
+            style="@style/PetalCamText"
+            android:layout_width="@dimen/cam_control_height"
+            android:layout_height="@dimen/cam_control_height"
+            android:background="@drawable/cam_control_background"
+            android:contentDescription="@string/cd_aspect_ratio"
+            android:gravity="center"
+            android:text="4:3"
+            android:textSize="11sp"
+            android:textStyle="bold" />
 
         <View
             android:layout_width="0dp"
@@ -314,8 +326,8 @@
             <ImageButton
                 android:id="@+id/qr_close"
                 style="@style/PetalCam.IconButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:contentDescription="@string/cd_cancel"
                 android:padding="8dp"
                 android:src="@drawable/ic_cam_close" />

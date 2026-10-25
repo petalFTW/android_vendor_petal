@@ -1,0 +1,4 @@
+# Teacher only. Pin to the CUDA 12 build; newer ORT builds require CUDA 13.
+# See README.md for the recommended install order.
+rembg>=2.0.57
+onnxruntime-gpu==1.22.0

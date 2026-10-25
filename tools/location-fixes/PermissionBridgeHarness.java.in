@@ -1,0 +1,98 @@
+/* Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 */
+public final class PermissionBridgeHarness {
+    static final int PERMISSION_GRANTED = 0;
+    static final int PERMISSION_DENIED = -1;
+    static final String TAG = "test";
+    static final String TAG_SPOOF = "test";
+    static final String BACKGROUND = android.Manifest.permission.ACCESS_BACKGROUND_LOCATION;
+    final Params mParams = new Params();
+    static int checks;
+
+    METHOD_BODY
+
+    String getOpPackageName() { return "test.target"; }
+    int getUserId() { return 0; }
+    int getDeviceId() { return 0; }
+    static final class Process {
+        static int myUid() { return 10202; }
+        static int myPid() { return 1234; }
+    }
+    static final class Binder {
+        static int caller = Process.myUid();
+        static int getCallingUid() { return caller; }
+    }
+    static final class Params {
+        boolean renounced;
+        boolean isRenouncedPermission(String value) { return renounced; }
+    }
+    static final class GmsCompat {
+        static boolean isGmsCore() { return false; }
+        static boolean isConstellationPhoneVerifyThread(Thread thread) { return false; }
+    }
+    static final class Log {
+        static final int VERBOSE = 2;
+        static boolean isLoggable(String tag, int level) { return false; }
+        static void v(String tag, String message) {}
+        static void v(String tag, String message, Throwable error) {}
+        static void d(String tag, String message) {}
+    }
+    static final class PermissionManager {
+        static int actual = PERMISSION_DENIED;
+        static int resolveDeviceIdForPermissionCheck(Object context, int id, String permission) {
+            return id;
+        }
+        static int checkPermission(String permission, int pid, int uid, int id) {
+            return actual;
+        }
+    }
+    static final class PetalStateOverrides {
+        static final int LOCATION_PERMISSION = 6;
+        static boolean enabled = true;
+        static boolean isEnabledForPackage(int state, String name, int user) {
+            checks++;
+            if (state != LOCATION_PERMISSION || !name.equals("test.target") || user != 0) {
+                throw new AssertionError("wrong policy target");
+            }
+            return enabled;
+        }
+    }
+    static void expect(boolean value, String message) {
+        if (!value) throw new AssertionError(message);
+    }
+    public static void main(String[] args) {
+        var target = new PermissionBridgeHarness();
+        int pid = Process.myPid();
+        int uid = Process.myUid();
+        expect(target.checkPermission(BACKGROUND, pid, uid) == PERMISSION_GRANTED,
+                "AndroidX self-check must see pretend grant");
+        expect(PermissionManager.actual == PERMISSION_DENIED, "real permission changed");
+        checks = 0;
+        expect(target.checkPermission(BACKGROUND, pid + 1, uid) == PERMISSION_DENIED,
+                "other process inherited override");
+        expect(target.checkPermission(BACKGROUND, pid, uid + 1) == PERMISSION_DENIED,
+                "other UID inherited override");
+        Binder.caller = uid + 1;
+        expect(target.checkPermission(BACKGROUND, pid, uid) == PERMISSION_DENIED,
+                "foreign Binder caller inherited override");
+        Binder.caller = uid;
+        expect(target.checkPermission(android.Manifest.permission.ACCESS_FINE_LOCATION, pid, uid)
+                == PERMISSION_DENIED, "foreground permission was spoofed");
+        expect(checks == 0, "non-self checks reached the spoof policy");
+        target.mParams.renounced = true;
+        expect(target.checkPermission(BACKGROUND, pid, uid) == PERMISSION_DENIED,
+                "renounced permission was spoofed");
+        expect(checks == 0, "renounced check reached spoof policy");
+        target.mParams.renounced = false;
+        PetalStateOverrides.enabled = false;
+        expect(target.checkPermission(BACKGROUND, pid, uid) == PERMISSION_DENIED,
+                "disabled policy still spoofed");
+        PermissionManager.actual = PERMISSION_GRANTED;
+        expect(target.checkPermission(BACKGROUND, pid, uid) == PERMISSION_GRANTED,
+                "real grant was lost");
+        try {
+            target.checkPermission(null, pid, uid);
+            throw new AssertionError("null permission accepted");
+        } catch (IllegalArgumentException expected) {}
+        System.out.println("Production ContextImpl self-check bridge: 11 assertions passed");
+    }
+}

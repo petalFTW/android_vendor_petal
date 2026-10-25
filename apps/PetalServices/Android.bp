@@ -1,0 +1,32 @@
+// Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0
+prebuilt_etc {
+    name: "PetalGoogleGmsApks",
+    srcs: ["prebuilt/gms/*.apk"],
+    sub_dir: "petal/services/google/gms",
+    product_specific: true,
+}
+
+prebuilt_etc {
+    name: "PetalGooglePlayStoreApk",
+    srcs: ["prebuilt/store/gps.apk"],
+    sub_dir: "petal/services/google/store",
+    product_specific: true,
+}
+
+android_app {
+    name: "PetalGmsStub",
+    manifest: "gms/AndroidManifest.xml",
+    sdk_version: "current",
+    certificate: ":petal_appcenter",
+    product_specific: true,
+    privileged: false,
+}
+
+android_app {
+    name: "PetalPlayStoreStub",
+    manifest: "store/AndroidManifest.xml",
+    sdk_version: "current",
+    certificate: ":petal_appcenter",
+    product_specific: true,
+    privileged: false,
+}

@@ -20,6 +20,7 @@ import android.content.Context;
 import android.util.Log;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -48,7 +49,17 @@ final class HostsWriter {
 
     /** real mount/unmount switch, read by the root daemon */
     static void setState(Context c, boolean on) {
-        tryWrite(STATE, on ? "1\n" : "0\n");
+        final boolean ok = tryWrite(STATE, on ? "1\n" : "0\n");
+        Log.i(TAG, "setState on=" + on + " target=" + STATE + " ok=" + ok);
+    }
+
+    /** the actual system flag, falling back to the app pref if it's unreadable */
+    static boolean isStateOn(Context c) {
+        try (FileInputStream in = new FileInputStream(STATE)) {
+            return in.read() == '1';
+        } catch (IOException | SecurityException e) {
+            return Prefs.isEnabled(c);
+        }
     }
 
     /** true when it landed in the real helper path */
@@ -66,6 +77,7 @@ final class HostsWriter {
             out.flush();
             return true;
         } catch (IOException | SecurityException e) {
+            Log.w(TAG, "write failed " + f + ": " + e);
             return false;
         }
     }

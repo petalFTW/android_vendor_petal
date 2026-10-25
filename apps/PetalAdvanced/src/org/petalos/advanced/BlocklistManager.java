@@ -19,6 +19,7 @@ package org.petalos.advanced;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -97,6 +98,7 @@ final class BlocklistManager {
         final boolean helper = HostsWriter.write(c, content);
 
         Prefs.setLastCount(c, domains.size());
+        Prefs.setLastSources(c, used);
         Prefs.setLastUpdate(c, System.currentTimeMillis());
         return new Result(true, domains.size(), used, helper ? null : "fallback");
     }
@@ -117,6 +119,8 @@ final class BlocklistManager {
             update(c);
         }
         HostsWriter.setState(c, on);
+        SystemStatus.refresh(c);
+        Log.i("PetalAdvanced", "setEnabled on=" + on);
     }
 
     /** fetch the source catalog json and stash it */

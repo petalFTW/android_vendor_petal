@@ -8,4 +8,5 @@
     <color name="petal_text_secondary">#99FFFFFF</color>
     <color name="petal_ripple">#33B9A5FF</color>
     <color name="petal_accent_primary">#FFB9A5FF</color>
+    <color name="petal_accent_text">#FFB9A5FF</color>
 </resources>

@@ -3,7 +3,8 @@
      Copyright (C) 2026 petalOS
      SPDX-License-Identifier: Apache-2.0
 -->
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <SwitchPreferenceCompat
         android:key="island_enabled"
@@ -14,5 +15,28 @@
         android:key="island_glass_notifications"
         android:title="@string/island_glass_title"
         android:summary="@string/island_glass_summary" />
+
+    <SeekBarPreference
+        android:key="island_blur_intensity"
+        android:persistent="false"
+        android:title="@string/island_blur_title" />
+
+    <SwitchPreferenceCompat
+        android:key="island_bubble"
+        android:persistent="false"
+        android:title="@string/island_bubble_title"
+        android:summary="@string/island_bubble_summary" />
+
+    <SeekBarPreference
+        android:key="island_popout"
+        android:persistent="false"
+        android:title="@string/island_popout_title"
+        app:dependency="island_bubble" />
+
+    <SeekBarPreference
+        android:key="island_chroma"
+        android:persistent="false"
+        android:title="@string/island_chroma_title"
+        app:dependency="island_bubble" />
 
 </PreferenceScreen>

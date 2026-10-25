@@ -40,35 +40,7 @@ import android.view.Surface;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-/**
- * Sink that publishes the rendered avatar as a real front camera.
- *
- * <p>It talks to petalOS' {@code virtual_camera} provider (the AOSP virtual
- * camera HAL, enabled on petal builds) and registers a camera with
- * {@code deviceId = 0} — the default device — so every app, including
- * age-verification apps, sees it as an extra {@code LENS_FACING_FRONT} camera.
- *
- * <p>Registration alone would only <em>add</em> a camera; clients that simply
- * open "the" front camera would still get the real sensor. While the stage is
- * live, this sink therefore also arms CameraService's petal front-camera
- * override ({@code ICameraService.setPetalFrontCameraOverride}): every open of
- * any front camera — including plain camera-id picks — is redirected to the
- * avatar camera, and the real front camera cannot be opened by anyone but this
- * app (its UID is exempt so AR face-tracking keeps working). The override
- * persists in {@code persist.petal.camera_override}, so between arming and the
- * app re-arming after boot, the front camera fails closed instead of leaking.
- *
- * <p>Registration needs the {@code MANAGE_VIRTUAL_CAMERA} signature permission
- * (see {@link #PERMISSION}); the provider accepts it via a small petalOS patch
- * because the stock {@code CREATE_VIRTUAL_DEVICE} permission is internal|role
- * and is not grantable to a regular privileged app. The override call needs the
- * platform {@code CAMERA_INJECT_EXTERNAL_CAMERA} signature permission.
- *
- * <p>When a client app opens the camera, the provider calls
- * {@link IVirtualCameraCallback#onStreamConfigured} with a producer Surface.
- * That Surface is handed straight to the renderer, which draws the avatar into
- * it. The provider samples it and emits the client's requested camera streams.
- */
+// publish synthetic frames, but ask CameraService before claiming anything is ready
 public final class ProviderFrameSink implements FrameSink {
 
     private static final String TAG = "AgeVerProviderSink";
@@ -80,11 +52,7 @@ public final class ProviderFrameSink implements FrameSink {
     /** Service instance name of the AOSP virtual camera provider. */
     public static final String SERVICE_NAME = "virtual_camera";
 
-    /**
-     * Binder name CameraService publishes itself under. Not
-     * {@link Context#CAMERA_SERVICE} ("camera") — that is the CameraManager
-     * system-service key, the real binder is "media.camera".
-     */
+    // the binder name isn't the Context service key, annoyingly
     private static final String CAMERA_BINDER_NAME = "media.camera";
 
     private final Context mAppContext;
@@ -93,13 +61,9 @@ public final class ProviderFrameSink implements FrameSink {
     /** Guards mStopped / mOverrideArmed between the register thread and stop(). */
     private final Object mLifecycleLock = new Object();
 
-    /** Process-wide override state, so the QS tile can mirror it. */
-    private static final java.util.concurrent.atomic.AtomicBoolean sOverrideArmed =
-            new java.util.concurrent.atomic.AtomicBoolean(false);
-
     /** True while CameraService is redirecting the front camera to the avatar. */
     public static boolean isOverrideArmed() {
-        return sOverrideArmed.get();
+        return queryOverrideState() > 0;
     }
 
     private Callback mCallback;
@@ -107,6 +71,40 @@ public final class ProviderFrameSink implements FrameSink {
     private volatile boolean mActive;
     private boolean mStopped;
     private boolean mOverrideArmed;
+    private int mCurrentStream = -1;
+    private volatile StatusListener mStatusListener;
+    private final IBinder.DeathRecipient mDeath = () -> unavailable("Camera provider disconnected");
+
+    public interface StatusListener {
+        void onReady(boolean replacementActive);
+        void onFailure(String reason);
+    }
+
+    public void setStatusListener(StatusListener listener) { mStatusListener = listener; }
+
+    public static int queryOverrideState() {
+        try {
+            ICameraService camera = ICameraService.Stub.asInterface(
+                    ServiceManager.getService(CAMERA_BINDER_NAME));
+            return camera == null ? -1 : camera.getPetalFrontCameraOverrideState();
+        } catch (RemoteException | RuntimeException e) {
+            return -1;
+        }
+    }
+
+    public static boolean restoreCamera() {
+        try {
+            ICameraService camera = ICameraService.Stub.asInterface(
+                    ServiceManager.getService(CAMERA_BINDER_NAME));
+            if (camera == null) return false;
+            if (camera.getPetalFrontCameraOverrideState() == 0) return true;
+            camera.setPetalFrontCameraOverride(false, "");
+            return camera.getPetalFrontCameraOverrideState() == 0;
+        } catch (RemoteException | RuntimeException e) {
+            Log.w(TAG, "Could not restore front camera", e);
+            return false;
+        }
+    }
 
     private final IVirtualCameraCallback.Stub mVirtualCallback =
             new IVirtualCameraCallback.Stub() {
@@ -126,6 +124,8 @@ public final class ProviderFrameSink implements FrameSink {
                         int height, int pixelFormat) {
                     Log.i(TAG, "stream " + streamId + " configured " + width + "x" + height);
                     mMain.post(() -> {
+                        synchronized (mLifecycleLock) { if (mStopped) return; }
+                        mCurrentStream = streamId;
                         Callback cb = mCallback;
                         if (cb != null) {
                             cb.onSurfaceReady(surface, width, height);
@@ -142,6 +142,8 @@ public final class ProviderFrameSink implements FrameSink {
                 @Override
                 public void onStreamClosed(int streamId) {
                     mMain.post(() -> {
+                        if (mCurrentStream != streamId) return;
+                        mCurrentStream = -1;
                         Callback cb = mCallback;
                         if (cb != null) {
                             cb.onSurfaceLost();
@@ -156,7 +158,8 @@ public final class ProviderFrameSink implements FrameSink {
 
     /** Whether this build can publish a virtual camera (permission granted). */
     public static boolean isAvailable(@NonNull Context context) {
-        return context.checkSelfPermission(PERMISSION) == PackageManager.PERMISSION_GRANTED;
+        return context.checkSelfPermission(PERMISSION) == PackageManager.PERMISSION_GRANTED
+                && ServiceManager.checkService(SERVICE_NAME) != null;
     }
 
     @Override
@@ -170,11 +173,7 @@ public final class ProviderFrameSink implements FrameSink {
     }
 
     private void registerAsync() {
-        // The petal front-camera override has two steps. Arming with an empty
-        // camera id fails closed: from this instant no app can open any real
-        // front camera (CameraService returns ERROR_DISABLED). Once the avatar
-        // camera is registered and enumerated, we re-arm with its id and the
-        // same open resolves to the avatar stage instead.
+        // block first; registration alone doesn't replace the sensor
         boolean overrideSupported;
         synchronized (mLifecycleLock) {
             if (mStopped) {
@@ -184,7 +183,12 @@ public final class ProviderFrameSink implements FrameSink {
             mOverrideArmed = overrideSupported;
         }
         try {
-            IBinder binder = ServiceManager.waitForService(SERVICE_NAME);
+            IBinder binder = null;
+            for (int attempt = 0; attempt < 30 && binder == null; attempt++) {
+                synchronized (mLifecycleLock) { if (mStopped) return; }
+                binder = ServiceManager.checkService(SERVICE_NAME);
+                if (binder == null) Thread.sleep(100);
+            }
             if (binder == null) {
                 unavailable("virtual_camera service did not come up");
                 return;
@@ -205,18 +209,17 @@ public final class ProviderFrameSink implements FrameSink {
                 }
                 mService = service;
                 mActive = true;
+                binder.linkToDeath(mDeath, 0);
             }
             if (overrideSupported) {
                 String cameraId = service.getCameraId(mToken);
                 if (cameraId == null || cameraId.isEmpty()) {
-                    // Keep the fail-closed block armed; never fall back to the
-                    // real camera while the stage claims to be live.
+                    // broken backend stays blocked until the user stops it
                     unavailable("provider returned no camera id");
                     return;
                 }
                 if (!armReplacement(cameraId)) {
-                    // Same: stay fail-closed and tell the stage the provider
-                    // path did not come up.
+                    // don't quietly drop the block on this failure
                     unavailable("avatar backend never became usable");
                     return;
                 }
@@ -224,16 +227,20 @@ public final class ProviderFrameSink implements FrameSink {
             } else {
                 Log.i(TAG, "registered extra front virtual camera (no override), deviceId=0");
             }
+            mMain.post(() -> {
+                synchronized (mLifecycleLock) { if (mStopped) return; }
+                StatusListener listener = mStatusListener;
+                if (listener != null) listener.onReady(overrideSupported);
+            });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            unavailable("Camera startup interrupted");
         } catch (RemoteException | RuntimeException e) {
             unavailable("registration failed: " + e.getMessage());
         }
     }
 
-    /**
-     * Calls {@code ICameraService.setPetalFrontCameraOverride}. Returns false
-     * when the ROM has no petal CameraService hooks, so callers can degrade to
-     * the plain extra-camera behaviour instead of failing.
-     */
+    // older ROMs may expose only an extra camera, say so
     private boolean armOverride(String cameraId) {
         try {
             ICameraService cameraService = ICameraService.Stub.asInterface(
@@ -243,7 +250,6 @@ public final class ProviderFrameSink implements FrameSink {
                 return false;
             }
             cameraService.setPetalFrontCameraOverride(true, cameraId);
-            sOverrideArmed.set(true);
             return true;
         } catch (RemoteException | RuntimeException e) {
             Log.w(TAG, "front-camera override unavailable", e);
@@ -251,12 +257,7 @@ public final class ProviderFrameSink implements FrameSink {
         }
     }
 
-    /**
-     * Arms the override with the concrete avatar camera id. CameraService
-     * validates the backend (must be a present, usable, front-facing
-     * {@code v0_*} virtual camera), so retry briefly while the provider's
-     * {@code cameraDeviceStatusChange(PRESENT)} is still propagating.
-     */
+    // enumeration arrives late sometimes; keep retries short
     private boolean armReplacement(String cameraId) {
         for (int attempt = 0; attempt < 30; attempt++) {
             synchronized (mLifecycleLock) {
@@ -271,7 +272,6 @@ public final class ProviderFrameSink implements FrameSink {
                     }
                     cameraService.setPetalFrontCameraOverride(true, cameraId);
                     mOverrideArmed = true;
-                    sOverrideArmed.set(true);
                     return true;
                 } catch (SecurityException e) {
                     Log.w(TAG, "front-camera override denied", e);
@@ -323,6 +323,9 @@ public final class ProviderFrameSink implements FrameSink {
     private void unavailable(String reason) {
         Log.w(TAG, reason);
         mMain.post(() -> {
+            synchronized (mLifecycleLock) { if (mStopped) return; }
+            StatusListener listener = mStatusListener;
+            if (listener != null) listener.onFailure(reason);
             Callback cb = mCallback;
             if (cb != null) {
                 cb.onSurfaceLost();
@@ -333,25 +336,25 @@ public final class ProviderFrameSink implements FrameSink {
     @Override
     public void stop() {
         mCallback = null;
+        mStatusListener = null;
         synchronized (mLifecycleLock) {
             mStopped = true;
             if (mOverrideArmed) {
                 try {
                     ICameraService cameraService = ICameraService.Stub.asInterface(
                             ServiceManager.getService(CAMERA_BINDER_NAME));
-                    if (cameraService != null) {
-                        cameraService.setPetalFrontCameraOverride(false, "");
-                    }
-                    mOverrideArmed = false;
+                    if (cameraService == null) throw new IllegalStateException("Camera service unavailable");
+                    cameraService.setPetalFrontCameraOverride(false, "");
+                    mOverrideArmed = queryOverrideState() != 0;
                 } catch (RemoteException | RuntimeException e) {
                     Log.w(TAG, "disarming front-camera override failed", e);
                 }
             }
         }
         IVirtualCameraService service = mService;
-        sOverrideArmed.set(false);
         if (mActive && service != null) {
             try {
+                service.asBinder().unlinkToDeath(mDeath, 0);
                 service.unregisterCamera(mToken);
             } catch (RemoteException | RuntimeException e) {
                 Log.w(TAG, "unregisterCamera failed", e);

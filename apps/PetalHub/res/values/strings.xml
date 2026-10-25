@@ -4,6 +4,12 @@
      SPDX-License-Identifier: Apache-2.0
 -->
 <resources>
+    <string name="petal_monet_palette_title">Material 3 palette</string>
+    <string name="petal_monet_palette_summary">Choose a color for system and Petal accents</string>
+    <string name="petal_monet_reset_title">Use wallpaper colors</string>
+    <string name="petal_monet_reset_summary">Restore the automatic Material 3 palette</string>
+    <string name="system_font_title">System font</string>
+    <string name="system_font_summary">Choose the font used throughout the device</string>
 
     <!-- App / Settings entry -->
     <string name="hub_title">petalOS Hub</string>
@@ -12,19 +18,83 @@
     <!-- Dashboard -->
     <string name="dashboard_section_personalization">Personalization</string>
     <string name="dashboard_section_advanced">Advanced Features</string>
+    <string name="dashboard_section_privacy">Privacy</string>
     <string name="dashboard_section_device">Device</string>
+    <string name="dashboard_section_apps">petalOS Apps</string>
+    <string name="ads_privacy_title">Advertising ID</string>
+    <string name="ads_privacy_summary">Delete or opt out of the Google advertising ID</string>
+    <string name="hub_target_missing">That page isn\'t on this device because its app isn\'t installed.</string>
     <string name="category_blocker">Content blocker</string>
     <string name="blocker_summary">Ad and tracker blocking that runs without root</string>
-    <string name="category_filter_lists">Filter lists</string>
-    <string name="filter_lists_summary">yokoffing/filterlists, Hagezi, oisd and mates</string>
-    <string name="category_blocked_sites">Blocked sites</string>
-    <string name="blocked_sites_summary">Block your own domains on top of the lists</string>
+    <string name="category_app_center">Petal App Center</string>
+    <string name="app_center_summary">Enable, disable or update optional petalOS apps</string>
+    <string name="app_center_note_title">About these apps</string>
+    <string name="app_center_note_summary">Optional petalOS apps stay preinstalled so their privileged features keep working. Toggle one off to remove it for the current user, then back on to restore it.</string>
+    <string name="app_center_enabled">Enabled</string>
+    <string name="app_center_disabled">Disabled</string>
+    <string name="app_center_not_installed">Not installed</string>
+    <string name="app_center_failed">Couldn\'t change state</string>
+    <string name="app_center_open">Open</string>
+    <string name="app_center_update_title">Install or update from file</string>
+    <string name="app_center_update_summary">Pick an APK signed with the same key as the installed app</string>
+    <string name="app_center_install">Install</string>
+    <string name="app_center_reinstall">Reinstall</string>
+    <string name="app_center_install_summary">Install the version bundled with this build</string>
+    <string name="app_center_uninstall">Uninstall</string>
+    <string name="app_center_uninstall_summary">Remove the app and revert to the preinstalled stub</string>
+    <string name="app_center_uninstall_title">Uninstall %1$s?</string>
+    <string name="app_center_uninstall_message">The app is removed for this user. You can install it again at any time.</string>
+    <string name="app_center_installing">Installing %1$s\u2026</string>
+    <string name="app_center_uninstalling">Uninstalling %1$s\u2026</string>
+    <string name="app_center_installed">installed</string>
+    <string name="app_center_done">Done</string>
+    <string name="app_center_failed_reason">Failed: %1$s</string>
+    <string name="app_center_version">Version %1$s \u00b7 %2$s</string>
+    <string name="app_center_empty">No bundled apps found</string>
+    <string name="app_center_assistant">Petal Assistant</string>
+    <string name="app_center_tuner">PetalTuner</string>
+    <string name="proton4a_title">Proton4A</string>
+    <string name="proton4a_summary">Windows app compatibility for petalOS</string>
+    <string name="proton4a_import">Import Windows EXE</string>
+    <string name="proton4a_import_summary">Build and install an app-drawer APK for a Windows executable</string>
+    <string name="proton4a_program">Selected program</string>
+    <string name="proton4a_empty">Imported Windows programs appear in your app drawer</string>
+    <string name="proton4a_host_missing">Install the Proton4A runtime app before importing an EXE</string>
+    <string name="proton4a_invalid_file">Choose an .exe file; MSI support is not available yet</string>
+    <string name="proton4a_build_title">Building Windows app</string>
+    <string name="proton4a_build_copy">Copying %1$s · %2$d MB copied</string>
+    <string name="proton4a_build_package">Packaging EXE into APK…</string>
+    <string name="proton4a_build_sign">Signing app for installation…</string>
+    <string name="proton4a_apk_ready">%1$s APK built · opening installer…</string>
+    <string name="proton4a_apk_installed">Installed. Your Windows app is in the app drawer.</string>
+    <string name="proton4a_apk_not_installed">Installation canceled or failed. Tap Import Windows EXE to retry.</string>
+    <string name="proton4a_importing">Checking and copying executable…</string>
+    <string name="proton4a_import_failed">Import failed: %1$s</string>
+    <string name="proton4a_imported">%1$s · %2$s · SHA-256 %3$s\nImported, awaiting Proton4A runtime</string>
+    <string name="proton4a_runtime">Runtime status</string>
+    <string name="proton4a_runtime_unavailable">No runtime bundled in this build. Imported files cannot run yet.</string>
+    <string name="proton4a_runtime_install">Tap to install the bundled runtime (Box64 + Proton)</string>
+    <string name="proton4a_runtime_pick">Tap to choose a runtime payload (proton4a-runtime.tar.gz)</string>
+    <string name="proton4a_runtime_invalid_file">Choose a proton4a-runtime.tar.gz payload</string>
+    <string name="proton4a_runtime_installing">Installing runtime…</string>
+    <string name="proton4a_runtime_installed">Installed: Proton %1$s · Box64 %2$s\nExecution and per-app packaging are still under development.</string>
+    <string name="proton4a_runtime_failed">Install failed: %1$s</string>
+    <string name="proton4a_run_pending">%1$s\n\nExecution is not wired up yet. This launcher entry will start the program once the Proton4A runtime layer lands.</string>
+    <string name="proton4a_run_no_runtime">Cannot start the program: install the Proton4A runtime first from petalOS Hub.</string>
+    <string name="proton4a_run_starting">Starting %1$s…</string>
+    <string name="proton4a_run_finished">%1$s finished with status %2$d.\nLog: %3$s</string>
+    <string name="proton4a_run_failed">Could not start %1$s: %2$s</string>
+    <string name="proton4a_debug_title">Run self-test and save debug report</string>
+    <string name="proton4a_debug_summary">Runs Box64 and Wine, then writes one report with device info, inventory and logs</string>
+    <string name="proton4a_debug_running">Running self-test…</string>
+    <string name="proton4a_debug_saved">Saved: %1$s</string>
+    <string name="proton4a_debug_failed">Self-test failed: %1$s</string>
     <string name="depth_studio_title">Depth Studio</string>
     <string name="depth_studio_summary">3D subject wallpaper and depth clock editor</string>
     <string name="category_power">Battery and idle</string>
     <string name="power_summary">Control reversible screen-off restrictions</string>
     <string name="power_policy_enabled_title">Idle optimization</string>
-    <string name="power_policy_enabled_summary">Apply the selected policy after the screen-off grace period</string>
+    <string name="power_policy_enabled_summary">Apply after the screen-off grace period. Push services and apps exempt from battery optimization stay protected.</string>
     <string name="power_profile_title">Restriction profile</string>
     <string name="power_grace_title">Screen-off grace period</string>
     <string name="power_packages_title">Restricted package names</string>
@@ -42,12 +112,24 @@
     <string name="power_audit_empty">Select apps to audit their battery exemptions</string>
     <string name="power_audit_summary">%1$d selected · %2$d exempt from battery optimization</string>
     <string name="power_warning_title">Compatibility warning</string>
-    <string name="power_warning_summary">Deep restriction temporarily blocks location and Bluetooth scanning for selected apps. Navigation, wearables and telematics may stop until the screen turns on.</string>
+    <string name="power_warning_summary">Optimized reduces background job frequency while keeping network access. Deep restricted also blocks network access, background execution, location and Bluetooth scanning for selected apps. Their notifications, navigation or wearable connections may pause until the screen turns on. Push services and battery-exempt apps are excluded.</string>
+
+    <string name="category_network">Network access</string>
+    <string name="network_summary">Block or allow the network per app</string>
+    <string name="network_intro_title">Per-app network access</string>
+    <string name="network_intro_summary">Apps you select here cannot open network connections at all, foreground or background. System apps are never affected.</string>
+    <string name="network_packages_title">Apps without network access</string>
+    <string name="network_packages_none">No apps blocked</string>
+    <plurals name="network_packages_count">
+        <item quantity="one">%1$d app blocked</item>
+        <item quantity="other">%1$d apps blocked</item>
+    </plurals>
+    <string name="network_warning_title">Compatibility warning</string>
+    <string name="network_warning_summary">A blocked app keeps running but loses all internet access. Messaging, streaming, browsers and updaters stop working until you allow them again.</string>
 
     <string name="category_quick_settings">Quick Settings</string>
     <string name="category_app_drawer">App drawer</string>
     <string name="category_dialogs">Volume &amp; power dialogs</string>
-    <string name="category_status_bar">Status bar</string>
     <string name="category_island">Island</string>
     <string name="category_lockscreen">Lock screen</string>
     <string name="category_launcher">Launcher</string>
@@ -55,7 +137,6 @@
     <string name="quick_settings_summary">Unified shade blur and tile style</string>
     <string name="app_drawer_summary">Drawer blur, colour and transparency</string>
     <string name="dialogs_summary">Starting edge and anchor point</string>
-    <string name="status_bar_summary">Status bar height</string>
     <string name="island_summary">Dynamic island and notification glass</string>
     <string name="lockscreen_summary">Clock style, media cover art and the 3D CD player</string>
     <string name="launcher_summary">Icon pack and app drawer blur</string>
@@ -63,16 +144,24 @@
     <!-- Quick Settings -->
     <string name="qs_custom_enabled_title">Custom panel colour</string>
     <string name="qs_custom_enabled_summary">Use a custom colour and transparency for the Quick Settings panel</string>
-    <string name="qs_skin_enabled_title">Petal quick settings skin</string>
-    <string name="qs_skin_enabled_summary">Style the stock Quick Settings tiles with the petal look (pills, circles, card palette)</string>
-    <string name="qs_emission_title">Tile emission</string>
-    <string name="qs_emission_summary">%1$d%% bloom and active glow</string>
+    <string name="qs_skin_enabled_title">Petal Quick Settings</string>
+    <string name="qs_skin_enabled_summary">Style Quick Settings tiles with the petal glass look</string>
+    <string name="qs_reach_title">Control placement</string>
+    <string name="qs_reach_balanced">Balanced · sliders on either side</string>
+    <string name="qs_reach_left">Left hand · sliders on the left</string>
+    <string name="qs_reach_right">Right hand · sliders on the right</string>
+    <string name="qs_emission_title">Tile glow</string>
+    <string name="qs_emission_summary">%1$d%% glow strength</string>
     <string name="qs_color_title">Panel colour</string>
     <string name="qs_color_summary">Pick a colour for the Quick Settings panel</string>
     <string name="qs_alpha_title">Panel transparency</string>
     <string name="qs_alpha_summary">%1$d%%</string>
     <string name="qs_blur_title">Shade blur</string>
     <string name="qs_blur_summary">%1$d%%</string>
+    <string name="qs_media_art_blur_title">Media player blur</string>
+    <string name="qs_media_art_blur_summary">%1$d%%</string>
+    <string name="qs_media_refraction_title">Media player refraction</string>
+    <string name="qs_media_refraction_summary">%1$d%% glass edge distortion</string>
 
     <!-- App drawer -->
     <string name="apps_custom_enabled_title">Custom drawer colour</string>
@@ -102,38 +191,41 @@
     <string name="bezel_height">Distance from top</string>
     <string name="bezel_position_summary">%1$s edge · %2$d%% from top</string>
 
-    <!-- Status bar -->
-    <string name="status_bar_height_title">Status bar height</string>
-    <string name="status_bar_height_summary_default">System default</string>
-    <string name="status_bar_height_summary">%1$d dp</string>
-
     <!-- Island -->
     <string name="island_enabled_title">Enable island</string>
     <string name="island_enabled_summary">Show the liquid-drop dynamic island for notifications, calls and media</string>
     <string name="island_glass_title">Glass notifications</string>
     <string name="island_glass_summary">Give notification cards the island\u2019s rounded glass surface, grain and highlighted edges</string>
+    <string name="island_blur_title">Island blur</string>
+    <string name="island_blur_summary">%1$d%%</string>
+    <string name="island_bubble_title">Bubble refraction</string>
+    <string name="island_bubble_summary">Bend the wallpaper at the island edge like a glass lens</string>
+    <string name="island_popout_title">Pop-out depth</string>
+    <string name="island_popout_summary">%1$d%%</string>
+    <string name="island_chroma_title">Chromatic aberration</string>
+    <string name="island_chroma_summary">%1$d%%</string>
 
     <!-- Lock screen -->
     <string name="lockscreen_media_cover_title">Lock screen cover art</string>
     <string name="lockscreen_media_cover_summary">Use the current song\u2019s artwork as the lock screen wallpaper and hide the media player</string>
     <string name="lockscreen_cd_player_title">3D spinning CD player</string>
-    <string name="lockscreen_cd_player_summary">Replace the lock screen media player with a spinning CD and case; title and artist on the back, iOS-style controls below. Turns off Lock screen cover art.</string>
+    <string name="lockscreen_cd_player_summary">Show a spinning CD and case on the lock screen, with playback controls below. Turns off lock screen cover art.</string>
     <string name="lockscreen_seamless_unlock_title">Seamless unlock transition</string>
-    <string name="lockscreen_seamless_unlock_summary">Experimental ColorOS-style lock screen to home reveal</string>
+    <string name="lockscreen_seamless_unlock_summary">Experimental transition from the lock screen to Home</string>
     <string name="lockscreen_clock_style_title">Clock style</string>
     <string name="lockscreen_clock_style_summary">Choose the lock screen clock design</string>
-    <string name="clock_style_stock">Stock</string>
-    <string name="clock_style_hyperos_light">HyperOS Light</string>
-    <string name="clock_style_hyperos_bold">HyperOS Bold</string>
-    <string name="clock_style_oxygenos">OxygenOS</string>
-    <string name="clock_style_ios">iOS</string>
-    <string name="clock_style_ios_light">iOS Light</string>
-    <string name="clock_style_pixel_bold">Pixel Bold</string>
+    <string name="clock_style_stock">Petal</string>
+    <string name="clock_style_hyperos_light">Fine</string>
+    <string name="clock_style_hyperos_bold">Heavy</string>
+    <string name="clock_style_oxygenos">Compact</string>
+    <string name="clock_style_ios">Bold</string>
+    <string name="clock_style_ios_light">Air</string>
+    <string name="clock_style_pixel_bold">Condensed</string>
     <string name="clock_style_slim">Slim</string>
-    <string name="clock_style_condensed">Condensed</string>
-    <string name="clock_style_wide">Wide</string>
-    <string name="clock_style_slanted">Slanted</string>
-    <string name="clock_style_neon">Neon</string>
+    <string name="clock_style_condensed">Mono</string>
+    <string name="clock_style_wide">Serif</string>
+    <string name="clock_style_slanted">Script</string>
+    <string name="clock_style_neon">Violet</string>
 
     <!-- Launcher -->
     <string name="icon_pack_title">Icon pack</string>
@@ -170,7 +262,7 @@
     <!-- Version page -->
     <string name="petal_version_title" translatable="false">petalOS version</string>
     <string name="petal_version_name" translatable="false">petalOS</string>
-    <string name="petal_version_fallback" translatable="false">0.5.4</string>
+    <string name="petal_version_fallback" translatable="false">1.0.1</string>
     <string name="petal_creator" translatable="false">RaB1DLANDMINE</string>
     <string name="petal_logo_description">petalOS logo</string>
     <string name="petal_version_build_type">Build type</string>
@@ -184,4 +276,53 @@
     <string name="petal_version_patch">Security patch</string>
     <string name="lockscreen_fingerprint_ripple_title">Fingerprint water ripple</string>
     <string name="lockscreen_fingerprint_ripple_summary">Show a water ripple when touching the lockscreen fingerprint sensor</string>
+    <!-- Game mode -->
+    <string name="category_game_mode">Game mode</string>
+    <string name="game_mode_summary">Pick games, bypass charging, max refresh rate and resolution</string>
+    <string name="gm_games_category">Games</string>
+    <string name="gm_games_title">Game selection</string>
+    <string name="gm_games_none">No games selected</string>
+    <plurals name="gm_games_count">
+        <item quantity="one">%d game selected</item>
+        <item quantity="other">%d games selected</item>
+    </plurals>
+    <string name="gm_overlay_title">Game mode overlay</string>
+    <string name="gm_overlay_summary">Show the quick panel for a few seconds when a selected game opens</string>
+    <string name="gm_session_category">While a game is running</string>
+    <string name="gm_profile_title">Performance profile</string>
+    <string name="gm_bypass_title">Bypass charging</string>
+    <string name="gm_bypass_summary">Power the phone from the charger and pause battery charging</string>
+    <string name="gm_max_hz_title">Maximum refresh rate</string>
+    <string name="gm_max_hz_summary">Lock the display to its highest refresh rate</string>
+    <string name="gm_max_res_title">Maximum resolution</string>
+    <string name="gm_max_res_summary">Switch to the highest display resolution</string>
+    <string name="gm_focus_title">Minimal distractions</string>
+    <string name="gm_focus_summary">Do not disturb, no heads-up notifications, lock rotation</string>
+    <string name="gm_free_ram_title">Free memory on launch</string>
+    <string name="gm_free_ram_summary">Close background apps when the game starts</string>
+    <string name="gm_open_tuner_title">Advanced tuning</string>
+    <string name="gm_open_tuner_summary">CPU, GPU, charging limits and more in PetalTuner</string>
+    <!-- Work mode -->
+    <string name="category_work_mode">Work mode</string>
+    <string name="work_mode_summary">Black bar notifications that are not on the allow list</string>
+    <string name="wm_mode_category">Redaction</string>
+    <string name="wm_mode_title">Redaction mode</string>
+    <string name="wm_exempt_category">Allow list</string>
+    <string name="wm_apps_title">Apps that stay readable</string>
+    <string name="wm_apps_none">No apps selected</string>
+    <plurals name="wm_apps_count">
+        <item quantity="one">%d app selected</item>
+        <item quantity="other">%d apps selected</item>
+    </plurals>
+    <string name="wm_add_contact_title">Contacts that stay readable</string>
+    <string name="wm_add_contact_summary">Tap to add a contact</string>
+    <string name="wm_contacts_none">No contacts selected</string>
+    <plurals name="wm_contacts_count">
+        <item quantity="one">%d contact selected</item>
+        <item quantity="other">%d contacts selected</item>
+    </plurals>
+    <string name="wm_remove_contact">Remove</string>
+    <string name="wm_picker_missing">No contacts app is available</string>
+    <string name="wm_contact_read_failed">Could not read the selected contact</string>
+    <string name="wm_allow_summary">Choose the redaction style here, then use the Work mode Quick Settings tile to turn it on or off. Selected apps and identified contacts stay fully readable, including in the Island.</string>
 </resources>

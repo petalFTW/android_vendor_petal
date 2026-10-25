@@ -26,21 +26,20 @@ import android.view.SurfaceView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-/**
- * Sink backed by an in-app {@link SurfaceView}. Used for the live preview and
- * while the camera-provider HAL is not yet installed.
- */
+// SurfaceView output only, this doesn't publish a camera
 public final class PreviewFrameSink implements FrameSink, SurfaceHolder.Callback {
 
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
 
     private SurfaceView mView;
     private Callback mCallback;
+    private int mGeneration;
 
     public void attach(@Nullable SurfaceView view) {
         if (mView == view) {
             return;
         }
+        ++mGeneration;
         if (mView != null) {
             mView.getHolder().removeCallback(this);
         }
@@ -60,6 +59,7 @@ public final class PreviewFrameSink implements FrameSink, SurfaceHolder.Callback
 
     @Override
     public void start(@NonNull Callback callback) {
+        ++mGeneration;
         mCallback = callback;
         // The surface may already be live if the view was attached first.
         SurfaceView view = mView;
@@ -102,9 +102,10 @@ public final class PreviewFrameSink implements FrameSink, SurfaceHolder.Callback
     public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
         Surface surface = holder.getSurface();
         if (surface != null && surface.isValid()) {
+            Callback cb = mCallback;
+            int generation = mGeneration;
             mMainHandler.post(() -> {
-                Callback cb = mCallback;
-                if (cb != null) {
+                if (cb != null && cb == mCallback && generation == mGeneration) {
                     cb.onSurfaceReady(surface, width, height);
                 }
             });
@@ -120,18 +121,20 @@ public final class PreviewFrameSink implements FrameSink, SurfaceHolder.Callback
         SurfaceView view = mView;
         int w = view == null ? 0 : view.getWidth();
         int h = view == null ? 0 : view.getHeight();
+        Callback cb = mCallback;
+        int generation = mGeneration;
         mMainHandler.post(() -> {
-            Callback cb = mCallback;
-            if (cb != null) {
+            if (cb != null && cb == mCallback && generation == mGeneration) {
                 cb.onSurfaceReady(surface, w, h);
             }
         });
     }
 
     private void notifyLost() {
+        Callback cb = mCallback;
+        int generation = mGeneration;
         mMainHandler.post(() -> {
-            Callback cb = mCallback;
-            if (cb != null) {
+            if (cb != null && cb == mCallback && generation == mGeneration) {
                 cb.onSurfaceLost();
             }
         });

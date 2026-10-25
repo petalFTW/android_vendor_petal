@@ -1,0 +1,16 @@
+package {
+    default_applicable_licenses: ["petal_commissioner_license"],
+}
+
+license {
+    name: "petal_commissioner_license",
+    visibility: [":__subpackages__"],
+    license_kinds: ["SPDX-license-identifier-OFL"],
+    license_text: ["OFL.txt"],
+}
+
+prebuilt_font {
+    name: "Commissioner-VF.ttf",
+    src: "Commissioner-VF.ttf",
+    product_specific: true,
+}

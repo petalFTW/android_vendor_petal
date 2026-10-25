@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <dimen name="tuner_screen_margin">20dp</dimen>
+    <dimen name="tuner_card_radius">22dp</dimen>
+    <dimen name="tuner_card_gap">10dp</dimen>
+    <dimen name="tuner_badge_size">44dp</dimen>
+    <dimen name="tuner_badge_icon">22dp</dimen>
+    <dimen name="tuner_overlay_radius">20dp</dimen>
+</resources>

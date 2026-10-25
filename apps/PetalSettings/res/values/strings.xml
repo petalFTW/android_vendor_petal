@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <string name="app_name">Petal Settings</string>
+    <string name="title">Settings</string>
+    <string name="subtitle">Your phone, your way.</string>
+    <string name="search_settings">Search settings</string>
+    <string name="all_settings">All settings</string>
+    <string name="browse_settings">Browse all settings</string>
+    <string name="search_hint">Try “brightness” or “Bluetooth”</string>
+    <string name="search_empty">No matching settings. Try another word, or open full Settings.</string>
+    <string name="rail_description">Card %1$d of %2$d</string>
+    <string name="section_settings">Open %1$s</string>
+    <string name="system_screen">Opens system Settings</string>
+    <string name="open_settings">Open full Settings</string>
+    <string name="panel_in_focus">%1$s in focus</string>
+    <string name="previous_panel">Previous panel</string>
+    <string name="next_panel">Next panel</string>
+    <string name="open_section">Open section</string>
+    <string name="open">Open</string>
+    <string name="more_settings">More settings</string>
+    <string name="all_settings_subtitle">Every category on your phone</string>
+    <string name="full_settings">Full Settings</string>
+    <string name="quick_search">Quick searches</string>
+    <string name="back">Back</string>
+    <string name="cartridge_enabled">Cartridge library unlocked.</string>
+    <string name="cartridge_disabled">Back to settings cards.</string>
+    <string name="dashboard_enabled">Welcome to the dashboard.</string>
+    <string name="petal_os_version" translatable="false">1.0.1</string>
+    <string name="write_settings_title">Allow brightness and depth changes?</string>
+    <string name="write_settings_body">Allow Petal Settings to modify system settings to adjust brightness and lock-screen depth.</string>
+    <string name="grant">Allow</string>
+    <string name="not_now">Not now</string>
+    <string name="brightness_locked">Grant system-settings access to adjust brightness here.</string>
+    <string name="volume">Media volume</string>
+    <string name="brightness">Brightness</string>
+    <string name="depth_toggle">Depth lock screen</string>
+    <string name="depth_toggle_help">petalOS foreground subject on the lock screen</string>
+    <string name="notification_start">Custom notification position</string>
+    <string name="notification_start_help">Custom lock-screen notification position (20–75%)</string>
+    <string name="notification_position">Position</string>
+    <string name="notification_position_automatic">Automatic</string>
+    <string name="notification_position_value">%1$d%% from the top of the screen</string>
+    <string name="value_percent">%1$d%%</string>
+    <string name="device_name">Device name</string>
+    <string name="petal_version">Software build</string>
+    <string name="android_version">Android version</string>
+    <string name="build_number">Build</string>
+
+    <string name="view_all_settings">View all settings</string>
+    <string name="go_to_aosp_settings">Go to AOSP Settings</string>
+</resources>

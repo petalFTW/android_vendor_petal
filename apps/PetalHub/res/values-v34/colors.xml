@@ -3,10 +3,11 @@
      Copyright (C) 2026 petalOS
      SPDX-License-Identifier: Apache-2.0
 
-     Retint SettingsLib's accent (switches, sliders, category titles) to the petal palette
-     instead of the wallpaper's monet accent. Overrides the v34 dynamic-colour definitions.
+     Hub accents follow the active Material 3 palette, including the Hub seed override.
 -->
 <resources>
-    <color name="settingslib_materialColorPrimary">#FF7C5CFF</color>
+    <color name="settingslib_materialColorPrimary">@android:color/system_accent1_500</color>
+    <color name="petal_accent_primary">@android:color/system_accent1_500</color>
+    <color name="petal_accent_text">@android:color/system_accent1_700</color>
     <color name="settingslib_materialColorOnPrimary">#FFFFFFFF</color>
 </resources>

@@ -11,7 +11,28 @@
 
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.CHANGE_OVERLAY_PACKAGES" />
     <uses-permission android:name="android.permission.READ_SEARCH_INDEXABLES" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.CHANGE_COMPONENT_ENABLED_STATE" />
+    <uses-permission android:name="android.permission.MANAGE_APP_OPS_MODES" />
+    <uses-permission android:name="android.permission.MANAGE_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.MODIFY_USER_PREFERRED_DISPLAY_MODE" />
+
+    <queries>
+        <package android:name="com.google.android.gms" />
+        <package android:name="com.android.vending" />
+        <package android:name="com.google.android.gsf" />
+        <package android:name="app.grapheneos.gmscompat" />
+        <package android:name="org.petalos.proton4a" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
     <application
         android:defaultToDeviceProtectedStorage="true"
@@ -22,10 +43,14 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PetalHub">
 
-        <!--
-             Deliberately no LAUNCHER category: petalOS Hub has no app icon and is
-             only reachable through the Settings app (see the activity-alias below).
-        -->
+        <provider
+            android:name=".Proton4AApkProvider"
+            android:authorities="org.petalos.hub.proton4a.apks"
+            android:exported="true"
+            android:readPermission="android.permission.INSTALL_PACKAGES"
+            android:grantUriPermissions="true" />
+
+        <!-- Hub lives in Settings, don't add a launcher icon -->
         <activity
             android:name=".HubActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
@@ -42,6 +67,41 @@
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:exported="true"
             android:label="@string/petal_version_title" />
+
+        <activity
+            android:name=".garden.PocketGardenActivity"
+            android:exported="false"
+            android:label="@string/garden_title"
+            android:theme="@style/Theme.PetalHub.Garden" />
+
+        <!-- Per-program launcher target for pinned Proton4A shortcuts. -->
+        <activity
+            android:name=".Proton4ARunActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:exported="true"
+            android:label="@string/proton4a_title"
+            android:theme="@style/Theme.PetalHub" />
+
+        <!-- Seeds the default system font (Commissioner) once, on first boot. -->
+        <receiver
+            android:name=".FontDefaultReceiver"
+            android:directBootAware="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Game mode helper: grants appops and switches resolution for PetalGM. -->
+        <receiver
+            android:name=".GameModeReceiver"
+            android:exported="true"
+            android:permission="android.permission.WRITE_SECURE_SETTINGS">
+            <intent-filter>
+                <action android:name="org.petalos.hub.action.GM_GRANT" />
+                <action android:name="org.petalos.hub.action.GM_DISPLAY" />
+            </intent-filter>
+        </receiver>
 
         <!-- Feeds hub screens to settings search. -->
         <provider

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="config_bodyFontFamily" translatable="false">commissioner</string>
+    <string name="config_bodyFontFamilyMedium" translatable="false">commissioner-medium</string>
+    <string name="config_headlineFontFamily" translatable="false">commissioner</string>
+    <string name="config_headlineFontFamilyMedium" translatable="false">commissioner-medium</string>
+</resources>

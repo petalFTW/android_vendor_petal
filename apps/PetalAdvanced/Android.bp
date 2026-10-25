@@ -19,6 +19,9 @@
 android_app {
     name: "PetalAdvanced",
 
+    // SettingsLib so it wears the same skin as the rest of the hub
+    defaults: ["SettingsLibDefaults"],
+
     srcs: ["src/**/*.java"],
     resource_dirs: ["res"],
     asset_dirs: ["assets"],
@@ -31,10 +34,11 @@ android_app {
 
     static_libs: [
         "androidx.appcompat_appcompat",
-        "androidx.core_core",
         "androidx.fragment_fragment",
         "androidx.preference_preference",
         "androidx.recyclerview_recyclerview",
+        "androidx.legacy_legacy-preference-v14",
         "jsr305",
+        "SettingsLibPreference",
     ],
 }

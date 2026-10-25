@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <color name="petal_version_island_tint">#C2F3F3F6</color>
+    <color name="petal_version_island_rim_top">#55FFFFFF</color>
+    <color name="petal_version_island_rim_bottom">#14000000</color>
+</resources>

@@ -24,6 +24,7 @@
     <string name="cd_flip">Switch camera</string>
     <string name="cd_gallery">Open gallery</string>
     <string name="cd_settings">Settings</string>
+    <string name="cd_aspect_ratio">Photo aspect ratio</string>
     <string name="cd_grid">Grid</string>
     <string name="cd_timer">Timer</string>
     <string name="cd_autorotate">Auto rotate</string>
@@ -55,7 +56,20 @@
     <string name="permission_needed">Camera and microphone access are required</string>
     <string name="grant">Grant</string>
     <string name="saving">Saving…</string>
-    <string name="saved">Saved to Petal Gallery</string>
+    <string name="saved">Saved to Gallery</string>
+    <string name="no_gallery">No gallery app</string>
+    <string name="save_failed">Couldn\'t save photo</string>
+    <string name="record_failed">Recording failed</string>
+    <string name="no_link_handler">No app can open this link</string>
+    <string name="hdr_on">Petal HDR on</string>
+    <string name="hdr_off">Petal HDR off</string>
+    <string name="timer_seconds">Timer %1$ds</string>
+    <string name="timer_disabled">Timer off</string>
+    <string name="flash_unavailable">No flash on this camera</string>
+    <string name="flash_mode_torch">Torch</string>
+    <string name="flash_mode_on">Flash on</string>
+    <string name="flash_mode_auto">Flash auto</string>
+    <string name="flash_mode_off">Flash off</string>
     <string name="storage_missing">Storage unavailable</string>
     <string name="camera_error">Couldn\'t start the camera</string>
     <string name="vendor_mode_unavailable">This mode isn\'t available on this device</string>
@@ -65,6 +79,24 @@
 
     <!-- Settings -->
     <string name="settings_capture_title">Capture</string>
+    <string name="settings_photo_quality">Photo quality</string>
+    <string name="settings_video_quality">Video quality</string>
+    <string-array name="photo_quality_entries">
+        <item>High (96% JPEG)</item>
+        <item>Standard (85% JPEG)</item>
+        <item>Storage saver (70% JPEG)</item>
+    </string-array>
+    <string-array name="photo_quality_values">
+        <item>high</item><item>standard</item><item>saver</item>
+    </string-array>
+    <string-array name="video_quality_entries">
+        <item>4K (when supported)</item>
+        <item>1080p</item>
+        <item>720p</item>
+    </string-array>
+    <string-array name="video_quality_values">
+        <item>uhd</item><item>fhd</item><item>hd</item>
+    </string-array>
     <string name="settings_petal_engine">Petal Engine</string>
     <string name="settings_petal_engine_summary">Use OEM camera extensions for portrait, night and HDR when the device supports them</string>
     <string name="settings_shutter_sound">Shutter sound</string>

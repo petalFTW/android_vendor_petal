@@ -44,6 +44,7 @@ public final class JoystickView extends View {
     private float mKnobY;
     private boolean mTracking;
     private Listener mListener;
+    private int mPointerId = -1;
 
     public JoystickView(Context context) {
         this(context, null);
@@ -90,9 +91,13 @@ public final class JoystickView extends View {
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_MOVE: {
+                if (event.getActionMasked() == MotionEvent.ACTION_DOWN) mPointerId = event.getPointerId(0);
+                int pointer = event.findPointerIndex(mPointerId);
+                if (pointer < 0) return false;
                 mTracking = true;
-                float dx = (event.getX() - cx) / radius;
-                float dy = (event.getY() - cy) / radius;
+                getParent().requestDisallowInterceptTouchEvent(true);
+                float dx = (event.getX(pointer) - cx) / Math.max(1f, radius);
+                float dy = (event.getY(pointer) - cy) / Math.max(1f, radius);
                 float len = (float) Math.hypot(dx, dy);
                 if (len > 1f) {
                     dx /= len;
@@ -110,6 +115,8 @@ public final class JoystickView extends View {
             case MotionEvent.ACTION_CANCEL: {
                 if (mTracking) {
                     mTracking = false;
+                    getParent().requestDisallowInterceptTouchEvent(false);
+                    mPointerId = -1;
                     mKnobX = 0f;
                     mKnobY = 0f;
                     if (mListener != null) {
@@ -128,6 +135,29 @@ public final class JoystickView extends View {
     @Override
     public boolean performClick() {
         return super.performClick();
+    }
+
+    @Override public void onInitializeAccessibilityNodeInfo(android.view.accessibility.AccessibilityNodeInfo info) {
+        super.onInitializeAccessibilityNodeInfo(info);
+        info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_LEFT);
+        info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_RIGHT);
+        info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP);
+        info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN);
+    }
+
+    @Override public boolean performAccessibilityAction(int action, android.os.Bundle args) {
+        if (action == android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_LEFT.getId()) {
+            mKnobX = Math.max(-1f, mKnobX - .1f);
+        } else if (action == android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_RIGHT.getId()) {
+            mKnobX = Math.min(1f, mKnobX + .1f);
+        } else if (action == android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.getId()) {
+            mKnobY = Math.min(1f, mKnobY + .1f);
+        } else if (action == android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.getId()) {
+            mKnobY = Math.max(-1f, mKnobY - .1f);
+        } else return super.performAccessibilityAction(action, args);
+        if (mListener != null) mListener.onMove(mKnobX, mKnobY);
+        invalidate();
+        return true;
     }
 
     private float dp(float value) {

@@ -1,0 +1,9 @@
+# Training only. Install the CUDA PyTorch wheel first (see README.md), then this file.
+torch>=2.3
+torchvision>=0.18
+segmentation-models-pytorch>=0.3.4
+onnx>=1.16
+onnxruntime>=1.18
+tqdm>=4.66
+Pillow>=10.0
+numpy>=1.24

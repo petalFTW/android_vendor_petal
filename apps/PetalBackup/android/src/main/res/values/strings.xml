@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Petal Backup Dev</string>
+    <string name="title">Petal Backup</string>
+    <string name="scope">Local file backup with portable recovery and operation history. App-data backup, the petalOS service, schedules and cloud connections are still being implemented.</string>
+    <plurals name="selected_files">
+        <item quantity="one">%1$d file selected</item>
+        <item quantity="other">%1$d files selected</item>
+    </plurals>
+    <string name="self_test">Run on-device encryption test</string>
+    <string name="cancel">Cancel operation</string>
+    <string name="idle">Ready for a local backup or restore.</string>
+    <string name="password_required">Enter the recovery number or legacy password.</string>
+    <string name="password_short">Use exactly 16 digits (0–9) for a new backup.</string>
+    <string name="password_mismatch">The recovery numbers do not match.</string>
+    <string name="too_many_files">Choose at most 256 files in this development build.</string>
+    <string name="queued">Starting operation…</string>
+    <string name="cancel_pending">Cancelling and cleaning up…</string>
+    <string name="cancelled">Cancelled. No completed result was reported.</string>
+    <string name="interrupted">The previous operation was interrupted. Check its recorded output and start it again with your recovery number or legacy password.</string>
+    <string name="authentication_failed">Incorrect recovery number/password or damaged archive. No files were exported.</string>
+    <string name="operation_failed">Operation failed: %1$s</string>
+    <string name="backup_done">Encrypted backup saved and read-back verified.</string>
+    <string name="restore_done">Restore verified and exported to a new folder: %1$s</string>
+    <string name="self_test_done">On-device encryption and file restore passed.</string>
+    <string name="copy_source">Reading file %1$d of %2$d</string>
+    <string name="encrypting">Encrypting the snapshot…</string>
+    <string name="saving">Saving encrypted archive…</string>
+    <string name="importing">Reading encrypted archive…</string>
+    <string name="decrypting">Authenticating and restoring into private staging…</string>
+    <string name="exporting">Exporting verified files…</string>
+    <string name="channel_name">Backup operations</string>
+    <string name="partial_cleanup">Output cleanup failed; inspect the destination for partial data.</string>
+    <string name="opening_history">Opening operation history…</string>
+    <string name="journal_failed">Operation history could not be saved or recovered. No new operation can start until its storage is available.</string>
+    <string name="history_empty">No recorded operations yet.</string>
+</resources>

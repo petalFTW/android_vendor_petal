@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.petalos.assistant"
+    android:versionCode="2"
+    android:versionName="0.2-preview">
+
+    <application
+        android:label="Petal Assistant"
+        android:supportsRtl="true">
+        <meta-data android:name="org.petalos.appcenter.PLACEHOLDER" android:value="true" />
+    </application>
+</manifest>

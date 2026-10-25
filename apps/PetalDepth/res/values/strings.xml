@@ -49,6 +49,7 @@
     <string name="depth_tune_parallax">Parallax</string>
     <string name="depth_ink_auto">Auto</string>
     <string name="depth_date">Date</string>
+    <string name="depth_show_date">Show date</string>
     <string name="depth_motion">Motion</string>
     <string name="depth_subject_reselect">Draw rough outline</string>
     <string name="depth_tab_photo">Photo</string>
@@ -92,4 +93,9 @@
     <string name="depth_preset_liquid_stack">Liquid stacked</string>
     <string name="depth_browse_styles">Browse all clock styles</string>
     <string name="depth_collapse_styles">Show fewer styles</string>
+    <string name="depth_notification_start">Notification start</string>
+    <string name="depth_notification_custom">Place notifications myself</string>
+    <string name="depth_notification_automatic">Automatic · follows the lock-screen layout</string>
+    <string name="depth_notification_percent">Start %1$d%% down the screen</string>
+    <string name="depth_notification_help">For the portrait depth lock screen. Use the slider or drag the preview line to keep notifications clear of your subject. Saved automatically. Media may move the start upward to fit above the unlock area.</string>
 </resources>

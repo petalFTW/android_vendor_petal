@@ -1,0 +1,31 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="@PACKAGE@" android:versionCode="2" android:versionName="0.2">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Per-program APKs are launched by us but queried via createPackageContext;
+         the launcher intent makes them visible without QUERY_ALL_PACKAGES. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+    <!-- Keep native libraries extractable for standalone APK updates. The
+         runtime also copies them into its own storage for its ELF loader. -->
+    <application android:label="Proton4A runtime"
+        android:icon="@drawable/ic_program"
+        android:extractNativeLibs="true" android:allowBackup="false">
+        <activity android:name=".runtime.RuntimeActivity" android:exported="true"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="org.petalos.proton4a.RUN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/vnd.petalos.proton4a-program" />
+            </intent-filter>
+        </activity>
+        <!-- Hub owns the import UI; the runtime host has no separate app icon. -->
+        <activity android:name=".runtime.ImportActivity" android:exported="false" />
+        <activity android:name=".runtime.InstallResultActivity" android:exported="false" />
+    </application>
+</manifest>

@@ -16,10 +16,13 @@ apply() {
     else
         setprop sys.petal.blocklist 0
     fi
+    log -t petal-blocklist "apply want=[$want] prop=[$(getprop sys.petal.blocklist 2>/dev/null)]"
 }
 
 mkdir -p "$DIR" 2>/dev/null
 chmod 0777 "$DIR" 2>/dev/null
+# parent must be traversable by the app or it can't reach the flag at all
+chmod 0771 /data/petal 2>/dev/null
 [ -f "$SRC" ] || printf '127.0.0.1 localhost\n::1 localhost\n' > "$SRC" 2>/dev/null
 chmod 0666 "$SRC" 2>/dev/null
 [ -f "$STATE" ] || echo 0 > "$STATE" 2>/dev/null
@@ -33,4 +36,5 @@ fi
 
 # first run: sync once, then block on inotify forever
 apply
+log -t petal-blocklist "armed, watching $STATE"
 exec inotifyd /system_ext/bin/petal-blocklist.sh "$STATE:w"

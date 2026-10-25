@@ -5,6 +5,14 @@
 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <ListPreference
+        android:key="system_font"
+        android:persistent="false"
+        android:title="@string/system_font_title"
+        android:summary="@string/system_font_summary"
+        android:entries="@array/system_font_entries"
+        android:entryValues="@array/system_font_values" />
+
     <Preference
         android:key="icon_pack"
         android:title="@string/icon_pack_title"

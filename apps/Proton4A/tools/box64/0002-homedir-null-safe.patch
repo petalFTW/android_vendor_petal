@@ -1,0 +1,16 @@
+diff --git a/src/core.c b/src/core.c
+index 468775bf..080e8527 100644
+--- a/src/core.c
++++ b/src/core.c
+@@ -257,7 +257,10 @@ static void hookMangoHud()
+     const char* configdir = getenv("XDG_CONFIG_HOME");
+     const char* homedir = getenv("HOME");
+ #ifndef ANDROID
+-    homedir = homedir ? homedir : getpwuid(getuid())->pw_dir;
++    if (!homedir) {
++        struct passwd* pw = getpwuid(getuid());
++        if (pw) homedir = pw->pw_dir;
++    }
+ #endif
+     if (!homedir) return;
+ 

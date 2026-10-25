@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <color name="garden_soil">#3D3447</color>
+    <color name="garden_stem">#9CBBAA</color>
+    <style name="Theme.PetalHub.Garden" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/petal_window_base</item>
+        <item name="android:colorBackground">@color/petal_window_base</item>
+        <item name="android:colorAccent">@color/petal_accent_primary</item>
+        <item name="android:fontFamily">@font/petal_rubik</item>
+        <item name="android:windowLightStatusBar">@bool/petal_window_light_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/petal_window_light_bars</item>
+        <item name="android:navigationBarColor">@color/petal_window_base</item>
+        <item name="android:textColorPrimary">@color/petal_settings_text</item>
+        <item name="android:textColorSecondary">@color/petal_settings_secondary</item>
+    </style>
+</resources>

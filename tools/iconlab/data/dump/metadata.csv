@@ -1,0 +1,133 @@
+package,label,adaptive,monochrome,intrinsic_w,intrinsic_h,has_fg,has_bg
+app.morphe.android.apps.photos,Photos Morphe,true,true,252,252,true,true
+app.morphe.android.youtube,YouTube,true,true,252,252,true,true
+app.morphe.manager,Morphe,true,true,252,252,true,true
+app.revanced.android.gms,MicroG RE,true,true,252,252,true,true
+app.revenge.manager,Revenge Manager,true,false,252,252,true,true
+ch.protonmail.android,Proton Mail,true,true,1288,1288,true,true
+ch.protonvpn.android,Proton VPN,true,true,252,252,true,true
+co.uk.Nationwide.Mobile,Nationwide,true,false,252,252,true,true
+com.Psyonix.RL2D,RL Sideswipe,true,false,252,252,false,true
+com.alibaba.aliexpresshd,AliExpress,true,false,252,252,true,true
+com.amazon.mShop.android.shopping,Amazon Shopping,true,false,252,252,true,true
+com.android.calculator2,Calculator,true,true,252,252,true,true
+com.android.cellbroadcastreceiver.module,Emergency alerts,true,false,252,252,true,true
+com.android.contacts,Contacts,true,true,252,252,true,true
+com.android.deskclock,Clock,true,true,252,252,true,true
+com.android.dialer,Phone,true,true,252,252,true,true
+com.android.documentsui,Files,true,true,252,252,true,true
+com.android.inputmethod.latin,Android Keyboard (AOSP),true,false,252,252,true,true
+com.android.messaging,Messaging,true,true,252,252,true,true
+com.android.settings,Settings,true,true,252,252,true,true
+com.android.stk,SIM Toolkit,true,true,252,252,true,true
+com.android.vending,microG Companion,true,true,252,252,true,true
+com.android.virtualization.terminal,Terminal,true,true,252,252,true,true
+com.app.tgtg,Too Good To Go,true,false,252,252,true,true
+com.arlo.app,Arlo Secure,true,true,252,252,true,true
+com.aspiro.tidal,TIDAL,true,true,252,252,true,true
+com.aurora.store.nightly,Aurora Store,true,true,252,252,true,true
+com.boots.flagship.android,Boots,true,false,1194,1194,true,true
+com.cex.android,CeX,true,false,252,252,true,true
+com.chooloo.www.koler,Koler,true,false,252,252,true,false
+com.clearscore.mobile,ClearScore,true,true,56,56,true,true
+com.collectrinc.collectr,Collectr,true,false,252,252,true,true
+com.ddt.dotdotbuy,Superbuy,false,false,168,168,false,false
+com.deepl.mobiletranslator,DeepL,true,true,252,252,true,true
+com.discord,Discord,true,true,252,252,true,true
+com.dukascopy.bank,Dukascopy,true,false,378,378,true,true
+com.duolingo,Duolingo,true,false,1008,1008,true,true
+com.ea.game.nfs14_row,NFS No Limits,true,false,252,252,true,true
+com.ebay.mobile,eBay,true,true,252,252,true,true
+com.edjing.edjingdjturntable,edjing Mix,true,false,252,252,true,true
+com.eltavine.duckdetector,Duck Detector,true,true,252,252,true,true
+com.epicgames.fortnite,Fortnite,true,false,112,112,false,true
+com.f0x1d.logfox,LogFox,true,true,252,252,true,true
+com.facebook.katana,Facebook,true,true,252,252,true,true
+com.facebook.orca,Messenger,true,true,252,252,true,true
+com.fawksey.fawksey,fawksey,false,false,168,168,false,false
+com.firsttouchgames.story,Score! Hero,true,false,252,252,true,true
+com.franco.kernel,Franco Kernel Manager,true,false,252,252,true,true
+com.ga.loyalty.android.nectar.activities,Nectar,true,false,252,252,true,true
+com.gameloft.android.ANMP.GloftGGHM,Gangstar 4,true,false,298,298,true,true
+com.google.android.apps.messaging,Messages,true,true,252,252,true,true
+com.google.android.calendar,Calendar,true,true,288,288,true,true
+com.google.android.gm,Gmail,true,true,252,252,true,true
+com.google.android.gms,microG Services,true,true,252,252,true,true
+com.google.android.projection.gearhead,Android Auto,true,false,252,252,true,true
+com.grppl.android.shell.CMBlloydsTSB73,Lloyds,true,false,112,112,false,true
+com.hellotalk,HelloTalk,true,false,252,252,true,true
+com.hevy,Hevy,true,false,252,252,true,true
+com.iViNi.bmwhatLite,Carly,true,false,252,252,true,true
+com.iceland.android,Iceland,true,false,252,252,true,true
+com.imaginecurve.curve.prd,Curve Pay,true,false,252,252,true,true
+com.instagram.android,Instagram,true,true,252,252,true,true
+com.kaching.merchant,SumUp Business,true,true,56,56,true,true
+com.lemon.lvoverseas,CapCut,false,false,224,224,false,false
+com.levelcard,Zable,true,false,252,252,true,true
+com.lidl.eci.lidlplus,Lidl Plus,true,false,252,252,true,true
+com.mand.notitest,Notification Test,true,true,252,252,true,true
+com.martinmimigames.tinymusicplayer,Tiny Music Player,false,false,192,192,false,false
+com.mcdonalds.app.uk,McDonald's,true,false,252,252,true,true
+com.miniclip.eightballpool,8 Ball Pool,true,false,252,252,true,true
+com.mobile5.greggs,Greggs,true,false,252,252,true,true
+com.motionvolt.flipdiving,Flip Diving,true,false,252,252,true,true
+com.myklarnamobile,Klarna,true,false,252,252,true,true
+com.nhs.online.nhsonline,NHS App,true,false,252,252,true,true
+com.nianticlabs.pokemongo,Pokémon GO,true,false,252,252,true,true
+com.nintendo.zaka,Mario Kart,true,false,252,252,true,true
+com.oceanwing.soundcore,Anker soundcore,true,false,252,252,true,true
+com.oneplus.soundrecorder,Recorder,false,false,630,630,false,false
+com.openai.chatgpt,ChatGPT,true,true,252,252,true,true
+com.oplus.consumerIRApp,IR Remote,false,false,1260,1260,false,false
+com.paradyme.solarsmash,Solar Smash,true,false,252,252,true,true
+com.pau.liqglass,Liquid Glass,true,true,252,252,true,true
+com.paypal.android.p2pmobile,PayPal,true,false,252,252,true,true
+com.petalos.icondump,IconDump,true,false,252,252,true,true
+com.phstudio.freetv,Free TV,true,true,252,252,true,true
+com.pinterest,Pinterest,true,true,252,252,true,true
+com.pocketpass.app,PocketPass,true,false,682,682,true,true
+com.projectfluffy.icons,Fluffy Icons,true,false,252,252,true,true
+com.puregym,PureGym,true,true,252,252,true,true
+com.revolut.revolut,Revolut,true,true,252,252,true,true
+com.roblox.client,Roblox,true,false,252,252,true,true
+com.rootapp.mobile,Root,true,false,252,252,true,true
+com.server.auditor.ssh.client,Termius,true,true,252,252,true,true
+com.shopify.arrive,Shop,true,true,2389,2389,true,true
+com.skate3recomp,Skate 3,false,false,252,252,false,false
+com.snapchat.android,Snapchat,true,false,252,252,true,true
+com.squareenixmontreal.hitmansniperandroid,Sniper,false,false,168,168,false,false
+com.tesco.grocery.view,Tesco,true,false,252,252,true,true
+com.totallymoney.account,TotallyMoney,false,false,168,168,false,false
+com.valvesoftware.android.steam.community,Steam,true,true,252,252,true,true
+com.wakdev.nfctools.pro,NFC Tools PRO,true,true,252,252,true,true
+com.whatsapp,WhatsApp,true,true,256,256,true,true
+com.withplum.app,Plum,true,true,252,252,true,true
+com.zhenxiang.superimage.pro,SuperImage Pro,true,true,252,252,true,true
+com.zhiliaoapp.musically,TikTok,true,true,252,252,true,true
+compress.joshattic.us,Compressor,true,true,252,252,true,true
+de.szalkowski.activitylauncher,Activity Launcher,true,true,252,252,true,true
+dev.patrickgold.florisboard.beta,FlorisBoard Beta,true,true,252,252,true,true
+fr.peternmuller.android.files,Material Files,true,true,252,252,true,true
+in.hridayan.ashell,aShell You,true,true,252,252,true,true
+io.alexrintt.kanade,Kanade,true,true,1400,1400,true,true
+io.anonero.anon,ANON,true,false,252,252,true,true
+io.github.vvb2060.keyattestation,Key Attestation,true,false,252,252,true,true
+io.yuka.android,Yuka,true,false,466,466,true,true
+jooble.org,Jooble,true,false,370,370,true,true
+lzzjgo.qualmm.nowtgg,KernelSU-Next,true,true,252,252,true,true
+net.waterfox.android.release,Waterfox,true,true,252,252,true,true
+org.breezyweather,Breezy Weather,true,true,252,252,true,true
+org.fdroid.fdroid,F-Droid,true,true,252,252,true,true
+org.fossify.math,Calculator,true,true,252,252,true,true
+org.lineageos.etar,Calendar,true,true,252,252,true,true
+org.lineageos.glimpse,Gallery,true,true,252,252,true,true
+org.lineageos.jelly,Browser,true,true,252,252,true,true
+org.lineageos.recorder,Recorder,true,true,252,252,true,true
+org.petal.streetpass,StreetPass,true,false,252,252,true,true
+org.petalos.cam,Camera,true,false,252,252,true,true
+org.petalos.pwallet.lab.visasandbox,PWallet Visa Sandbox,false,false,168,168,false,false
+org.rab1d.petal.music,Music,true,false,252,252,true,true
+org.swiftapps.swiftbackup,Swift Backup,true,true,252,252,true,true
+proton.android.authenticator,Proton Authenticator,true,true,252,252,true,true
+uk.co.papajohns.ppjqg,Papa Johns,true,false,252,252,true,true
+uz.unnarsx.cherrygram,Cherrygram,true,true,448,448,true,true

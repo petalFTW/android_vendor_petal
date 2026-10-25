@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:key="screen_petal_keyboard"
+    android:title="@string/petal_kb_title">
+    <ListPreference
+        android:key="petal_kb_font"
+        android:title="@string/petal_kb_font_title"
+        android:summary="%s"
+        android:entries="@array/petal_kb_font_entries"
+        android:entryValues="@array/petal_kb_font_values"
+        android:defaultValue="system" />
+    <CheckBoxPreference
+        android:key="petal_kb_glass"
+        android:title="@string/petal_kb_glass_title"
+        android:summary="@string/petal_kb_glass_summary"
+        android:defaultValue="false" />
+</PreferenceScreen>

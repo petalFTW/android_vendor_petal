@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project="$(realpath "$(dirname "$0")")"
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+# Use the existing checksum-pinned 8.13 wrapper, without building Assistant.
+exec bash "$project/../PetalAssistant/gradlew" --project-dir "$project" "$@"

@@ -8,5 +8,5 @@
     <dimen name="agever_card_radius">24dp</dimen>
     <dimen name="agever_preview_radius">28dp</dimen>
     <dimen name="agever_preview_height">260dp</dimen>
-    <dimen name="agever_joystick_size">168dp</dimen>
+    <dimen name="agever_joystick_size">72dp</dimen>
 </resources>

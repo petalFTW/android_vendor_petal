@@ -32,14 +32,22 @@ public class BlocklistTileService extends TileService {
     @Override
     public void onClick() {
         super.onClick();
-        final boolean on = !Prefs.isEnabled(this);
+        // ignore taps while an enable/disable is still running
+        if (!SystemStatus.begin()) {
+            return;
+        }
+        final boolean on = !SystemStatus.isOn(this);
         Prefs.setEnabled(this, on);
+        // grey it out right away so it can't be spammed mid-toggle
+        updateTile();
         final android.content.Context ctx = getApplicationContext();
         BlocklistManager.run(() -> {
             BlocklistManager.setEnabled(ctx, on);
-            BlocklistManager.post(this::updateTile);
+            BlocklistManager.post(() -> {
+                SystemStatus.end(ctx);
+                updateTile();
+            });
         });
-        updateTile();
     }
 
     private void updateTile() {
@@ -49,7 +57,11 @@ public class BlocklistTileService extends TileService {
         }
         tile.setIcon(Icon.createWithResource(this, R.drawable.ic_advanced));
         tile.setLabel(getString(R.string.tile_label));
-        tile.setState(Prefs.isEnabled(this) ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        if (SystemStatus.isBusy()) {
+            tile.setState(Tile.STATE_UNAVAILABLE);
+        } else {
+            tile.setState(SystemStatus.isOn(this) ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        }
         tile.updateTile();
     }
 }

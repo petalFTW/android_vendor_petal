@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <color name="paper">#101012</color>
+    <color name="petal_scrim">#E60C0C10</color>
+    <color name="ink">#F5F4F6</color>
+    <color name="muted">#B8B6BD</color>
+    <color name="accent">@android:color/system_accent1_200</color>
+    <color name="soft">#22FFFFFF</color>
+    <color name="line">#24FFFFFF</color>
+    <color name="card">#252529</color>
+    <color name="card_strong">#26FFFFFF</color>
+    <color name="on_accent">#231832</color>
+    <color name="label">#F6F1E4</color>
+    <color name="label_ink">#3C362E</color>
+    <color name="label_dim">#7A705F</color>
+</resources>

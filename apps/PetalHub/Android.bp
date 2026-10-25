@@ -14,13 +14,40 @@
 // limitations under the License.
 //
 
+// Full APKs live here until Hub installs them over their shells.
+prebuilt_etc {
+    name: "PetalAppCenterApks",
+    srcs: [
+        ":PetalAssistant",
+        ":PetalTuner",
+        ":PetalAgeVer",
+    ],
+    sub_dir: "petal/appcenter",
+    system_ext_specific: true,
+}
+
+java_test_host {
+    name: "PetalPocketGardenTests",
+    srcs: [
+        "src/org/petalos/hub/garden/PocketGarden.java",
+        "src/org/petalos/hub/garden/PocketGardenStore.java",
+        "tests/src/org/petalos/hub/garden/PocketGardenTest.java",
+        "tests/src/org/petalos/hub/garden/PocketGardenStoreTest.java",
+    ],
+    static_libs: ["junit"],
+    test_suites: ["general-tests"],
+}
+
 android_app {
     name: "PetalHub",
 
     // SettingsLib so it pretends to be a real settings app
     defaults: ["SettingsLibDefaults"],
 
-    srcs: ["src/**/*.java"],
+    srcs: [
+        "src/**/*.java",
+        ":proton4a-program-apk-src",
+    ],
     resource_dirs: ["res"],
 
     manifest: "AndroidManifest.xml",
@@ -46,5 +73,7 @@ android_app {
         "SettingsLibPreference",
         "org.lineageos.platform.internal",
         "petalos-config",
+        "proton4a-core",
+        "apksig-device",
     ],
 }

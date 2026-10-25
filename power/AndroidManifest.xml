@@ -13,6 +13,7 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.CHANGE_APP_IDLE_STATE" />
     <uses-permission android:name="android.permission.MANAGE_APP_OPS_MODES" />
+    <uses-permission android:name="android.permission.NETWORK_SETTINGS" />
 
     <application
         android:defaultToDeviceProtectedStorage="true"
@@ -27,6 +28,26 @@
                 <action android:name="android.intent.action.SCREEN_OFF" />
                 <action android:name="android.intent.action.SCREEN_ON" />
                 <action android:name="android.intent.action.USER_PRESENT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Per-app network access toggle, enforced with the netd firewall. -->
+        <receiver android:name=".SpoofPolicyReceiver" android:exported="true"
+            android:permission="android.permission.WRITE_SECURE_SETTINGS">
+            <intent-filter>
+                <action android:name="org.petalos.power.action.SPOOF_POLICY_CHANGED" />
+                <action android:name="org.petalos.power.action.UPDATE_IDLE_POLICY" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Per-app network access toggle, enforced with the netd firewall. -->
+        <receiver
+            android:name=".NetworkPolicyReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="org.petalos.power.action.APPLY_NETWORK_POLICY" />
             </intent-filter>
         </receiver>
 

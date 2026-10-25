@@ -1,10 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2026 petalOS SPDX-License-Identifier: Apache-2.0 -->
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
 <resources>
-    <style name="Theme.PetalAdvanced" parent="Theme.AppCompat.DayNight.DarkActionBar">
-        <item name="preferenceTheme">@style/PreferenceThemeOverlay</item>
-        <item name="colorPrimary">@color/petal_advanced_primary</item>
-        <item name="colorPrimaryDark">@color/petal_advanced_primary_dark</item>
-        <item name="colorAccent">@color/petal_advanced_accent</item>
+
+    <!-- same skin as the rest of the hub, so this doesn't look bolted on -->
+    <style name="Theme.PetalAdvanced" parent="@style/Theme.SubSettingsBase.Expressive">
+        <item name="android:windowBackground">@drawable/petal_window_background</item>
+        <item name="android:colorBackground">@color/petal_window_base</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/petal_window_light_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/petal_window_light_bars</item>
+        <item name="android:fontFamily">@font/petal_rubik</item>
+        <item name="preferenceTheme">@style/PreferenceTheme.PetalAdvanced</item>
+        <item name="colorControlActivated">@color/petal_control_activated</item>
+        <item name="colorAccent">@color/petal_accent_primary</item>
     </style>
+
+    <style name="PreferenceTheme.PetalAdvanced" parent="@style/PreferenceTheme.SettingsLib.Expressive">
+        <item name="preferenceCategoryTitleTextColor">@color/petal_accent_text</item>
+    </style>
+
 </resources>

@@ -1,0 +1,30 @@
+diff --git a/src/wrapped/wrappedlibc.c b/src/wrapped/wrappedlibc.c
+index a25f3636..152a6a59 100644
+--- a/src/wrapped/wrappedlibc.c
++++ b/src/wrapped/wrappedlibc.c
+@@ -4058,6 +4058,25 @@ EXPORT int my_mprotect(x64emu_t* emu, void *addr, unsigned long len, int prot)
+     uintptr_t start = (uintptr_t)addr;
+     if(box64_pagesize == X86_PAGE_SIZE) {
+         int ret = mprotect(addr, len, prot);
++        // Android's app seccomp/SELinux deny making a file-backed mapping
++        // executable (execmod); Wine maps PE images read-only then mprotects
++        // .text to r-x. Replace such a range with an anonymous executable copy.
++        if(ret && len && (prot & PROT_EXEC) && !((getProtection(start) & ~PROT_CUSTOM) & PROT_EXEC)) {
++            void* save = malloc(len);
++            if(save) {
++                memcpy(save, addr, len);
++                if(mmap(addr, len, PROT_READ|PROT_WRITE|PROT_EXEC,
++                        MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0) == addr) {
++                    memcpy(addr, save, len);
++                    ret = mprotect(addr, len, prot);
++                    if(!ret) {
++                        updateProtection(start, len, prot);
++                        setGuestProtection(start, len, prot, 0);
++                    }
++                }
++                free(save);
++            }
++        }
+         if(!ret && len) {
+             updateProtection(start, len, prot);
+             setGuestProtection(start, len, prot, 0);

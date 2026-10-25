@@ -8,12 +8,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:fontFamily="@font/petal_rubik"
-    android:letterSpacing="0.14"
     android:paddingStart="24dp"
     android:paddingTop="24dp"
     android:paddingEnd="24dp"
     android:paddingBottom="6dp"
-    android:textAllCaps="true"
-    android:textColor="@color/petal_accent_primary"
-    android:textSize="12sp"
-    android:textStyle="bold" />
+    android:textColor="@color/petal_accent_text"
+    android:textSize="14sp"
+    android:textFontWeight="500" />

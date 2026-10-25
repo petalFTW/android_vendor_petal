@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bind only the platform-signed petalOS network provider. Never use Play services
+         as a system location provider. The provider is disabled until opted in. -->
+    <bool name="config_enableNetworkLocationOverlay">false</bool>
+    <string name="config_networkLocationProviderPackageName" translatable="false">app.grapheneos.networklocation</string>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <string name="dialog_style_title">Volume and power dialog style</string>
+    <string-array name="dialog_style_entries">
+        <item>Black</item>
+        <item>Bezel glass</item>
+    </string-array>
+    <string-array name="dialog_style_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+</resources>

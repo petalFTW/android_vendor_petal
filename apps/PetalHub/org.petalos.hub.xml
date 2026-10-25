@@ -5,8 +5,11 @@
 -->
 <permissions>
     <privapp-permissions package="org.petalos.hub">
+        <permission name="android.permission.CHANGE_OVERLAY_PACKAGES"/>
         <permission name="android.permission.READ_SEARCH_INDEXABLES"/>
         <permission name="android.permission.WRITE_SECURE_SETTINGS"/>
         <permission name="android.permission.WRITE_SETTINGS"/>
+        <permission name="android.permission.INSTALL_PACKAGES"/>
+        <permission name="android.permission.DELETE_PACKAGES"/>
     </privapp-permissions>
 </permissions>

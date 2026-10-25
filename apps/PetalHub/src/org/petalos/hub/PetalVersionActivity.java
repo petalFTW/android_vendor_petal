@@ -17,11 +17,14 @@
 package org.petalos.hub;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemProperties;
+import android.os.SystemClock;
+import android.os.UserManager;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
@@ -38,23 +41,20 @@ import java.util.Map;
 
 import android.animation.ObjectAnimator;
 
+import org.petalos.hub.garden.PocketGardenActivity;
+
 /** the petalOS version page, opened from the settings version row */
 public class PetalVersionActivity extends Activity {
 
-    // tap the flower 5 times and the old lineage egg falls out
-    private static final int EGG_TAP_COUNT = 5;
-
-    private static final String LINEAGE_PLATLOGO_PACKAGE = "org.lineageos.lineageparts";
-    private static final String LINEAGE_PLATLOGO_CLASS =
-            LINEAGE_PLATLOGO_PACKAGE + ".logo.PlatLogoActivity";
+    private int mGardenTaps;
+    private long mLastGardenTap;
+    private ObjectAnimator mLogoBob;
 
     private static final Map<String, String> PRETTY_DEVICES = new HashMap<>();
     static {
         PRETTY_DEVICES.put("macanc", "OnePlus Ace 6T");
         PRETTY_DEVICES.put("macan", "OnePlus 15R");
     }
-
-    private int mEggTaps;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,7 +88,7 @@ public class PetalVersionActivity extends Activity {
                 Build.VERSION.SECURITY_PATCH);
 
         ImageView logo = findViewById(R.id.petal_logo);
-        logo.setImageResource(R.drawable.petal_logo);
+        logo.setImageResource(R.drawable.petal_logo_dusk);
         logo.setOnClickListener(v -> spinTheFlower(logo));
 
         playIntro(logo);
@@ -137,12 +137,12 @@ public class PetalVersionActivity extends Activity {
             delay += 45L;
         }
 
-        ObjectAnimator bob = ObjectAnimator.ofFloat(logo, "translationY", 0f, -dp(6), 0f);
-        bob.setDuration(3400L);
-        bob.setStartDelay(780L);
-        bob.setRepeatCount(ObjectAnimator.INFINITE);
-        bob.setInterpolator(new AccelerateDecelerateInterpolator());
-        bob.start();
+        mLogoBob = ObjectAnimator.ofFloat(logo, "translationY", 0f, -dp(6), 0f);
+        mLogoBob.setDuration(3400L);
+        mLogoBob.setStartDelay(780L);
+        mLogoBob.setRepeatCount(ObjectAnimator.INFINITE);
+        mLogoBob.setInterpolator(new AccelerateDecelerateInterpolator());
+        mLogoBob.start();
     }
 
     private int dp(int value) {
@@ -151,22 +151,41 @@ public class PetalVersionActivity extends Activity {
 
     // spin the flower, wee
     private void spinTheFlower(ImageView logo) {
-        mEggTaps++;
         logo.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
         logo.animate()
                 .rotationBy(360f)
+                .setStartDelay(0L)
                 .setDuration(650L)
                 .setInterpolator(new OvershootInterpolator(1.1f))
                 .start();
+        long now = SystemClock.uptimeMillis();
+        mGardenTaps = now - mLastGardenTap > 1500L ? 1 : mGardenTaps + 1;
+        mLastGardenTap = now;
+        if (mGardenTaps < 5) return;
+        mGardenTaps = 0;
+        UserManager users = getSystemService(UserManager.class);
+        if (ActivityManager.isUserAMonkey()
+                || (users != null && users.hasUserRestriction(UserManager.DISALLOW_FUN))) return;
+        startActivity(new Intent(this, PocketGardenActivity.class));
+    }
 
-        if (mEggTaps % EGG_TAP_COUNT != 0) return;
-        try {
-            startActivity(new Intent(Intent.ACTION_MAIN)
-                    .setClassName(LINEAGE_PLATLOGO_PACKAGE, LINEAGE_PLATLOGO_CLASS)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        } catch (Exception e) {
-            // no egg installed, whatever
-        }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mLogoBob != null) mLogoBob.resume();
+    }
+
+    @Override
+    protected void onPause() {
+        mGardenTaps = 0;
+        if (mLogoBob != null) mLogoBob.pause();
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (mLogoBob != null) mLogoBob.cancel();
+        super.onDestroy();
     }
 
     // props win, otherwise fall back to the baked-in Build.TIME

@@ -81,6 +81,9 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     private static final String TAG = "PetalCam";
     private static final int REQ_PERMS = 1001;
 
+    // Gallery shipped with the product; captures open here first.
+    private static final String BUNDLED_GALLERY = "com.android.gallery3d";
+
     // Flash cycle
     private static final int[] FLASH_CYCLE = {
             ImageCapture.FLASH_MODE_OFF,
@@ -103,6 +106,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     private ImageButton mBtnHdr;
     private ImageButton mBtnGrid;
     private ImageButton mBtnRotate;
+    private TextView mBtnAspect;
     private List<String> mAvailableModes = new ArrayList<>();
     private String mCurrentMode;
     private ImageView mThumb;
@@ -165,6 +169,9 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
         setupControls();
         setupGestures();
         applyGrid(PetalCamPrefs.gridMode(this));
+        findViewById(R.id.cam_root).addOnLayoutChangeListener(
+                (v, l, t, r, b, ol, ot, or, ob) -> updateAspectLayout());
+        updateAspectButton();
 
         mController = new CameraController(this, this, mPreview, this);
         mShutterSound = new MediaActionSound();
@@ -210,8 +217,8 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
 
     private void bindViews() {
         mPreview = findViewById(R.id.preview);
-        // letterbox the feed, what you see is what actually lands in the jpeg
-        mPreview.setScaleType(PreviewView.ScaleType.FIT_CENTER);
+        // Frame the live feed to match the selected photo crop.
+        mPreview.setScaleType(PreviewView.ScaleType.FILL_CENTER);
         // TextureView-backed preview so the ripple can snapshot the frame
         // cheaply and reliably (SurfaceView readback is slower/flakier)
         mPreview.setImplementationMode(PreviewView.ImplementationMode.COMPATIBLE);
@@ -242,6 +249,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
         mBtnHdr = findViewById(R.id.btn_hdr);
         mBtnGrid = findViewById(R.id.btn_grid);
         mBtnRotate = findViewById(R.id.btn_rotate);
+        mBtnAspect = findViewById(R.id.btn_aspect);
         mThumb = findViewById(R.id.thumb);
         mThumbFrame = findViewById(R.id.thumb_frame);
         mCountdown = findViewById(R.id.countdown);
@@ -264,6 +272,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
         PetalPress.attach(mBtnHdr);
         PetalPress.attach(mBtnGrid);
         PetalPress.attach(mBtnRotate);
+        PetalPress.attach(mBtnAspect);
         PetalPress.attach(findViewById(R.id.btn_settings));
         PetalPress.attach(mBtnFlip);
         PetalPress.attach(mThumbFrame);
@@ -321,6 +330,8 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
 
     private void onModeChanged(String mode) {
         boolean video = CameraController.MODE_VIDEO.equals(mode);
+        mBtnAspect.setVisibility(video ? View.GONE : View.VISIBLE);
+        updateAspectLayout();
         boolean pro = CameraController.MODE_PRO.equals(mode);
         mShutter.setVideoMode(video);
         mProPanel.setVisibility(pro ? View.VISIBLE : View.GONE);
@@ -399,10 +410,11 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
             mHdrEnabled = !mHdrEnabled;
             mController.setHdrEnabled(mHdrEnabled);
             updateHdrButton();
-            showToast(mHdrEnabled ? "Petal HDR on" : "Petal HDR off");
+            showToast(getString(mHdrEnabled ? R.string.hdr_on : R.string.hdr_off));
         });
         mBtnGrid.setOnClickListener(v -> cycleGrid());
         mBtnRotate.setOnClickListener(v -> toggleAutoRotate());
+        mBtnAspect.setOnClickListener(v -> cycleAspectRatio());
         findViewById(R.id.btn_settings).setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
         mThumbFrame.setOnClickListener(v -> openGallery());
@@ -439,7 +451,8 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
                     public boolean onSingleTapUp(@NonNull MotionEvent e) {
                         // fresh tap drops any AE/AF lock and meters once
                         mController.unlockFocusAndExposure();
-                        mFocusRing.focusAt(e.getX(), e.getY());
+                        mFocusRing.focusAt(e.getX() + mPreview.getLeft(),
+                                e.getY() + mPreview.getTop());
                         mController.tapToFocus(e.getX(), e.getY());
                         if (!isProMode()) {
                             mExposure.reveal();
@@ -450,7 +463,8 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
                     @Override
                     public void onLongPress(@NonNull MotionEvent e) {
                         // hold locks exposure + focus, grey padlock comes up
-                        mFocusRing.lockAt(e.getX(), e.getY());
+                        mFocusRing.lockAt(e.getX() + mPreview.getLeft(),
+                                e.getY() + mPreview.getTop());
                         mController.lockFocusAndExposure(e.getX(), e.getY());
                         if (!isProMode()) {
                             mExposure.reveal();
@@ -579,12 +593,14 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
         mTimer = mTimer == 0 ? 3 : mTimer == 3 ? 10 : 0;
         // dim the button so you can tell the timer is armed
         mBtnTimer.setAlpha(mTimer > 0 ? 1f : 0.55f);
-        showToast(mTimer > 0 ? "Timer " + mTimer + "s" : "Timer off");
+        showToast(mTimer > 0
+                ? getString(R.string.timer_seconds, mTimer)
+                : getString(R.string.timer_disabled));
     }
 
     private void cycleFlash() {
         if (mInfo != null && !mInfo.flashAvailable) {
-            showToast("No flash on this camera");
+            showToast(getString(R.string.flash_unavailable));
             return;
         }
         mFlashIndex = (mFlashIndex + 1) % 4; // off, on, auto, torch
@@ -592,14 +608,17 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
             mController.setTorch(true);
             mController.setFlashMode(ImageCapture.FLASH_MODE_OFF);
             mBtnFlash.setImageResource(R.drawable.ic_cam_flash_torch);
-            showToast("Torch");
+            showToast(getString(R.string.flash_mode_torch));
         } else {
             mController.setTorch(false);
             int mode = FLASH_CYCLE[mFlashIndex];
             mController.setFlashMode(mode);
             updateFlashIcon();
-            showToast(mode == ImageCapture.FLASH_MODE_ON ? "Flash on"
-                    : mode == ImageCapture.FLASH_MODE_AUTO ? "Flash auto" : "Flash off");
+            showToast(getString(mode == ImageCapture.FLASH_MODE_ON
+                    ? R.string.flash_mode_on
+                    : mode == ImageCapture.FLASH_MODE_AUTO
+                            ? R.string.flash_mode_auto
+                            : R.string.flash_mode_off));
         }
     }
 
@@ -625,6 +644,50 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     private void applyGrid(int mode) {
         mGrid.setMode(mode);
         mLevel.setActive(mode == GridOverlayView.THIRDS || mode == GridOverlayView.GOLDEN);
+    }
+
+    private void cycleAspectRatio() {
+        String current = PetalCamPrefs.aspectRatio(this);
+        String next = "1:1".equals(current) ? "4:3"
+                : "4:3".equals(current) ? "16:9" : "1:1";
+        PetalCamPrefs.setAspectRatio(this, next);
+        updateAspectButton();
+        updateAspectLayout();
+        mController.setAspectRatio(next);
+    }
+
+    private void updateAspectButton() {
+        String ratio = PetalCamPrefs.aspectRatio(this);
+        mBtnAspect.setText(ratio);
+        mBtnAspect.setContentDescription(getString(R.string.cd_aspect_ratio) + ": " + ratio);
+    }
+
+    private void updateAspectLayout() {
+        View root = findViewById(R.id.cam_root);
+        if (root.getWidth() == 0 || root.getHeight() == 0) return;
+        boolean video = CameraController.MODE_VIDEO.equals(mCurrentMode);
+        mPreview.setScaleType(video ? PreviewView.ScaleType.FIT_CENTER
+                : PreviewView.ScaleType.FILL_CENTER);
+        String selected = PetalCamPrefs.aspectRatio(this);
+        float ratio = "1:1".equals(selected) ? 1f
+                : "16:9".equals(selected) ? 16f / 9f : 4f / 3f;
+        boolean portrait = root.getHeight() >= root.getWidth();
+        int width = root.getWidth();
+        int height = root.getHeight();
+        if (!video) {
+            if (portrait) height = Math.min(height, Math.round(width * ratio));
+            else width = Math.min(width, Math.round(height * ratio));
+        }
+        for (View view : new View[] {mPreview, mGrid, mLevel}) {
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) view.getLayoutParams();
+            if (lp.width != width || lp.height != height
+                    || lp.gravity != android.view.Gravity.CENTER) {
+                lp.width = width;
+                lp.height = height;
+                lp.gravity = android.view.Gravity.CENTER;
+                view.setLayoutParams(lp);
+            }
+        }
     }
 
     private void updateHdrButton() {
@@ -695,7 +758,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
             if (mProcessing != null) {
                 mProcessing.setVisibility(View.GONE);
             }
-            showToast("Couldn't save photo");
+            showToast(getString(R.string.save_failed));
         }
         mShutter.setShutterEnabled(true);
     }
@@ -739,7 +802,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
             showToast(getString(R.string.saved));
             refreshThumbnail();
         } else {
-            showToast("Recording failed");
+            showToast(getString(R.string.record_failed));
         }
     }
 
@@ -916,17 +979,22 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     }
 
     private void openGallery() {
-        // plain ACTION_VIEW so the resolver shows just once / always, no shortcut past it
         Uri uri = mLastUri != null
                 ? mLastUri
                 : MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
         Intent view = new Intent(Intent.ACTION_VIEW);
         view.setDataAndType(uri, "image/*");
         view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        // Open the bundled gallery directly so a capture has one predictable
+        // destination instead of a system chooser.
+        view.setPackage(BUNDLED_GALLERY);
+        if (view.resolveActivity(getPackageManager()) == null) {
+            view.setPackage(null);
+        }
         try {
             startActivity(view);
         } catch (Throwable t) {
-            showToast("No gallery app");
+            showToast(getString(R.string.no_gallery));
         }
     }
 
@@ -984,7 +1052,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
             try {
                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
             } catch (Throwable t) {
-                showToast("No app can open this link");
+                showToast(getString(R.string.no_link_handler));
             }
         } else {
             android.content.ClipboardManager clipboard =
@@ -1054,6 +1122,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
         super.onResume();
         applyAutoRotate();
         if (mController != null) {
+            mController.refreshQuality();
             mController.setHdrEnabled(mHdrEnabled);
             // camera quietly reopens after gallery/settings, zoom forgets itself
             mController.reapplyZoom();

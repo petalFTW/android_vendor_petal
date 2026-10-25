@@ -1,0 +1,15 @@
+// Proton4A's independent Android-side core. The Proton runtime is a separate
+// cross-compilation effort; this module does not bundle Linux/x86 binaries.
+java_library {
+    name: "proton4a-core",
+    srcs: ["src/**/*.java"],
+    platform_apis: true,
+    installable: false,
+}
+
+// The Hub builds per-program APKs itself; the runtime app also compiles this
+// same source in its standalone host build.
+filegroup {
+    name: "proton4a-program-apk-src",
+    srcs: ["tools/runtime-app/ProgramApk.java"],
+}

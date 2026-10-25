@@ -4,6 +4,24 @@
      SPDX-License-Identifier: Apache-2.0
 -->
 <resources>
+    <string-array name="qs_reach_entries">
+        <item>@string/qs_reach_balanced</item>
+        <item>@string/qs_reach_left</item>
+        <item>@string/qs_reach_right</item>
+    </string-array>
+    <string-array name="qs_reach_values">
+        <item>balanced</item>
+        <item>left</item>
+        <item>right</item>
+    </string-array>
+    <string-array name="system_font_entries">
+        <item>Default</item>
+        <item>Commissioner</item>
+    </string-array>
+    <string-array name="system_font_values">
+        <item>default</item>
+        <item>commissioner</item>
+    </string-array>
     <string-array name="power_profile_entries">
         <item>Optimized</item>
         <item>Deep restricted</item>
@@ -71,6 +89,24 @@
     <string-array name="bridge_style_values">
         <item>3</item>
         <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="gm_profile_entries">
+        <item>Balanced</item>
+        <item>Performance</item>
+        <item>Extreme</item>
+    </string-array>
+    <string-array name="gm_profile_values">
+        <item>balanced</item>
+        <item>performance</item>
+        <item>extreme</item>
+    </string-array>
+    <string-array name="wm_mode_entries">
+        <item>Content blacked</item>
+        <item>Fully redacted</item>
+    </string-array>
+    <string-array name="wm_mode_values">
         <item>1</item>
         <item>2</item>
     </string-array>

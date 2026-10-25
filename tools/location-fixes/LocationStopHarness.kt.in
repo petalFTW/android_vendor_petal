@@ -1,0 +1,69 @@
+/* Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 */
+private const val PRIORITY_PASSIVE = 105
+private const val TAG = "test"
+private object Log {
+    fun d(tag: String, message: String) = Unit
+}
+private object AppOpsManager {
+    const val OPSTR_MONITOR_LOCATION = "location"
+    const val OPSTR_MONITOR_HIGH_POWER_LOCATION = "high_power"
+}
+private data class ClientIdentity(val packageName: String, val self: Boolean = false) {
+    fun isSelfUser() = self
+}
+private data class Request(
+    val clientIdentity: ClientIdentity,
+    val effectiveHighPower: Boolean,
+    val effectivePriority: Int = 100,
+)
+private class Context {
+    val running = mutableMapOf<Pair<String, ClientIdentity>, Int>()
+    fun startAppOp(op: String, client: ClientIdentity) {
+        val key = op to client
+        running[key] = (running[key] ?: 0) + 1
+    }
+    fun finishAppOp(op: String, client: ClientIdentity) {
+        val key = op to client
+        check((running[key] ?: 0) > 0) { "unbalanced finish: $key" }
+        running[key] = running.getValue(key) - 1
+    }
+}
+private class Manager(val context: Context) {
+    val binderRequests = mutableMapOf<Int, Request>()
+    val pendingIntentRequests = mutableMapOf<Int, Request>()
+    private val appOpsLock = Any()
+    private var currentAppOps = emptyMap<ClientIdentity, Boolean>()
+    var recalculations = 0
+    fun recalculateRequests() { recalculations++ }
+    fun activate() = updateAppOps()
+
+    STOP_BODY
+
+    UPDATE_BODY
+}
+fun main() {
+    val context = Context()
+    val manager = Manager(context)
+    val high = ClientIdentity("high")
+    val low = ClientIdentity("low")
+    manager.binderRequests[1] = Request(high, true)
+    manager.binderRequests[2] = Request(high, false)
+    manager.pendingIntentRequests[3] = Request(low, false)
+    manager.pendingIntentRequests[4] = Request(ClientIdentity("passive"), false, PRIORITY_PASSIVE)
+    manager.binderRequests[5] = Request(ClientIdentity("self", true), true)
+    manager.activate()
+    check(context.running.size == 3) { "wrong operation aggregation" }
+    check(context.running.values.all { it == 1 }) { "duplicate start" }
+    manager.stop()
+    check(manager.binderRequests.isEmpty() && manager.pendingIntentRequests.isEmpty())
+    check(context.running.values.all { it == 0 }) { "location operation leaked after stop" }
+    check(manager.recalculations == 1)
+    manager.stop()
+    check(context.running.values.all { it == 0 }) { "repeated stop changed balance" }
+    manager.binderRequests[6] = Request(high, true)
+    manager.activate()
+    check(context.running["high_power" to high] == 1) { "restart did not start monitoring" }
+    manager.stop()
+    check(context.running.values.all { it == 0 }) { "restart leaked operations" }
+    println("Patched production microG stop/AppOps methods: 8 assertions passed")
+}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="surface">#FAF8FD</color>
+    <color name="text">#17191D</color>
+    <color name="secondary">#62606A</color>
+    <color name="card">#F0ECF6</color>
+    <color name="accent">#67508F</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="soft_accent">#E9E1F3</color>
+    <color name="ripple">#2267508F</color>
+    <color name="error">#A13140</color>
+    <style name="BackupTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowBackground">@color/surface</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

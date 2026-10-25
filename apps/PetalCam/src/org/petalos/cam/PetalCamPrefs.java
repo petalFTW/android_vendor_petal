@@ -32,6 +32,9 @@ public final class PetalCamPrefs {
     public static final String KEY_VENDOR_FORCE = "vendor_force";
     public static final String KEY_AUTO_ROTATE = "auto_rotate";
     public static final String KEY_VOLUME_SHUTTER = "volume_shutter";
+    public static final String KEY_ASPECT_RATIO = "aspect_ratio";
+    public static final String KEY_PHOTO_QUALITY = "photo_quality";
+    public static final String KEY_VIDEO_QUALITY = "video_quality";
 
     private PetalCamPrefs() {
     }
@@ -77,6 +80,27 @@ public final class PetalCamPrefs {
 
     public static void setAutoRotate(Context c, boolean enabled) {
         prefs(c).edit().putBoolean(KEY_AUTO_ROTATE, enabled).apply();
+    }
+
+    public static String aspectRatio(Context c) {
+        String value = prefs(c).getString(KEY_ASPECT_RATIO, "4:3");
+        return "1:1".equals(value) || "16:9".equals(value) ? value : "4:3";
+    }
+
+    public static void setAspectRatio(Context c, String ratio) {
+        prefs(c).edit().putString(KEY_ASPECT_RATIO, ratio).apply();
+    }
+
+    public static int photoJpegQuality(Context c) {
+        switch (prefs(c).getString(KEY_PHOTO_QUALITY, "high")) {
+            case "standard": return 85;
+            case "saver": return 70;
+            default: return 96;
+        }
+    }
+
+    public static String videoQuality(Context c) {
+        return prefs(c).getString(KEY_VIDEO_QUALITY, "fhd");
     }
 
     /** Grid index stored in Settings.System so it can be themed/transferred. */

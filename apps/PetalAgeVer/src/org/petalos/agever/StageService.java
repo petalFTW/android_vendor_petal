@@ -1,19 +1,4 @@
-/*
- * Copyright (C) 2026 petalOS
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
+/* Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 */
 package org.petalos.agever;
 
 import android.app.Notification;
@@ -21,20 +6,16 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.util.Log;
+import android.provider.Settings;
+import android.view.Surface;
 import android.view.SurfaceView;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
-
 import org.petalos.agever.core.ControlMode;
 import org.petalos.agever.core.ControlState;
 import org.petalos.agever.output.FrameSink;
@@ -43,447 +24,411 @@ import org.petalos.agever.output.ProviderFrameSink;
 import org.petalos.agever.render.AvatarStage;
 import org.petalos.agever.ui.JoystickOverlay;
 import org.petalos.agever.ui.JoystickView;
-
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-/**
- * Foreground service that owns the virtual-camera session: renderer, output
- * sink, optional face tracker and the floating joystick.
- */
 public final class StageService extends Service {
-
-    private static final String TAG = "AgeVerService";
-
     public static final String ACTION_START = "org.petalos.agever.action.START";
+    public static final String ACTION_PREVIEW = "org.petalos.agever.action.PREVIEW";
     public static final String ACTION_STOP = "org.petalos.agever.action.STOP";
-    public static final String ACTION_TOGGLE = "org.petalos.agever.action.TOGGLE";
     public static final String ACTION_SYNC = "org.petalos.agever.action.SYNC";
-
-    public static final String EXTRA_JOYSTICK = "joystick";
-
-    private static final String CHANNEL_ID = "agever_stage";
-    private static final int NOTIFICATION_ID = 4101;
-
-    /** Render target ids: the in-app preview and the virtual-camera provider. */
-    private static final String TARGET_PREVIEW = "preview";
-    private static final String TARGET_PROVIDER = "provider";
-
-    private static final AtomicBoolean sRunning = new AtomicBoolean(false);
-
-    public interface StageObserver {
-        void onRunningChanged(boolean running);
-
-        void onStatus(@NonNull String status);
-    }
-
-    public final class LocalBinder extends Binder {
-        public StageService service() {
-            return StageService.this;
-        }
-
-        public void addObserver(StageObserver observer) {
-            mObservers.addIfAbsent(observer);
-        }
-
-        public void removeObserver(StageObserver observer) {
-            mObservers.remove(observer);
-        }
-
-        public boolean isRunning() {
-            return sRunning.get();
-        }
-    }
-
-    private final LocalBinder mBinder = new LocalBinder();
+    private static final String CHANNEL = "agever_stage";
+    private static final int NOTIFICATION = 4101;
+    private static volatile boolean sRunning;
+    private static volatile boolean sCameraRequested;
+    private static volatile SessionState sState = SessionState.OFF;
+    private final Handler mMain = new Handler(Looper.getMainLooper());
+    private static final ExecutorService sIo = Executors.newSingleThreadExecutor();
+    private final ExecutorService mIo = sIo;
     private final CopyOnWriteArrayList<StageObserver> mObservers = new CopyOnWriteArrayList<>();
     private final ControlState mControl = new ControlState();
-    private final Handler mMain = new Handler(Looper.getMainLooper());
-
-    private final JoystickView.Listener mJoystickListener = new JoystickView.Listener() {
-        @Override
-        public void onMove(float x, float y) {
-            mControl.applyJoystick(x, y);
-        }
-
-        @Override
-        public void onRelease() {
-            // Hold the last pose so the avatar stays where the user left it.
-        }
-    };
-
-    private final JoystickView.Listener mTurnListener = new JoystickView.Listener() {
-        @Override
-        public void onMove(float x, float y) {
-            mControl.applyHeadYaw(x);
-        }
-
-        @Override
-        public void onRelease() {
-            // Hold the last angle.
-        }
-    };
-
+    private PreviewFrameSink mPreview;
+    private ProviderFrameSink mProvider;
+    private JoystickOverlay mPanel;
     private AvatarStage mStage;
-    private PreviewFrameSink mPreviewSink;
-    private ProviderFrameSink mProviderSink;
-    private boolean mProviderEverReady;
-    private JoystickOverlay mJoystick;
     private SurfaceView mPreviewView;
-    private String mStatus = "";
+    private Future<?> mLoad;
+    private int mGeneration;
+    private int mLoadGeneration;
+    private int mCameraState = -1;
+    private boolean mDestroyed;
+    private boolean mForeground;
+    private boolean mNotifiedCamera;
+    private boolean mModelReady;
+    private boolean mEngineReady;
+    private boolean mLoading;
+    private boolean mAvatarError;
+    private int mExpressionMask;
+    private boolean mProviderHealthy;
     private String mLoadedAvatar = "";
+    private String mRequestedAvatar = "";
+    private String mDetail = "";
 
-    private final Runnable mControlPump = new Runnable() {
-        @Override
-        public void run() {
-            if (mStage != null && sRunning.get()) {
-                mStage.setControl(mControl.snapshot());
-                mMain.postDelayed(this, 33L);
+    public interface StageObserver {
+        void onSessionChanged(SessionState state, String detail, boolean cameraRequested);
+    }
+    public final class LocalBinder extends Binder {
+        public StageService service() { return StageService.this; }
+        public void addObserver(StageObserver observer) {
+            mObservers.addIfAbsent(observer);
+            observer.onSessionChanged(sState, mDetail, sCameraRequested);
+        }
+        public void removeObserver(StageObserver observer) { mObservers.remove(observer); }
+    }
+    private final LocalBinder mBinder = new LocalBinder();
+    public static boolean isRunning() { return sRunning; }
+    public static boolean isCameraRequested() { return sCameraRequested; }
+    public static SessionState state() { return sState; }
+
+    private JoystickView.Listener axis(int axis) {
+        return new JoystickView.Listener() {
+            @Override public void onMove(float x, float y) {
+                if (axis == 0) mControl.applyJoystick(x, y);
+                else if (axis == 1) mControl.applyHeadYaw(x);
+                else mControl.applyDepth(y);
             }
-        }
-    };
-
-    public static boolean isRunning() {
-        return sRunning.get();
+            @Override public void onRelease() { }
+        };
     }
 
-    @Override
-    public void onCreate() {
+    @Override public void onCreate() {
         super.onCreate();
+        sState = SessionState.OFF;
+        sRunning = false;
+        sCameraRequested = false;
         Prefs.init(this);
-        createChannel();
-        mPreviewSink = new PreviewFrameSink();
-        mProviderSink = new ProviderFrameSink(this);
-        mJoystick = new JoystickOverlay(this);
+        mDetail = getString(R.string.detail_off);
+        mControl.setExpressionSpeed(Prefs.get().getExpressionSpeed());
+        getSystemService(NotificationManager.class).createNotificationChannel(
+                new NotificationChannel(CHANNEL, getString(R.string.notification_channel_name),
+                        NotificationManager.IMPORTANCE_LOW));
+        mPreview = new PreviewFrameSink();
+        mPanel = new JoystickOverlay(this);
+        refreshAuthority();
     }
+    @Override public IBinder onBind(Intent intent) { return mBinder; }
 
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
-    }
-
-    @Override
-    public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
+    @Override public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? ACTION_SYNC : intent.getAction();
-        if (action == null) {
-            action = ACTION_SYNC;
-        }
-        switch (action) {
-            case ACTION_START:
-                startSession(true);
-                break;
-            case ACTION_STOP:
-                stopSession(true);
-                break;
-            case ACTION_TOGGLE:
-                if (sRunning.get()) {
-                    stopSession(true);
-                } else {
-                    startSession(true);
-                }
-                break;
-            case ACTION_SYNC:
-                if (Prefs.get().getEnabled() && !sRunning.get()) {
-                    startSession(false);
-                } else if (!Prefs.get().getEnabled() && sRunning.get()) {
-                    stopSession(false);
-                }
-                break;
-            default:
-                break;
+        try {
+            if (ACTION_STOP.equals(action)) stopSession(true);
+            else if (ACTION_PREVIEW.equals(action)) startSession(false);
+            else if (ACTION_START.equals(action)) startSession(true);
+            else if (ACTION_SYNC.equals(action) && Prefs.get().getEnabled()
+                    && Prefs.get().getRestoreOnBoot()) startSession(true);
+        } catch (RuntimeException e) {
+            Prefs.get().setEnabled(false);
+            sCameraRequested = false;
+            change(SessionState.ERROR, getString(R.string.detail_action_failed, e.getMessage()));
+            if (mForeground) stopForeground(STOP_FOREGROUND_REMOVE);
+            mForeground = false;
         }
         return START_NOT_STICKY;
     }
 
-    @Override
-    public void onTaskRemoved(@Nullable Intent rootIntent) {
-        // petalOS: swiping the app out of recents tears the session down, so no
-        // foreground service, render loop or armed override lingers.
+    @Override public void onTaskRemoved(Intent rootIntent) {
         stopSession(true);
         super.onTaskRemoved(rootIntent);
     }
-
-    @Override
-    public void onDestroy() {
+    @Override public void onDestroy() {
+        mDestroyed = true;
+        // an explicitly opted-in reboot restore keeps only the user's intent
+        boolean restore = Prefs.get().getRestoreOnBoot() && Prefs.get().getEnabled();
         stopSession(false);
-        mJoystick.hide();
+        if (!restore) Prefs.get().setEnabled(false);
+        sState = SessionState.OFF;
         super.onDestroy();
     }
 
-    // ------------------------------------------------------------- public API
-
-    public void attachPreview(@Nullable SurfaceView view) {
+    public void attachPreview(SurfaceView view) {
         mPreviewView = view;
-        mPreviewSink.attach(view);
+        mPreview.attach(view);
     }
-
     public void detachPreview() {
         attachPreview(null);
+        if (!sCameraRequested && mStage != null) stopSession(false);
     }
-
-    public ControlMode mode() {
-        return Prefs.get().getMode();
-    }
-
-    /** Re-applies mirror/idle/mode/avatar changes without dropping the session. */
     public void onConfigChanged() {
-        if (!sRunning.get()) {
-            return;
-        }
-        if (mStage != null) {
-            mStage.setMirror(Prefs.get().getMirror());
-            mStage.setIdleMotion(Prefs.get().getIdleMotion());
-        }
-        ControlMode mode = Prefs.get().getMode();
-        if (mode == ControlMode.JOYSTICK && Prefs.get().getJoystickOverlay()) {
-            mJoystick.show(mJoystickListener, mTurnListener);
-        } else {
-            mJoystick.hide();
-        }
-        String ref = Prefs.get().getAvatar();
-        if (!ref.equals(mLoadedAvatar)) {
-            loadConfiguredAvatar();
-        }
-    }
-
-    // ------------------------------------------------------------- session
-
-    private void startSession(boolean persist) {
-        if (sRunning.get()) {
-            return;
-        }
-        if (persist) {
-            Prefs.get().setEnabled(true);
-        }
-        sRunning.set(true);
-        startAsForeground();
-        notifyRunning(true);
-        setStatus(getString(R.string.status_running));
-        // The override arms on the register thread; refresh the tile once it has.
-        mMain.postDelayed(() -> StageTile.requestRefresh(this), 1200L);
-
-        mStage = new AvatarStage();
+        if (mStage == null) return;
         mStage.setMirror(Prefs.get().getMirror());
         mStage.setIdleMotion(Prefs.get().getIdleMotion());
-        mStage.start(new AvatarStage.Listener() {
-            @Override
-            public void onStageReady() {
-                loadConfiguredAvatar();
-            }
-
-            @Override
-            public void onStageError(@NonNull String message) {
-                Log.e(TAG, message);
-                setStatus(message);
-            }
-        });
-        mStage.setControl(mControl.snapshot());
-
-        chooseSink();
-        startControlMode();
-        mMain.removeCallbacks(mControlPump);
-        mMain.post(mControlPump);
+        mStage.setFrameRate(Prefs.get().getFrameRate());
+        updatePanel();
+        if (mEngineReady && !Prefs.get().getAvatar().equals(mRequestedAvatar)) loadAvatar();
+    }
+    public boolean selectedAvatarReady() {
+        return mModelReady && mLoadedAvatar.equals(Prefs.get().getAvatar());
     }
 
-    private void stopSession(boolean persist) {
-        if (persist) {
-            Prefs.get().setEnabled(false);
+    private void startSession(boolean camera) {
+        if (sState == SessionState.STOPPING) return;
+        if (camera) {
+            sCameraRequested = true;
+            startForeground(NOTIFICATION, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            mForeground = true;
+            Prefs.get().setEnabled(true);
         }
-        if (!sRunning.getAndSet(false)) {
-            if (mStage != null) {
-                mStage.destroy();
-                mStage = null;
-            }
-            mProviderSink.stop();
-            mJoystick.hide();
-            StageTile.requestRefresh(this);
-            stopForeground(STOP_FOREGROUND_REMOVE);
-            stopSelf();
-            return;
-        }
-        mMain.removeCallbacks(mControlPump);
-        mProviderSink.stop();
-        mPreviewSink.stop();
-        mJoystick.hide();
         if (mStage != null) {
-            mStage.destroy();
-            mStage = null;
-        }
-        notifyRunning(false);
-        setStatus(getString(R.string.status_stopped));
-        StageTile.requestRefresh(this);
-        stopForeground(STOP_FOREGROUND_REMOVE);
-        stopSelf();
-    }
-
-    private void chooseSink() {
-        // The in-app preview is always live so the user can see the avatar.
-        mPreviewSink.attach(mPreviewView);
-        mPreviewSink.start(new FrameSink.Callback() {
-            @Override
-            public void onSurfaceReady(@NonNull android.view.Surface surface, int width, int height) {
-                if (mStage != null) {
-                    mStage.setSurface(TARGET_PREVIEW, surface, width, height);
-                }
-            }
-
-            @Override
-            public void onSurfaceLost() {
-                if (mStage != null) {
-                    mStage.clearSurface(TARGET_PREVIEW);
-                }
-            }
-        });
-
-        // Additionally publish the avatar as a real front camera when the
-        // petalOS virtual-camera provider is installed and permitted.
-        if (!ProviderFrameSink.isAvailable(this)) {
-            setStatus(getString(R.string.status_injection_missing));
+            change(mModelReady ? SessionState.PREVIEW_READY : SessionState.STARTING,
+                    getString(mModelReady ? R.string.detail_preview : R.string.detail_loading));
+            if (mEngineReady && !mModelReady && !mLoading) loadAvatar();
+            else if (camera && mModelReady) startProvider();
+            else if (mProvider != null) refreshAuthority();
             return;
         }
-        mProviderEverReady = false;
-        mProviderSink.start(new FrameSink.Callback() {
-            @Override
-            public void onSurfaceReady(@NonNull android.view.Surface surface, int width, int height) {
-                mProviderEverReady = true;
-                if (mStage != null) {
-                    mStage.setSurface(TARGET_PROVIDER, surface, width, height);
+        sRunning = true;
+        mModelReady = false;
+        mEngineReady = false;
+        final int generation = ++mGeneration;
+        change(SessionState.STARTING, getString(R.string.detail_loading));
+        final AvatarStage stage = new AvatarStage();
+        mStage = stage;
+        stage.setMirror(Prefs.get().getMirror());
+        stage.setIdleMotion(Prefs.get().getIdleMotion());
+        stage.setFrameRate(Prefs.get().getFrameRate());
+        stage.setControlSource(mControl::snapshot);
+        stage.start(new AvatarStage.Listener() {
+            @Override public void onStageReady() {
+                if (current(generation, stage)) {
+                    mEngineReady = true;
+                    loadAvatar();
                 }
             }
-
-            @Override
-            public void onSurfaceLost() {
-                if (!mProviderEverReady) {
-                    Log.w(TAG, "camera provider unavailable, preview only");
+            @Override public void onAvatarReady(String ref, int expressions) {
+                if (!current(generation, stage) || !ref.equals(mRequestedAvatar)) return;
+                mLoadedAvatar = ref;
+                Prefs.get().setLastGoodAvatar(ref);
+                mModelReady = true;
+                mLoading = false;
+                mAvatarError = false;
+                mExpressionMask = expressions;
+                change(mProvider == null ? SessionState.PREVIEW_READY : SessionState.CAMERA_STARTING,
+                        getString(mProvider == null ? R.string.detail_preview : R.string.detail_connecting));
+                if (sCameraRequested) startProvider();
+                updatePanel();
+                refreshAuthority();
+            }
+            @Override public void onAvatarError(String message) {
+                if (!current(generation, stage)) return;
+                mLoading = false;
+                mAvatarError = true;
+                mModelReady = !mLoadedAvatar.isEmpty();
+                String fallback = mModelReady ? mLoadedAvatar : Prefs.get().getLastGoodAvatar();
+                Prefs.get().setAvatar(fallback);
+                mRequestedAvatar = fallback;
+                change(SessionState.ERROR, message);
+                if (mProvider == null && mForeground) {
+                    Prefs.get().setEnabled(false);
+                    sCameraRequested = false;
+                    stopForeground(STOP_FOREGROUND_REMOVE);
+                    mForeground = false;
                 }
-                if (mStage != null) {
-                    mStage.clearSurface(TARGET_PROVIDER);
+            }
+            @Override public void onStageError(String message) {
+                if (!current(generation, stage)) return;
+                mModelReady = false;
+                mEngineReady = false;
+                mLoading = false;
+                stage.destroy();
+                mStage = null;
+                sRunning = false;
+                change(SessionState.ERROR, message);
+                if (mProvider == null && mForeground) {
+                    Prefs.get().setEnabled(false);
+                    sCameraRequested = false;
+                    stopForeground(STOP_FOREGROUND_REMOVE);
+                    mForeground = false;
                 }
             }
         });
-        setStatus(getString(R.string.status_injection_ready));
+        mPreview.start(new FrameSink.Callback() {
+            @Override public void onSurfaceReady(Surface surface, int width, int height) {
+                if (current(generation, stage)) stage.setSurface("preview", surface, width, height);
+            }
+            @Override public void onSurfaceLost() {
+                if (current(generation, stage)) stage.clearSurface("preview");
+            }
+        });
+        mPreview.attach(mPreviewView);
     }
 
-    private void startControlMode() {
-        if (Prefs.get().getMode() == ControlMode.JOYSTICK
-                && Prefs.get().getJoystickOverlay()) {
-            mJoystick.show(mJoystickListener, mTurnListener);
-        }
+    private boolean current(int generation, AvatarStage stage) {
+        return !mDestroyed && mGeneration == generation && mStage == stage;
     }
 
-    // ------------------------------------------------------------- avatar
-
-    private void loadConfiguredAvatar() {
+    private void loadAvatar() {
+        if (mLoad != null) mLoad.cancel(true);
+        final int request = ++mLoadGeneration;
+        final int generation = mGeneration;
+        final AvatarStage stage = mStage;
         final String ref = Prefs.get().getAvatar();
-        mLoadedAvatar = ref;
-        new Thread(() -> {
+        mRequestedAvatar = ref;
+        mModelReady = false;
+        mLoading = true;
+        mAvatarError = false;
+        mPanel.hide();
+        change(SessionState.STARTING, getString(R.string.detail_loading));
+        mLoad = mIo.submit(() -> {
             try {
-                byte[] bytes = readAvatar(ref);
-                if (bytes == null) {
-                    setStatus(getString(R.string.status_import_failed));
-                    return;
-                }
+                byte[] bytes = AvatarStore.read(this, ref);
                 mMain.post(() -> {
-                    if (mStage != null) {
-                        mStage.setAvatar(bytes, ref);
+                    if (current(generation, stage) && request == mLoadGeneration) stage.setAvatar(bytes, ref);
+                });
+            } catch (Exception | OutOfMemoryError e) {
+                mMain.post(() -> {
+                    if (!current(generation, stage) || request != mLoadGeneration) return;
+                    mLoading = false;
+                    mAvatarError = true;
+                    mModelReady = !mLoadedAvatar.isEmpty();
+                    String fallback = mModelReady ? mLoadedAvatar : Prefs.get().getLastGoodAvatar();
+                    Prefs.get().setAvatar(fallback);
+                    mRequestedAvatar = fallback;
+                    change(SessionState.ERROR, getString(R.string.detail_avatar_failed, e.getMessage()));
+                    if (mProvider == null && mForeground) {
+                        sCameraRequested = false;
+                        Prefs.get().setEnabled(false);
+                        stopForeground(STOP_FOREGROUND_REMOVE);
+                        mForeground = false;
                     }
                 });
-            } catch (IOException e) {
-                Log.e(TAG, "cannot read avatar " + ref, e);
-                setStatus(getString(R.string.status_import_failed));
-            }
-        }, "agever-avatar-load").start();
-    }
-
-    private byte[] readAvatar(String ref) throws IOException {
-        if (ref == null || ref.isEmpty()) {
-            ref = Prefs.DEFAULT_AVATAR;
-        }
-        if (ref.startsWith("file:")) {
-            ref = ref.substring("file:".length());
-        }
-        if (ref.startsWith("/")) {
-            try (InputStream in = new FileInputStream(new File(ref))) {
-                return readAll(in);
-            }
-        }
-        try (InputStream in = getAssets().open(ref)) {
-            return readAll(in);
-        }
-    }
-
-    private static byte[] readAll(InputStream in) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        byte[] buf = new byte[64 * 1024];
-        int read;
-        while ((read = in.read(buf)) != -1) {
-            out.write(buf, 0, read);
-        }
-        return out.toByteArray();
-    }
-
-    // ------------------------------------------------------------- plumbing
-
-    private void startAsForeground() {
-        Notification notification = buildNotification();
-        startForeground(NOTIFICATION_ID, notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-    }
-
-    private Notification buildNotification() {
-        Intent stop = new Intent(this, StageService.class).setAction(ACTION_STOP);
-        PendingIntent stopPi = PendingIntent.getService(
-                this, 0, stop, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        Intent open = new Intent(this, MainActivity.class);
-        PendingIntent openPi = PendingIntent.getActivity(
-                this, 1, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_agever)
-                .setContentTitle(getString(R.string.notification_title))
-                .setContentText(getString(R.string.notification_text))
-                .setOngoing(true)
-                .setContentIntent(openPi)
-                .addAction(0, getString(R.string.notification_stop), stopPi)
-                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-                .build();
-    }
-
-    private void createChannel() {
-        NotificationManager nm = getSystemService(NotificationManager.class);
-        if (nm == null) {
-            return;
-        }
-        NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW);
-        nm.createNotificationChannel(channel);
-    }
-
-    private void setStatus(String status) {
-        mStatus = status;
-        mMain.post(() -> {
-            for (StageObserver observer : mObservers) {
-                observer.onStatus(status);
             }
         });
     }
 
-    private void notifyRunning(boolean running) {
-        mMain.post(() -> {
-            for (StageObserver observer : mObservers) {
-                observer.onRunningChanged(running);
+    private void startProvider() {
+        if (mProvider != null || !mModelReady) return;
+        final int generation = mGeneration;
+        final AvatarStage stage = mStage;
+        final ProviderFrameSink provider = new ProviderFrameSink(this);
+        mProvider = provider;
+        mProviderHealthy = false;
+        change(SessionState.CAMERA_STARTING, getString(R.string.detail_connecting));
+        provider.setStatusListener(new ProviderFrameSink.StatusListener() {
+            @Override public void onReady(boolean replacement) {
+                if (!current(generation, stage) || mProvider != provider) return;
+                mProviderHealthy = replacement;
+                if (!replacement) change(SessionState.ERROR, getString(R.string.detail_extra_camera));
+                else refreshAuthority();
+                updatePanel();
+            }
+            @Override public void onFailure(String reason) {
+                if (!current(generation, stage) || mProvider != provider) return;
+                mProviderHealthy = false;
+                change(SessionState.ERROR, reason);
+                refreshAuthority();
+            }
+        });
+        provider.start(new FrameSink.Callback() {
+            @Override public void onSurfaceReady(Surface surface, int width, int height) {
+                if (current(generation, stage) && mProvider == provider) {
+                    stage.setSurface("provider", surface, width, height);
+                }
+            }
+            @Override public void onSurfaceLost() {
+                if (current(generation, stage)) stage.clearSurface("provider");
             }
         });
     }
 
-    public String status() {
-        return mStatus;
+    private void updatePanel() {
+        if (sCameraRequested && mModelReady && Prefs.get().getMode() == ControlMode.JOYSTICK
+                && Prefs.get().getJoystickOverlay() && Settings.canDrawOverlays(this)) {
+            mPanel.show(axis(0), axis(1), axis(2), mControl::setExpression, value -> {
+                mControl.setExpressionSpeed(value);
+                Prefs.get().setExpressionSpeed(value);
+            }, mControl.getExpressionSpeed());
+            mPanel.setExpressionMask(mExpressionMask);
+        } else mPanel.hide();
+    }
+
+    private void stopSession(boolean explicit) {
+        if (explicit) Prefs.get().setEnabled(false);
+        ++mGeneration;
+        ++mLoadGeneration;
+        if (mLoad != null) mLoad.cancel(true);
+        mMain.removeCallbacks(mPoll);
+        boolean restoreCamera = sCameraRequested || explicit;
+        sCameraRequested = false;
+        sRunning = false;
+        change(SessionState.STOPPING, getString(R.string.detail_stopping));
+        mPanel.hide();
+        mPreview.stop();
+        if (mStage != null) mStage.destroy();
+        mStage = null;
+        mModelReady = false;
+        mEngineReady = false;
+        mLoading = false;
+        mAvatarError = false;
+        mLoadedAvatar = "";
+        mRequestedAvatar = "";
+        ProviderFrameSink provider = mProvider;
+        mProvider = null;
+        mProviderHealthy = false;
+        final int generation = mGeneration;
+        mIo.submit(() -> {
+            if (provider != null) provider.stop();
+            if (restoreCamera) ProviderFrameSink.restoreCamera();
+            int actual = ProviderFrameSink.queryOverrideState();
+            mMain.post(() -> {
+                if (mDestroyed || generation != mGeneration) return;
+                mCameraState = actual;
+                change(actual == 0 ? SessionState.OFF : SessionState.ERROR,
+                        getString(actual == 0 ? R.string.detail_off : R.string.detail_cleanup_failed));
+                if (actual == 0 && mForeground) {
+                    stopForeground(STOP_FOREGROUND_REMOVE);
+                    mForeground = false;
+                }
+                if (actual == 0) stopSelf();
+            });
+        });
+    }
+
+    private final Runnable mPoll = this::refreshAuthority;
+    private void refreshAuthority() {
+        final int generation = mGeneration;
+        mIo.submit(() -> {
+            int actual = ProviderFrameSink.queryOverrideState();
+            mMain.post(() -> {
+                if (mDestroyed || generation != mGeneration) return;
+                mCameraState = actual;
+                if (actual == 1) change(SessionState.CAMERA_BLOCKED, getString(R.string.detail_blocked));
+                else if (actual == 2 && mProvider != null && mModelReady && mProviderHealthy && !mAvatarError) {
+                    change(SessionState.CAMERA_READY, getString(R.string.detail_camera));
+                } else if (actual == 2 && mProvider == null) {
+                    change(SessionState.ERROR, getString(R.string.detail_existing_override));
+                } else if (sCameraRequested && sState == SessionState.CAMERA_READY) {
+                    change(SessionState.ERROR, getString(R.string.detail_camera_lost));
+                }
+                mMain.removeCallbacks(mPoll);
+                if (sCameraRequested || (actual > 0 && !mObservers.isEmpty())) {
+                    mMain.postDelayed(mPoll, 2000);
+                }
+            });
+        });
+    }
+
+    private void change(SessionState state, String detail) {
+        if (sState == state && java.util.Objects.equals(mDetail, detail)
+                && mNotifiedCamera == sCameraRequested) return;
+        sState = state;
+        mDetail = detail;
+        mNotifiedCamera = sCameraRequested;
+        for (StageObserver observer : mObservers) observer.onSessionChanged(state, detail, sCameraRequested);
+        if (mForeground) getSystemService(NotificationManager.class).notify(NOTIFICATION, notification());
+        StageTile.requestRefresh(this);
+    }
+    private Notification notification() {
+        PendingIntent stop = PendingIntent.getService(this, 0,
+                new Intent(this, StageService.class).setAction(ACTION_STOP),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent open = PendingIntent.getActivity(this, 1, new Intent(this, MainActivity.class),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        return new NotificationCompat.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_agever)
+                .setContentTitle(getString(sState.label)).setContentText(mDetail)
+                .setOngoing(true).setContentIntent(open)
+                .addAction(0, getString(R.string.notification_stop), stop)
+                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE).build();
     }
 }
