@@ -72,12 +72,14 @@ public final class ExpertFragment extends BasePreferenceFragment {
             String node = Sysfs.firstExisting(
                     "/sys/module/sync/parameters/fsync_enabled",
                     "/sys/kernel/fsync/fsync_enabled");
-            if (node != null) {
-                engine.backup().capture(node);
-                Sysfs.write(node, enabled ? "0" : "1");
-            } else {
+            if (node == null) {
                 toast(R.string.bypass_unavailable);
+                return false;
             }
+            engine.run(() -> {
+                engine.backup().capture(node);
+                if (enabled) Sysfs.write(node, "0"); else engine.backup().restore(node);
+            });
             return true;
         });
 
@@ -86,7 +88,7 @@ public final class ExpertFragment extends BasePreferenceFragment {
         thermal.setEnabled(expert);
         thermal.setChecked(engine.prefs().getBool(Prefs.THERMAL_DISABLE, false));
         thermal.setOnPreferenceChangeListener((preference, value) -> {
-            engine.performance().setThermalOverride((Boolean) value);
+            engine.run(() -> engine.performance().setThermalOverride((Boolean) value));
             return true;
         });
 
@@ -99,7 +101,7 @@ public final class ExpertFragment extends BasePreferenceFragment {
         Preference restore = action(R.string.profile_restore_title,
                 R.string.profile_restore_summary);
         restore.setOnPreferenceClickListener(preference -> {
-            engine.restoreDefaults();
+            engine.run(engine::restoreDefaults);
             toast(R.string.toast_restored);
             return true;
         });
@@ -141,14 +143,20 @@ public final class ExpertFragment extends BasePreferenceFragment {
                         toast(R.string.value_unknown);
                         return;
                     }
-                    if (value.isEmpty()) {
-                        String read = Sysfs.read(path);
-                        toast(path + " = " + (read == null ? "?" : read));
-                    } else {
-                        engine.backup().capture(path);
-                        boolean ok = Sysfs.write(path, value);
-                        toast(path + (ok ? " ✓" : " ✗"));
-                    }
+                    android.content.Context app = requireContext().getApplicationContext();
+                    engine.run(() -> {
+                        String message;
+                        if (value.isEmpty()) {
+                            String read = Sysfs.read(path);
+                            message = path + " = " + (read == null ? "?" : read);
+                        } else {
+                            engine.backup().capture(path);
+                            message = path + (Sysfs.write(path, value) ? " ✓" : " ✗");
+                        }
+                        new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
+                                android.widget.Toast.makeText(app, message,
+                                        android.widget.Toast.LENGTH_SHORT).show());
+                    });
                 })
                 .setNeutralButton("Read", (dialog, which) -> {
                     String path = pathField.getText().toString().trim();

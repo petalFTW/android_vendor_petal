@@ -94,25 +94,43 @@
     <string name="category_power">Battery and idle</string>
     <string name="power_summary">Control reversible screen-off restrictions</string>
     <string name="power_policy_enabled_title">Idle optimization</string>
-    <string name="power_policy_enabled_summary">Apply after the screen-off grace period. Push services and apps exempt from battery optimization stay protected.</string>
-    <string name="power_profile_title">Restriction profile</string>
-    <string name="power_grace_title">Screen-off grace period</string>
-    <string name="power_packages_title">Restricted package names</string>
-    <string name="power_packages_none">No apps selected</string>
+    <string name="power_policy_enabled_summary">Puts background apps to sleep once the screen has been off for a while. Glancing at the screen doesn\'t undo it, unlocking does.</string>
+    <string name="power_status_title">Right now</string>
+    <string name="power_status_off">Off</string>
+    <string name="power_status_empty">Nothing to restrict yet. Turn on automatic picking or add apps below.</string>
+    <string name="power_status_ready">Ready. Starts %1$s after the screen goes off.</string>
+    <string name="power_status_waiting">Screen is off. Starts %1$s after it went off.</string>
+    <string name="power_status_active">Active since %1$s · %2$d apps asleep</string>
+    <string name="power_status_unknown">No report from the idle service yet. It shows up after the first screen-off.</string>
+    <string name="power_grace_now">straight away</string>
+    <string name="power_grace_minutes">%1$d min</string>
+    <string name="power_auto_title">Pick apps automatically</string>
+    <string name="power_auto_summary">Includes apps you haven\'t opened in about a day. Your SMS, phone, launcher, keyboard, alarm, music, VPN and accessibility apps are always left alone.</string>
+    <string name="power_profile_title">How hard</string>
+    <string name="power_profile_optimized_summary">Gentle: apps get fewer background jobs and syncs. They keep network, so messages still arrive.</string>
+    <string name="power_profile_deep_summary">Strict: apps also lose network, wakelocks, location and Bluetooth scanning until you unlock. The phone also sleeps deeply even while moving, and the CPU is capped while the screen is off. Notifications from these apps can arrive late.</string>
+    <string name="power_grace_title">Wait after screen off</string>
+    <string name="power_packages_title">Always include these apps</string>
+    <string name="power_packages_none">None. Add apps that drain battery even though you use them.</string>
     <plurals name="power_packages_count">
-        <item quantity="one">%1$d app selected</item>
-        <item quantity="other">%1$d apps selected</item>
+        <item quantity="one">%1$d app always included</item>
+        <item quantity="other">%1$d apps always included</item>
     </plurals>
-    <string name="power_scanning_category">Optional scanning controls</string>
-    <string name="power_wifi_scan_title">Disable Wi-Fi location scanning while idle</string>
-    <string name="power_wifi_scan_summary">Restored when the screen turns on</string>
-    <string name="power_ble_scan_title">Disable Bluetooth location scanning while idle</string>
-    <string name="power_ble_scan_summary">Restored when the screen turns on; does not disable Bluetooth</string>
-    <string name="power_audit_title">Policy audit</string>
-    <string name="power_audit_empty">Select apps to audit their battery exemptions</string>
-    <string name="power_audit_summary">%1$d selected · %2$d exempt from battery optimization</string>
-    <string name="power_warning_title">Compatibility warning</string>
-    <string name="power_warning_summary">Optimized reduces background job frequency while keeping network access. Deep restricted also blocks network access, background execution, location and Bluetooth scanning for selected apps. Their notifications, navigation or wearable connections may pause until the screen turns on. Push services and battery-exempt apps are excluded.</string>
+    <string name="power_scanning_category">Location scanning</string>
+    <string name="power_wifi_scan_title">Pause Wi-Fi scanning while asleep</string>
+    <string name="power_wifi_scan_summary">Wi-Fi itself stays on. Back when you unlock.</string>
+    <string name="power_ble_scan_title">Pause Bluetooth scanning while asleep</string>
+    <string name="power_ble_scan_summary">Bluetooth itself stays on. Back when you unlock.</string>
+    <string name="power_audit_category">Audit</string>
+    <string name="power_audit_title">Apps that skip all battery saving</string>
+    <string name="power_audit_none">None. Every app you installed follows Doze and idle optimization.</string>
+    <string name="power_audit_list">%1$s. These are marked unrestricted, so Doze and idle optimization never touch them. Tap to review.</string>
+    <string name="power_last_title">Last time it ran</string>
+    <string name="power_last_none">Hasn\'t run yet</string>
+    <string name="power_last_list">%1$s</string>
+    <string name="power_errors_title">Couldn\'t restore</string>
+    <string name="power_errors_summary">%1$s. These will be retried on the next unlock.</string>
+    <string name="power_protected_note">Google Play services and other push apps are never put to sleep, so normal notifications keep working.</string>
 
     <string name="category_network">Network access</string>
     <string name="network_summary">Block or allow the network per app</string>
@@ -194,6 +212,19 @@
     <!-- Island -->
     <string name="island_enabled_title">Enable island</string>
     <string name="island_enabled_summary">Show the liquid-drop dynamic island for notifications, calls and media</string>
+    <string name="catback_title">CATBACK</string>
+    <string name="catback_summary">Open the CATBACK car host</string>
+    <string name="aod_popup_title">Notification wake popup</string>
+    <string name="aod_popup_summary">Screen off: show just the new notification on black for a few seconds, without fully waking the phone</string>
+    <string name="aod_popup_style_title">Popup style</string>
+    <string-array name="aod_popup_style_entries">
+        <item>Pure black</item>
+        <item>Follow notification appearance</item>
+    </string-array>
+    <string-array name="aod_popup_style_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
     <string name="island_glass_title">Glass notifications</string>
     <string name="island_glass_summary">Give notification cards the island\u2019s rounded glass surface, grain and highlighted edges</string>
     <string name="island_blur_title">Island blur</string>

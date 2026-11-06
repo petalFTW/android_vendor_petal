@@ -59,8 +59,11 @@ public final class NetworkController {
         ok |= write(CORE + "/netdev_max_backlog", "5000");
         ok |= write(CORE + "/somaxconn", "1024");
         ok |= write(IPV4 + "/tcp_fastopen", "3");
-        ok |= write(IPV4 + "/tcp_syncookies", "0");
         return ok;
+    }
+
+    public boolean restoreLowLatency() {
+        return mBackup.restoreUnder(CORE + "/", IPV4 + "/tcp_fastopen");
     }
 
     private boolean write(String path, String value) {

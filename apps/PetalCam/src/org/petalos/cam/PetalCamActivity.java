@@ -36,6 +36,7 @@ import android.provider.MediaStore;
 import android.util.Range;
 import android.util.Log;
 import android.view.GestureDetector;
+import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -81,6 +82,13 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     private static final String TAG = "PetalCam";
     private static final int REQ_PERMS = 1001;
 
+    private static final float LOCK_HIT_RADIUS_DP = 48f;
+    private static final float HOLD_ZOOM_DEAD_DP = 12f;
+    // finger travel that doubles the zoom
+    private static final float HOLD_ZOOM_DOUBLE_DP = 120f;
+    private static final long FLIP_MIN_RECORDED_MS = 800L;
+    private static final long FLIP_COOLDOWN_MS = 900L;
+
     // Gallery shipped with the product; captures open here first.
     private static final String BUNDLED_GALLERY = "com.android.gallery3d";
 
@@ -117,6 +125,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     private TextView mQrText;
     private TextView mQrHint;
     private String mQrValue;
+    private ImageView mRecLock;
     private View mRecChip;
     private TextView mRecTime;
     private View mProcessing;
@@ -136,6 +145,14 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     private boolean mRecordingUi;
     private long mRecordStart;
     private boolean mCountdownRunning;
+
+    // hold-to-record. active while the finger is down, locked once it let go
+    // on the padlock and the recording carries on hands free
+    private boolean mHoldActive;
+    private boolean mHoldLocked;
+    private boolean mHoldOverLock;
+    private float mHoldStartY;
+    private float mHoldZoomStart;
     private Uri mLastUri;
 
     private float mZoomStart = 1f;
@@ -259,6 +276,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
         mQrHint = findViewById(R.id.qr_hint);
         findViewById(R.id.qr_close).setOnClickListener(v -> hideQr());
         mQrPopup.setOnClickListener(v -> handleQrAction());
+        mRecLock = findViewById(R.id.rec_lock);
         mRecChip = findViewById(R.id.rec_chip);
         mRecTime = findViewById(R.id.rec_time);
         mProcessing = findViewById(R.id.processing);
@@ -285,7 +303,6 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
             }
             String mode = mAvailableModes.get(index);
             mCurrentMode = mode;
-            PetalCamPrefs.setLastMode(this, mode);
             onModeChanged(mode);
         });
         refreshModes();
@@ -299,20 +316,8 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
                 CameraController.MODE_NIGHT,
                 CameraController.MODE_VIDEO,
                 CameraController.MODE_PRO));
-        if (mInfo != null) {
-            List<String> usable = new ArrayList<>();
-            for (String m : modes) {
-                // PORTRAIT is always offered now: it is handled by the
-                // on-device depth model, no OEM bokeh extension required.
-                if (CameraController.MODE_NIGHT.equals(m)
-                        && !mInfo.extensionModes.contains("Night")) {
-                    continue;
-                }
-                usable.add(m);
-            }
-            modes = usable;
-        }
-        String keep = mCurrentMode != null ? mCurrentMode : PetalCamPrefs.lastMode(this);
+        // null on launch, every launch starts on photo
+        String keep = mCurrentMode;
         mAvailableModes = modes;
         mModes.setModes(modes);
         int idx = keep != null ? modes.indexOf(keep) : 0;
@@ -343,10 +348,6 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
             mPro.reset();
         }
         mController.setMode(mode);
-        if (mInfo != null && CameraController.MODE_NIGHT.equals(mode)
-                && !mInfo.extensionModes.contains("Night")) {
-            showToast(getString(R.string.vendor_mode_unavailable));
-        }
     }
 
     private boolean isProMode() {
@@ -373,20 +374,42 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
 
             @Override
             public void onShutterLongPress() {
-                if (!mController.isRecording()) {
-                    if (!CameraController.MODE_VIDEO.equals(mController.mode())) {
-                        mStartRecordingAfterBind = true;
-                        selectMode(CameraController.MODE_VIDEO);
-                    } else {
-                        startRecording();
-                    }
+                if (mController.isRecording()) {
+                    return;
+                }
+                mHoldActive = true;
+                mHoldLocked = false;
+                mHoldOverLock = false;
+                mHoldStartY = Float.NaN;
+                mHoldZoomStart = mCurrentZoom;
+                setRecLockVisible(true);
+                mShutter.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                if (!CameraController.MODE_VIDEO.equals(mController.mode())) {
+                    mStartRecordingAfterBind = true;
+                    selectMode(CameraController.MODE_VIDEO);
+                } else {
+                    startRecording();
                 }
             }
 
             @Override
+            public void onShutterDrag(float rawX, float rawY) {
+                onHoldDrag(rawX, rawY);
+            }
+
+            @Override
             public void onShutterRelease() {
+                boolean lock = mHoldActive && mHoldOverLock;
+                endHold();
+                if (lock) {
+                    // a tap on the button stops it from here on
+                    mHoldLocked = true;
+                    showToast(getString(R.string.recording_locked));
+                    return;
+                }
                 // Released before the video pipeline finished rebinding: abort.
                 mStartRecordingAfterBind = false;
+                mHandler.removeCallbacks(mStartHeldRecording);
                 if (mController.isRecording()) {
                     mController.stopRecording();
                 }
@@ -405,7 +428,7 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
 
         mBtnFlash.setOnClickListener(v -> cycleFlash());
         mBtnTimer.setOnClickListener(v -> cycleTimer());
-        mBtnFlip.setOnClickListener(v -> mController.switchLens());
+        mBtnFlip.setOnClickListener(v -> flipLens());
         mBtnHdr.setOnClickListener(v -> {
             mHdrEnabled = !mHdrEnabled;
             mController.setHdrEnabled(mHdrEnabled);
@@ -421,6 +444,85 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
 
         mProPanel.setOnProChangeListener(this::onProChanged);
         mProPanel.setVisibility(View.GONE);
+    }
+
+    private void flipLens() {
+        boolean recording = mController.isRecording();
+        // the encoder needs real frames first or the file comes out empty
+        if (recording && (!mRecordingUi
+                || System.currentTimeMillis() - mRecordStart < FLIP_MIN_RECORDED_MS)) {
+            return;
+        }
+        mController.switchLens();
+        if (recording) {
+            // reopening a camera takes a moment, mashing it only lengthens the gap
+            mBtnFlip.setEnabled(false);
+            mHandler.postDelayed(() -> mBtnFlip.setEnabled(true), FLIP_COOLDOWN_MS);
+        }
+    }
+
+    // ---- Hold to record -------------------------------------------------
+
+    // up zooms in, down zooms out, sideways onto the padlock arms the lock
+    private void onHoldDrag(float rawX, float rawY) {
+        if (!mHoldActive) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        int[] lock = new int[2];
+        mRecLock.getLocationOnScreen(lock);
+        float dx = rawX - (lock[0] + mRecLock.getWidth() / 2f);
+        float dy = rawY - (lock[1] + mRecLock.getHeight() / 2f);
+        boolean over = Math.hypot(dx, dy) < LOCK_HIT_RADIUS_DP * density;
+        if (over != mHoldOverLock) {
+            mHoldOverLock = over;
+            mRecLock.setImageTintList(android.content.res.ColorStateList.valueOf(
+                    over ? 0xFFFF4D6D : Color.WHITE));
+            mRecLock.animate().scaleX(over ? 1.25f : 1f).scaleY(over ? 1.25f : 1f)
+                    .setDuration(140).start();
+            mRecLock.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+        }
+        if (Float.isNaN(mHoldStartY)) {
+            mHoldStartY = rawY;
+        }
+        // reaching for the padlock shouldnt nudge the framing
+        if (over) {
+            return;
+        }
+        float rise = mHoldStartY - rawY;
+        float dead = HOLD_ZOOM_DEAD_DP * density;
+        float travel = rise > 0 ? Math.max(0f, rise - dead) : Math.min(0f, rise + dead);
+        float target = mHoldZoomStart
+                * (float) Math.pow(2.0, travel / (HOLD_ZOOM_DOUBLE_DP * density));
+        if (mInfo != null) {
+            target = Math.max(mInfo.minZoomRatio, Math.min(mInfo.maxZoomRatio, target));
+        }
+        if (target != mCurrentZoom) {
+            mCurrentZoom = target;
+            mController.setZoomRatio(target);
+            mZoom.setSelected(target);
+        }
+    }
+
+    private void endHold() {
+        mHoldActive = false;
+        mHoldOverLock = false;
+        setRecLockVisible(false);
+    }
+
+    private void setRecLockVisible(boolean visible) {
+        mRecLock.animate().cancel();
+        if (visible) {
+            mRecLock.setImageTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+            mRecLock.setVisibility(View.VISIBLE);
+            mRecLock.setAlpha(0f);
+            mRecLock.setScaleX(0.7f);
+            mRecLock.setScaleY(0.7f);
+            mRecLock.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start();
+        } else if (mRecLock.getVisibility() == View.VISIBLE) {
+            mRecLock.animate().alpha(0f).setDuration(140).withEndAction(
+                    () -> mRecLock.setVisibility(View.GONE)).start();
+        }
     }
 
     // ---- Gestures -------------------------------------------------------
@@ -524,6 +626,10 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
             } catch (Throwable ignored) {
             }
         }
+        // portrait's done by the depth model and night by the burst, neither needs the oem
+        if (CameraController.MODE_NIGHT.equals(mCurrentMode)) {
+            showToast(getString(R.string.night_hold_still));
+        }
         mController.takePhoto();
     }
 
@@ -571,20 +677,13 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     }
 
     private void selectMode(String mode) {
-        int idx = mModeList().indexOf(mode);
+        // before the rebind: its onCameraReady snaps back to whatever this says
+        mCurrentMode = mode;
+        int idx = mAvailableModes.indexOf(mode);
         if (idx >= 0) {
             mModes.setSelected(idx);
         }
         onModeChanged(mode);
-    }
-
-    private List<String> mModeList() {
-        return Arrays.asList(
-                CameraController.MODE_PHOTO,
-                CameraController.MODE_PORTRAIT,
-                CameraController.MODE_NIGHT,
-                CameraController.MODE_VIDEO,
-                CameraController.MODE_PRO);
     }
 
     // ---- Flash / grid / HDR --------------------------------------------
@@ -738,9 +837,16 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
         }
         if (mStartRecordingAfterBind && CameraController.MODE_VIDEO.equals(mController.mode())) {
             mStartRecordingAfterBind = false;
-            mHandler.postDelayed(this::startRecording, 350);
+            mHandler.postDelayed(mStartHeldRecording, 350);
         }
     }
+
+    // the finger may have left during the wait for the video pipeline
+    private final Runnable mStartHeldRecording = () -> {
+        if (mHoldActive || mHoldLocked) {
+            startRecording();
+        }
+    };
 
     @Override
     public void onCameraError(@NonNull String message) {
@@ -788,6 +894,8 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
         mRecordStart = System.currentTimeMillis();
         mShutter.setRecording(true);
         mRecChip.setVisibility(View.VISIBLE);
+        // a mode change mid recording has nowhere to put the file
+        mModes.setVisibility(View.INVISIBLE);
         startRecordTicker();
     }
 
@@ -795,13 +903,16 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     public void onRecordingStopped(@Nullable Uri uri, boolean ok) {
         mRecordingUi = false;
         mShutter.setRecording(false);
+        mHoldLocked = false;
+        endHold();
         mRecChip.setVisibility(View.GONE);
+        mModes.setVisibility(View.VISIBLE);
         mRecHandler.removeCallbacks(mRecordTicker);
         if (ok && uri != null) {
             mLastUri = uri;
             showToast(getString(R.string.saved));
             refreshThumbnail();
-        } else {
+        } else if (!ok) {
             showToast(getString(R.string.record_failed));
         }
     }
@@ -1134,6 +1245,9 @@ public class PetalCamActivity extends AppCompatActivity implements CameraControl
     @Override
     protected void onPause() {
         super.onPause();
+        endHold();
+        mStartRecordingAfterBind = false;
+        mHandler.removeCallbacks(mStartHeldRecording);
         if (mController != null && mController.isRecording()) {
             mController.stopRecording();
         }

@@ -16,6 +16,7 @@
 
 package org.petalos.depth;
 
+import org.petalos.config.DepthClockRenderer;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -28,7 +29,6 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -40,7 +40,6 @@ import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
-import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -69,38 +68,43 @@ public class DepthStudioActivity extends Activity {
     private DepthWidgets.FancySlider mSizeSlider;
     private DepthWidgets.FancySlider mMotionSlider;
     private Switch mNotificationToggle;
-    private SeekBar mNotificationSlider;
+    private DepthWidgets.FancySlider mNotificationSlider;
     private TextView mNotificationPositionLabel;
     private LiquidPill mSubjectChip;
     private LinearLayout mSheet;
     private OutlinePrompt mLastPrompt;
-    private android.widget.Button mOutlineCancel;
+    private LiquidPill mOutlineCancel;
 
-    // palette copied from SystemUI
-    private static final int COLOR_CANVAS = 0xFF0C0C0E;
-    private static final int COLOR_GLASS = 0xE6121214;
-    private static final int COLOR_GLASS_STROKE = 0x26FFFFFF;
-    private static final int COLOR_GLYPH_DARK = 0xFF161618;
-    private static final int COLOR_GLYPH_LIGHT = 0xF2FFFFFF;
-    private static final int COLOR_GLYPH_DIM = 0x99FFFFFF;
-    private static final int COLOR_DANGER = 0xFFFF453A;
-    private static final int COLOR_GOLD = 0xFFFFB300;
+    private static final int NOTIFICATION_CARD = 0xAA34343B;
+    private static final int ON_PHOTO = 0xEEFFFFFF;
+    private static final int ON_PHOTO_DIM = 0x66FFFFFF;
+    private static final int DRAW_FILL = 0x33B9A5FF;
+    private static final int DRAW_LINE = 0xFFB9A5FF;
+    private DepthWidgets.Tokens mT;
 
     private SegmenterHelper mSegmenter;
     private DepthPreviewView mPreview;
     private StatusPillView mStatus;
     private LiquidPill mApplyButton;
     private boolean mBusy = false;
+    // false = lock screen, true = home screen; every setting and file follows it
+    private boolean mHome;
+    private final LiquidPill[] mTargetPills = new LiquidPill[2];
+    private final List<View> mLockOnly = new ArrayList<>();
+    private LiquidPill mCopyLock;
+    private DepthWidgets.FancySlider mBlurSlider;
     private int mBlurAmount;
     private Bitmap mBlurredBase;
     private Bitmap mBlendedCutout;
     private Bitmap mFrostedBase;
+    private int mBlurJob;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mT = new DepthWidgets.Tokens(this);
         mSegmenter = new SegmenterHelper();
-        mBlurAmount = getPreferences(0).getInt("background_blur", 0);
+        mBlurAmount = getPreferences(0).getInt(blurPref(), 0);
         // feed the clock rubik, shrug if the resource is missing
         try {
             org.petalos.config.DepthClockMaterials.setBaseTypeface(
@@ -108,12 +112,9 @@ public class DepthStudioActivity extends Activity {
         } catch (Exception ignored) {
         }
 
-        getWindow().setStatusBarColor(COLOR_CANVAS);
-        getWindow().setNavigationBarColor(COLOR_CANVAS);
-
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(COLOR_CANVAS);
+        root.setBackgroundColor(mT.canvas);
         root.setOnApplyWindowInsetsListener((v, insets) -> {
             android.graphics.Insets bars = insets.getInsets(
                     android.view.WindowInsets.Type.systemBars()
@@ -123,16 +124,20 @@ public class DepthStudioActivity extends Activity {
         });
         TextView heading = new TextView(this);
         heading.setText(R.string.depth_app_name);
-        heading.setTextColor(COLOR_GLYPH_LIGHT);
-        heading.setTextSize(24);
-        heading.setPadding(dp(24), dp(12), dp(24), dp(8));
+        heading.setTextColor(mT.text);
+        heading.setTextSize(30);
+        heading.setTypeface(DepthWidgets.font(this, 600));
+        heading.setPadding(dp(20), dp(12), dp(20), dp(12));
+        heading.setAccessibilityHeading(true);
         root.addView(heading);
-        mOutlineCancel = new android.widget.Button(this);
-        mOutlineCancel.setText(R.string.depth_cancel_outline);
-        mOutlineCancel.setAllCaps(false);
+        root.addView(buildTargetSwitch());
+        mOutlineCancel = new LiquidPill(this);
+        mOutlineCancel.setLabel(getString(R.string.depth_cancel_outline));
         mOutlineCancel.setVisibility(View.GONE);
         mOutlineCancel.setOnClickListener(v -> finishOutlineMode());
-        root.addView(mOutlineCancel, new LinearLayout.LayoutParams(-1, dp(48)));
+        LinearLayout.LayoutParams cancelLp = new LinearLayout.LayoutParams(-1, dp(48));
+        cancelLp.setMargins(dp(20), 0, dp(20), dp(4));
+        root.addView(mOutlineCancel, cancelLp);
         mStatus = new StatusPillView(this);
         mStatus.setText(getString(R.string.depth_pick_photo));
         root.addView(mStatus, new LinearLayout.LayoutParams(-1, dp(44)));
@@ -140,7 +145,7 @@ public class DepthStudioActivity extends Activity {
         FrameLayout previewArea = new FrameLayout(this);
         root.addView(previewArea, new LinearLayout.LayoutParams(-1, 0, 1.15f));
         mPreview = new DepthPreviewView(this);
-        mPreview.setBackground(capsuleBackground(COLOR_CANVAS, COLOR_GLASS_STROKE, dp(24)));
+        mPreview.setBackground(capsuleBackground(DepthWidgets.PREVIEW_STAGE, mT.outline2, dp(28)));
         mPreview.setClipToOutline(true);
         previewArea.addView(mPreview, new FrameLayout.LayoutParams(1, 1, Gravity.CENTER));
         previewArea.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
@@ -160,33 +165,198 @@ public class DepthStudioActivity extends Activity {
         root.addView(mSheet, new LinearLayout.LayoutParams(-1, 0, 1f));
         setContentView(root);
         root.requestApplyInsets();
-        if (PetalConfig.getDepthClockStyle(this) == DepthClockRenderer.STYLE_OFF) {
-            DepthPresets.apply(this, DepthPresets.CINEMA);
+        if (PetalConfig.getDepthClockStyle(this, mHome) == DepthClockRenderer.STYLE_OFF) {
+            DepthPresets.apply(this, DepthPresets.CINEMA, mHome);
         }
         // rebuild a corrupt cutout on launch
         android.os.AsyncTask.execute(() -> {
             File filesDir = getFilesDir();
             if (healCutout(filesDir) && PetalConfig.isDepthEnabled(this)) {
-                int generation = PetalConfig.getDepthGeneration(this) + 1;
+                int generation = PetalConfig.getDepthGeneration(this, mHome) + 1;
                 Settings.System.putInt(getContentResolver(),
-                        PetalConfig.KEY_DEPTH_GENERATION, generation);
+                        key(PetalConfig.KEY_DEPTH_GENERATION), generation);
             }
         });
-        mPreview.setDateOn(PetalConfig.isDepthClockDateEnabled(this));
+        mPreview.setDateOn(PetalConfig.isDepthClockDateEnabled(this, mHome));
         refreshSelections();
         restoreDraft();
         mPreview.startTicker();
     }
 
     
+    // Lock screen and Home screen are edited the same way; this picks which one.
+    private LinearLayout buildTargetSwitch() {
+        LinearLayout row = segmentTrack();
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
+        rowLp.setMargins(dp(20), 0, dp(20), dp(4));
+        row.setLayoutParams(rowLp);
+        int[] labels = {R.string.depth_target_lock, R.string.depth_target_home};
+        for (int i = 0; i < labels.length; i++) {
+            final boolean home = i == 1;
+            LiquidPill pill = new LiquidPill(this);
+            pill.setSegment(true);
+            pill.setLabel(getString(labels[i]));
+            pill.setChecked(!home);
+            pill.setOnClickListener(v -> setTarget(home));
+            mTargetPills[i] = pill;
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(48), 1f);
+            if (i > 0) lp.setMarginStart(dp(4));
+            row.addView(pill, lp);
+        }
+        return row;
+    }
+
+    // the Hub's segmented control, off the site
+    private LinearLayout segmentTrack() {
+        LinearLayout track = new LinearLayout(this);
+        track.setPadding(dp(4), dp(4), dp(4), dp(4));
+        track.setBackground(capsuleBackground(mT.canvas, mT.outline, dp(16)));
+        return track;
+    }
+
+    private void setTarget(boolean home) {
+        if (mBusy || mHome == home) return;
+        if (mOutlineCancel.getVisibility() == View.VISIBLE) finishOutlineMode();
+        mHome = home;
+        mTargetPills[0].setChecked(!home);
+        mTargetPills[1].setChecked(home);
+        mLastPrompt = null;
+        mBlurAmount = getPreferences(0).getInt(blurPref(), 0);
+        if (mBlurSlider != null) mBlurSlider.setValue(mBlurAmount);
+        mPreview.setBase(null);
+        mApplyButton.setEnabled(false);
+        mApplyButton.setLabel(getString(home ? R.string.depth_apply_home : R.string.depth_apply));
+        mStatus.setText(getString(R.string.depth_pick_photo));
+        if (PetalConfig.getDepthClockStyle(this, home) == DepthClockRenderer.STYLE_OFF) {
+            DepthPresets.apply(this, DepthPresets.CINEMA, home);
+        }
+        for (View view : mLockOnly) view.setVisibility(home ? View.GONE : View.VISIBLE);
+        mCopyLock.setVisibility(home ? View.VISIBLE : View.GONE);
+        restoreDraft();
+        mPreview.reloadComposition();
+        refreshSelections();
+    }
+
+    private String key(String lockKey) {
+        return PetalConfig.depthKey(lockKey, mHome);
+    }
+
+    private File asset(String name) {
+        return asset(mHome, name);
+    }
+
+    private File asset(boolean home, String name) {
+        return new File(getFilesDir(), home ? "home_" + name : name);
+    }
+
+    private String blurPref() {
+        return mHome ? "background_blur_home" : "background_blur";
+    }
+
+    /**
+     * Sets that screen's wallpaper and points SystemUI (lock) or Launcher (home) at the new
+     * cutout. Worker thread only.
+     */
+    private void publish(boolean home, Bitmap wallpaper) throws Exception {
+        if (!home) {
+            DepthContentProvider.cacheLockscreenAsset(this, "liquid.png");
+            DepthContentProvider.cacheLockscreenAsset(this, "cutout.png");
+            DepthContentProvider.cacheLockscreenAsset(this, "frost.png");
+        }
+        WallpaperManager wm = WallpaperManager.getInstance(this);
+        String enabledKey = PetalConfig.depthKey(PetalConfig.KEY_DEPTH_ENABLED, home);
+        boolean wasEnabled = Settings.System.getInt(getContentResolver(), enabledKey, 0) == 1;
+        Settings.System.putInt(getContentResolver(), enabledKey, 1);
+        try {
+            wm.setBitmap(wallpaper, new Rect(0, 0, wallpaper.getWidth(), wallpaper.getHeight()),
+                    true, home ? WallpaperManager.FLAG_SYSTEM : WallpaperManager.FLAG_LOCK);
+        } catch (Exception error) {
+            Settings.System.putInt(getContentResolver(), enabledKey, wasEnabled ? 1 : 0);
+            throw error;
+        }
+        if (home) {
+            // Launcher hides the layer if the home wallpaper is later changed elsewhere.
+            Settings.System.putInt(getContentResolver(), PetalConfig.KEY_DEPTH_HOME_WALLPAPER_ID,
+                    wm.getWallpaperId(WallpaperManager.FLAG_SYSTEM));
+        }
+        Settings.System.putString(getContentResolver(),
+                PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CUTOUT_URI, home),
+                "content://org.petalos.depth/" + (home ? "home_" : "") + "cutout.png");
+        int generation = PetalConfig.getDepthGeneration(this, home) + 1;
+        Settings.System.putInt(getContentResolver(),
+                PetalConfig.depthKey(PetalConfig.KEY_DEPTH_GENERATION, home), generation);
+        Settings.System.putInt(getContentResolver(), enabledKey, 1);
+    }
+
+    private static final String[] CLOCK_KEYS = {
+            PetalConfig.KEY_DEPTH_CLOCK_STYLE, PetalConfig.KEY_DEPTH_CLOCK_STACK,
+            PetalConfig.KEY_DEPTH_CLOCK_COLOR, PetalConfig.KEY_DEPTH_CLOCK_DATE,
+            PetalConfig.KEY_DEPTH_CLOCK_ANCHOR, PetalConfig.KEY_DEPTH_CLOCK_X,
+            PetalConfig.KEY_DEPTH_CLOCK_SCALE,
+    };
+
+    // Same photo, subject and clock on Home: the unlock fade then reveals an identical clock.
+    private void copyLockDesign() {
+        if (mBusy) return;
+        if (!asset(false, "cutout.png").exists() || !asset(false, "liquid.png").exists()) {
+            Toast.makeText(this, R.string.depth_copy_lock_missing, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        mBusy = true;
+        mApplyButton.setEnabled(false);
+        mStatus.setBusy(true);
+        mStatus.setText(getString(R.string.depth_applying));
+        mSegmenter.getExecutor().execute(() -> {
+            try {
+                for (String name : new String[] {"cutout_raw.png", "cutout.png", "base.png",
+                        "liquid.png", "frost.png"}) {
+                    File from = asset(false, name);
+                    if (!from.exists()) continue;
+                    java.nio.file.Files.copy(from.toPath(), asset(true, name).toPath(),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+                for (String lockKey : CLOCK_KEYS) {
+                    int value = Settings.System.getInt(getContentResolver(), lockKey,
+                            Integer.MIN_VALUE);
+                    if (value == Integer.MIN_VALUE) continue;
+                    Settings.System.putInt(getContentResolver(),
+                            PetalConfig.depthKey(lockKey, true), value);
+                }
+                Bitmap wallpaper = android.graphics.BitmapFactory.decodeFile(
+                        asset(true, "liquid.png").getAbsolutePath());
+                if (wallpaper == null) throw new java.io.IOException("lock wallpaper unreadable");
+                publish(true, wallpaper);
+                runOnUiThread(() -> {
+                    if (isDestroyed() || isFinishing()) return;
+                    restoreDraft();
+                    mPreview.reloadComposition();
+                    refreshSelections();
+                    Toast.makeText(this, R.string.depth_copied_lock, Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception e) {
+                android.util.Log.e(TAG, "copy lock design failed", e);
+                runOnUiThread(() -> {
+                    if (isDestroyed() || isFinishing()) return;
+                    mStatus.setText(getString(R.string.depth_error));
+                });
+            } finally {
+                runOnUiThread(() -> {
+                    mBusy = false;
+                    if (isDestroyed() || isFinishing()) return;
+                    mStatus.setBusy(false);
+                    mApplyButton.setEnabled(mPreview.getCutout() != null);
+                });
+            }
+        });
+    }
+
     private LinearLayout buildSheet() {
         LinearLayout sheet = new LinearLayout(this);
         sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackground(capsuleBackground(COLOR_GLASS, COLOR_GLASS_STROKE, dp(28)));
-        sheet.setPadding(dp(16), dp(12), dp(16), dp(12));
+        sheet.setBackground(capsuleBackground(mT.surface, mT.outline, dp(28)));
+        sheet.setPadding(dp(16), dp(16), dp(16), dp(16));
 
-        LinearLayout tabs = new LinearLayout(this);
-        tabs.setPadding(0, 0, 0, dp(10));
+        LinearLayout tabs = segmentTrack();
         LinearLayout[] panels = {buildPhotoPanel(), buildClockPanel(), buildEffectsPanel()};
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         scroll.setFillViewport(true);
@@ -200,6 +370,7 @@ public class DepthStudioActivity extends Activity {
             final int selected = i;
             LiquidPill button = new LiquidPill(this);
             buttons[i] = button;
+            button.setSegment(true);
             button.setLabel(getString(labels[i]));
             button.setChecked(i == 0);
             button.setOnClickListener(v -> {
@@ -212,18 +383,20 @@ public class DepthStudioActivity extends Activity {
                 scroll.scrollTo(0, 0);
             });
             LinearLayout.LayoutParams tabLp = new LinearLayout.LayoutParams(0, dp(48), 1f);
-            if (i > 0) tabLp.setMarginStart(dp(6));
+            if (i > 0) tabLp.setMarginStart(dp(4));
             tabs.addView(button, tabLp);
             panels[i].setVisibility(i == 0 ? View.VISIBLE : View.GONE);
         }
         sheet.addView(tabs);
         sheet.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
         mApplyButton = new LiquidPill(this);
-        mApplyButton.setColors(0xFFFFFFFF, COLOR_GLYPH_DARK);
+        mApplyButton.setPrimary();
         mApplyButton.setLabel(getString(R.string.depth_apply));
         mApplyButton.setEnabled(false);
         mApplyButton.setOnClickListener(v -> applyDepth());
-        sheet.addView(mApplyButton, new LinearLayout.LayoutParams(-1, dp(52)));
+        LinearLayout.LayoutParams applyLp = new LinearLayout.LayoutParams(-1, dp(52));
+        applyLp.topMargin = dp(12);
+        sheet.addView(mApplyButton, applyLp);
 
         return sheet;
     }
@@ -231,24 +404,40 @@ public class DepthStudioActivity extends Activity {
     private LinearLayout editorPanel(int heading, int description) {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(2), dp(4), dp(2), dp(16));
+        panel.setPadding(dp(2), dp(16), dp(2), dp(8));
         TextView title = sectionLabel(getString(heading));
-        title.setPadding(0, dp(4), 0, dp(8));
         panel.addView(title);
-        TextView help = new TextView(this);
-        help.setText(description);
-        help.setTextColor(COLOR_GLYPH_DIM);
-        help.setTextSize(13);
-        help.setPadding(0, 0, 0, dp(12));
+        TextView help = helpText(description);
+        help.setPadding(0, dp(4), 0, dp(12));
         panel.addView(help);
         return panel;
+    }
+
+    private TextView helpText(int text) {
+        TextView help = new TextView(this);
+        help.setText(text);
+        help.setTextColor(mT.text2);
+        help.setTextSize(14);
+        return help;
+    }
+
+    private void styleSwitch(Switch toggle) {
+        toggle.setTextColor(mT.text);
+        toggle.setTextSize(15);
+        toggle.setTypeface(DepthWidgets.font(this, 400));
     }
 
     private LinearLayout buildPhotoPanel() {
         LinearLayout panel = editorPanel(R.string.depth_photo_heading,
                 R.string.depth_studio_subtitle);
+        mCopyLock = new LiquidPill(this);
+        mCopyLock.setLabel(getString(R.string.depth_copy_lock));
+        mCopyLock.setOnClickListener(v -> copyLockDesign());
+        mCopyLock.setVisibility(View.GONE);
+        LinearLayout.LayoutParams copyLp = new LinearLayout.LayoutParams(-1, dp(48));
+        copyLp.bottomMargin = dp(8);
+        panel.addView(mCopyLock, copyLp);
         LiquidPill photo = new LiquidPill(this);
-        photo.setColors(0xFFFFFFFF, COLOR_GLYPH_DARK);
         photo.setLabel(getString(R.string.depth_pick_short));
         photo.setOnClickListener(v -> pickPhoto());
         panel.addView(photo, new LinearLayout.LayoutParams(-1, dp(48)));
@@ -289,11 +478,7 @@ public class DepthStudioActivity extends Activity {
         }
         refine.setPadding(0, dp(8), 0, dp(8));
         panel.addView(refine);
-        TextView help = new TextView(this);
-        help.setText(R.string.depth_refine_help);
-        help.setTextColor(COLOR_GLYPH_DIM);
-        help.setTextSize(13);
-        panel.addView(help);
+        panel.addView(helpText(R.string.depth_refine_help));
         return panel;
     }
 
@@ -302,11 +487,11 @@ public class DepthStudioActivity extends Activity {
                 R.string.depth_clock_help);
         mDateToggle = new Switch(this);
         mDateToggle.setText(R.string.depth_show_date);
-        mDateToggle.setTextColor(COLOR_GLYPH_LIGHT);
-        mDateToggle.setChecked(PetalConfig.isDepthClockDateEnabled(this));
+        styleSwitch(mDateToggle);
+        mDateToggle.setChecked(PetalConfig.isDepthClockDateEnabled(this, mHome));
         mDateToggle.setOnCheckedChangeListener((button, checked) -> {
             Settings.System.putInt(getContentResolver(),
-                    PetalConfig.KEY_DEPTH_CLOCK_DATE, checked ? 1 : 0);
+                    key(PetalConfig.KEY_DEPTH_CLOCK_DATE), checked ? 1 : 0);
             mPreview.setDateOn(checked);
         });
         panel.addView(mDateToggle, new LinearLayout.LayoutParams(-1, dp(48)));
@@ -323,7 +508,7 @@ public class DepthStudioActivity extends Activity {
             DepthWidgets.PresetCard card = new DepthWidgets.PresetCard(this, preset,
                     getString(preset.nameRes));
             card.setPick(() -> {
-                DepthPresets.apply(this, preset);
+                DepthPresets.apply(this, preset, mHome);
                 mPreview.reloadComposition();
                 refreshSelections();
             });
@@ -354,15 +539,17 @@ public class DepthStudioActivity extends Activity {
         });
         panel.addView(browse, new LinearLayout.LayoutParams(-1, dp(48)));
         DepthWidgets.FancySlider size = new DepthWidgets.FancySlider(this,
-                getString(R.string.depth_tune_size), "%", 60, 160,
-                PetalConfig.getDepthClockScalePct(this));
+                getString(R.string.depth_tune_size), "%", 60, 160, 5,
+                PetalConfig.getDepthClockScalePct(this, mHome));
         mSizeSlider = size;
         size.setListener(value -> {
             Settings.System.putInt(getContentResolver(),
-                    PetalConfig.KEY_DEPTH_CLOCK_SCALE, value);
+                    key(PetalConfig.KEY_DEPTH_CLOCK_SCALE), value);
             mPreview.invalidate();
         });
-        panel.addView(size, new LinearLayout.LayoutParams(-1, dp(64)));
+        LinearLayout.LayoutParams sizeLp = new LinearLayout.LayoutParams(-1, dp(64));
+        sizeLp.topMargin = dp(8);
+        panel.addView(size, sizeLp);
         // ink colours
         LinearLayout inks = new LinearLayout(this);
         inks.setOrientation(LinearLayout.HORIZONTAL);
@@ -381,11 +568,11 @@ public class DepthStudioActivity extends Activity {
             swatch.setPick(() -> {
                 if (color == DepthWidgets.InkSwatch.AUTO) {
                     Settings.System.putInt(getContentResolver(),
-                            PetalConfig.KEY_DEPTH_CLOCK_COLOR, PetalConfig.DISABLED);
+                            key(PetalConfig.KEY_DEPTH_CLOCK_COLOR), PetalConfig.DISABLED);
                     mPreview.setAutoInk();
                 } else {
                     Settings.System.putInt(getContentResolver(),
-                            PetalConfig.KEY_DEPTH_CLOCK_COLOR, color);
+                            key(PetalConfig.KEY_DEPTH_CLOCK_COLOR), color);
                     mPreview.setInk(color);
                 }
                 refreshSelections();
@@ -408,15 +595,15 @@ public class DepthStudioActivity extends Activity {
         mStackChip.setLabel(getString(R.string.depth_layout_stacked));
         mStackChip.setCompact(true);
         mStackChip.setOnClickListener(v -> {
-            int style = PetalConfig.getDepthClockStyle(this);
-            boolean next = !(PetalConfig.isDepthClockStackVertical(this)
+            int style = PetalConfig.getDepthClockStyle(this, mHome);
+            boolean next = !(PetalConfig.isDepthClockStackVertical(this, mHome)
                     || org.petalos.config.DepthClockMaterials.isSquare(style));
             if (org.petalos.config.DepthClockMaterials.isSquare(style)) {
-                Settings.System.putInt(getContentResolver(), PetalConfig.KEY_DEPTH_CLOCK_STYLE,
+                Settings.System.putInt(getContentResolver(), key(PetalConfig.KEY_DEPTH_CLOCK_STYLE),
                         style - 4);
             }
             Settings.System.putInt(getContentResolver(),
-                    PetalConfig.KEY_DEPTH_CLOCK_STACK, next ? 1 : 0);
+                    key(PetalConfig.KEY_DEPTH_CLOCK_STACK), next ? 1 : 0);
             mPreview.invalidate();
             refreshSelections();
         });
@@ -433,64 +620,60 @@ public class DepthStudioActivity extends Activity {
         LinearLayout panel = editorPanel(R.string.depth_effects_heading,
                 R.string.depth_effects_help);
         DepthWidgets.FancySlider parallax = new DepthWidgets.FancySlider(this,
-                getString(R.string.depth_motion_strength), "%", 0, 100, motionSliderValue());
+                getString(R.string.depth_motion_strength), "%", 0, 100, 5, motionSliderValue());
+        parallax.setZeroText(getString(R.string.depth_off));
         mMotionSlider = parallax;
-        parallax.setListener(value -> {
+        mLockOnly.add(parallax);
+        // only on release, grazing this while scrolling used to switch motion back on
+        parallax.setOnCommit(value -> {
             Settings.System.putInt(getContentResolver(),
                     PetalConfig.KEY_DEPTH_PARALLAX, value > 0 ? 1 : 0);
             if (value > 0) Settings.System.putInt(getContentResolver(),
-                    PetalConfig.KEY_DEPTH_TILT_DP, 4 + Math.round((value - 1) * 20f / 99f));
+                    PetalConfig.KEY_DEPTH_TILT_DP, 4 + Math.round((value - 5) * 20f / 95f));
         });
-        panel.addView(parallax, new LinearLayout.LayoutParams(-1, dp(58)));
-        DepthWidgets.FancySlider blur = new DepthWidgets.FancySlider(this,
-                getString(R.string.depth_background_blur), "%", 0, 100, mBlurAmount);
-        blur.setListener(value -> {
+        panel.addView(parallax, new LinearLayout.LayoutParams(-1, dp(64)));
+        DepthWidgets.FancySlider blur = mBlurSlider = new DepthWidgets.FancySlider(this,
+                getString(R.string.depth_background_blur), "%", 0, 100, 5, mBlurAmount);
+        blur.setZeroText(getString(R.string.depth_off));
+        blur.setOnCommit(value -> {
             mBlurAmount = value;
-            getPreferences(0).edit().putInt("background_blur", value).apply();
-            updateBlur();
+            getPreferences(0).edit().putInt(blurPref(), value).apply();
+            blurInBackground();
         });
-        panel.addView(blur, new LinearLayout.LayoutParams(-1, dp(58)));
+        panel.addView(blur, new LinearLayout.LayoutParams(-1, dp(64)));
 
         TextView notificationHeading = sectionLabel(getString(R.string.depth_notification_start));
-        notificationHeading.setPadding(0, dp(20), 0, dp(8));
+        notificationHeading.setPadding(0, dp(20), 0, dp(4));
         panel.addView(notificationHeading);
-        TextView notificationHelp = new TextView(this);
-        notificationHelp.setText(R.string.depth_notification_help);
-        notificationHelp.setTextColor(COLOR_GLYPH_DIM);
-        notificationHelp.setTextSize(13);
+        mLockOnly.add(notificationHeading);
+        TextView notificationHelp = helpText(R.string.depth_notification_help);
         panel.addView(notificationHelp);
+        mLockOnly.add(notificationHelp);
         mNotificationToggle = new Switch(this);
         mNotificationToggle.setText(R.string.depth_notification_custom);
-        mNotificationToggle.setTextColor(COLOR_GLYPH_LIGHT);
+        styleSwitch(mNotificationToggle);
         panel.addView(mNotificationToggle, new LinearLayout.LayoutParams(-1, dp(48)));
+        mLockOnly.add(mNotificationToggle);
         mNotificationPositionLabel = new TextView(this);
-        mNotificationPositionLabel.setTextColor(COLOR_GLYPH_DIM);
-        mNotificationPositionLabel.setTextSize(13);
+        mNotificationPositionLabel.setTextColor(mT.text2);
+        mNotificationPositionLabel.setTextSize(14);
         panel.addView(mNotificationPositionLabel);
-        mNotificationSlider = new SeekBar(this);
-        mNotificationSlider.setId(View.generateViewId());
-        mNotificationPositionLabel.setLabelFor(mNotificationSlider.getId());
-        mNotificationSlider.setContentDescription(getString(R.string.depth_notification_start));
-        mNotificationSlider.setMin(DepthNotificationPlacement.MIN_PERCENT);
-        mNotificationSlider.setMax(DepthNotificationPlacement.MAX_PERCENT);
-        mNotificationSlider.setProgress(getPreferences(0).getInt("notification_start_last",
-                DepthNotificationPlacement.DEFAULT_PERCENT));
-        mNotificationSlider.setProgressTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
-        mNotificationSlider.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
-        panel.addView(mNotificationSlider, new LinearLayout.LayoutParams(-1, dp(48)));
-        mNotificationSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar slider, int progress, boolean fromUser) {
-                if (fromUser) saveNotificationStart(progress);
-            }
-            @Override public void onStartTrackingTouch(SeekBar slider) {}
-            @Override public void onStopTrackingTouch(SeekBar slider) {}
-        });
+        mLockOnly.add(mNotificationPositionLabel);
+        mNotificationSlider = new DepthWidgets.FancySlider(this,
+                getString(R.string.depth_tune_position), "%",
+                DepthNotificationPlacement.MIN_PERCENT, DepthNotificationPlacement.MAX_PERCENT, 1,
+                getPreferences(0).getInt("notification_start_last",
+                        DepthNotificationPlacement.DEFAULT_PERCENT));
+        panel.addView(mNotificationSlider, new LinearLayout.LayoutParams(-1, dp(64)));
+        mLockOnly.add(mNotificationSlider);
+        mNotificationSlider.setListener(value -> mPreview.setNotificationStart(value));
+        mNotificationSlider.setOnCommit(this::saveNotificationStart);
         updateNotificationStartControls(PetalConfig.getDepthNotificationStartPct(this));
         mNotificationToggle.setOnCheckedChangeListener((button, checked) -> saveNotificationStart(
-                checked ? mNotificationSlider.getProgress() : DepthNotificationPlacement.AUTOMATIC));
+                checked ? mNotificationSlider.getValue() : DepthNotificationPlacement.AUTOMATIC));
 
         LiquidPill disable = new LiquidPill(this);
-        disable.setColors(0x29FF453A, COLOR_DANGER);
+        disable.setColors(mT.dangerContainer, mT.danger);
         disable.setLabel(getString(R.string.depth_disable_short));
         disable.setOnClickListener(v -> disableDepth());
         LinearLayout.LayoutParams disableLp = new LinearLayout.LayoutParams(-1, dp(48));
@@ -513,11 +696,10 @@ public class DepthStudioActivity extends Activity {
         mNotificationToggle.setChecked(custom);
         mNotificationSlider.setEnabled(custom);
         mNotificationSlider.setAlpha(custom ? 1f : 0.4f);
-        if (custom) mNotificationSlider.setProgress(percent);
+        if (custom) mNotificationSlider.setValue(percent);
         String label = custom ? getString(R.string.depth_notification_percent, percent)
                 : getString(R.string.depth_notification_automatic);
         mNotificationPositionLabel.setText(label);
-        mNotificationSlider.setStateDescription(label);
         mPreview.setNotificationStart(percent);
     }
 
@@ -534,25 +716,25 @@ public class DepthStudioActivity extends Activity {
     }
 
     private int motionSliderValue() {
-        return PetalConfig.isDepthParallaxEnabled(this)
-                ? 1 + Math.round((PetalConfig.getDepthTiltDp(this) - 4) * 99f / 20f) : 0;
+        if (!PetalConfig.isDepthParallaxEnabled(this)) return 0;
+        return 5 + 5 * Math.round((PetalConfig.getDepthTiltDp(this) - 4) * 95f / 100f);
     }
 
     private void refreshSelections() {
-        mSizeSlider.setValue(PetalConfig.getDepthClockScalePct(this));
+        mSizeSlider.setValue(PetalConfig.getDepthClockScalePct(this, mHome));
         mMotionSlider.setValue(motionSliderValue());
         updateNotificationStartControls(PetalConfig.getDepthNotificationStartPct(this));
-        int currentInk = PetalConfig.getDepthClockColor(this);
-        boolean showDate = PetalConfig.isDepthClockDateEnabled(this);
+        int currentInk = PetalConfig.getDepthClockColor(this, mHome);
+        boolean showDate = PetalConfig.isDepthClockDateEnabled(this, mHome);
         mDateToggle.setChecked(showDate);
         mPreview.setDateOn(showDate);
-        boolean stacked = PetalConfig.isDepthClockStackVertical(this)
+        boolean stacked = PetalConfig.isDepthClockStackVertical(this, mHome)
                 || org.petalos.config.DepthClockMaterials.isSquare(
-                        PetalConfig.getDepthClockStyle(this));
+                        PetalConfig.getDepthClockStyle(this, mHome));
         mStackChip.setChecked(stacked);
         mStackChip.setLabel(getString(stacked ? R.string.depth_layout_stacked
                 : R.string.depth_layout_horizontal));
-        int style = PetalConfig.getDepthClockStyle(this);
+        int style = PetalConfig.getDepthClockStyle(this, mHome);
         for (int i = 0; i < mPresetCards.length; i++) {
             mPresetCards[i].setCardSelected(DepthPresets.ALL[i].style == style
                     && DepthPresets.ALL[i].stackVertical == stacked);
@@ -579,25 +761,23 @@ public class DepthStudioActivity extends Activity {
     private TextView sectionLabel(String text) {
         TextView label = new TextView(this);
         label.setText(text);
-        label.setTextColor(COLOR_GLYPH_DIM);
-        label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
-        label.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        label.setAllCaps(true);
-        label.setLetterSpacing(0.08f);
+        label.setTextColor(mT.text);
+        label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 20);
+        label.setTypeface(DepthWidgets.font(this, 600));
+        label.setAccessibilityHeading(true);
         return label;
     }
 
     
     private void restoreDraft() {
         // pull the raw mask back in
-        File rawCutoutFile = new File(getFilesDir(), "cutout_raw.png");
-        File baseFile = new File(getFilesDir(), "base.png");
+        File rawCutoutFile = asset("cutout_raw.png");
+        File baseFile = asset("base.png");
         if (!baseFile.exists()) {
             // old drafts only saved a cutout
-            baseFile = new File(getFilesDir(), "base.jpg");
+            baseFile = asset("base.jpg");
         }
-        File cutoutFile = rawCutoutFile.exists()
-                ? rawCutoutFile : new File(getFilesDir(), "cutout.png");
+        File cutoutFile = rawCutoutFile.exists() ? rawCutoutFile : asset("cutout.png");
         if (!baseFile.exists()) return;
         Bitmap base = BitmapFactory.decodeFile(baseFile.getAbsolutePath());
         if (base == null) return;
@@ -782,43 +962,22 @@ public class DepthStudioActivity extends Activity {
         mSegmenter.getExecutor().execute(() -> {
             try {
                 Bitmap raw = cutout;
-                File rawFile = new File(getFilesDir(), "cutout_raw.png");
+                final boolean home = mHome;
+                File rawFile = asset("cutout_raw.png");
                 savePngAtomic(raw, rawFile);
-                File cutoutFile = new File(getFilesDir(), "cutout.png");
+                File cutoutFile = asset("cutout.png");
                 Bitmap sized = foreground;
                 savePngAtomic(sized, cutoutFile);
 
-                File baseFile = new File(getFilesDir(), "base.png");
+                File baseFile = asset("base.png");
                 // save base too so the preview can restore
                 savePngAtomic(base, baseFile);
 
                 if (frost != null) {
-                    savePngAtomic(frost, new File(getFilesDir(), "frost.png"));
+                    savePngAtomic(frost, asset("frost.png"));
                 }
-                savePngAtomic(wallpaper, new File(getFilesDir(), "liquid.png"));
-                DepthContentProvider.cacheLockscreenAsset(this, "liquid.png");
-                DepthContentProvider.cacheLockscreenAsset(this, "cutout.png");
-                DepthContentProvider.cacheLockscreenAsset(this, "frost.png");
-                WallpaperManager wm = WallpaperManager.getInstance(this);
-                boolean wasEnabled = PetalConfig.isDepthEnabled(this);
-                Settings.System.putInt(getContentResolver(), PetalConfig.KEY_DEPTH_ENABLED, 1);
-                try {
-                    wm.setBitmap(wallpaper,
-                            new Rect(0, 0, wallpaper.getWidth(), wallpaper.getHeight()), true,
-                            WallpaperManager.FLAG_LOCK);
-                } catch (Exception error) {
-                    Settings.System.putInt(getContentResolver(),
-                            PetalConfig.KEY_DEPTH_ENABLED, wasEnabled ? 1 : 0);
-                    throw error;
-                }
-
-                Settings.System.putString(getContentResolver(),
-                        PetalConfig.KEY_DEPTH_CUTOUT_URI, "content://org.petalos.depth/cutout.png");
-                int generation = PetalConfig.getDepthGeneration(this) + 1;
-                Settings.System.putInt(getContentResolver(),
-                        PetalConfig.KEY_DEPTH_GENERATION, generation);
-                Settings.System.putInt(getContentResolver(),
-                        PetalConfig.KEY_DEPTH_ENABLED, 1);
+                savePngAtomic(wallpaper, asset("liquid.png"));
+                publish(home, wallpaper);
 
                 android.util.Log.i(TAG, "apply: wallpaper and depth settings published");
                 runOnUiThread(() -> {
@@ -826,7 +985,8 @@ public class DepthStudioActivity extends Activity {
                     mStatus.setText(getString(R.string.depth_hint_drag_clock));
                     new AlertDialog.Builder(this)
                             .setTitle(R.string.depth_applied)
-                            .setMessage(R.string.depth_applied_body)
+                            .setMessage(home ? R.string.depth_applied_body_home
+                                    : R.string.depth_applied_body)
                             .setPositiveButton(android.R.string.ok, null)
                             .show();
                 });
@@ -857,6 +1017,30 @@ public class DepthStudioActivity extends Activity {
         mPreview.invalidate();
     }
 
+    // blurring a full screen bitmap on the ui thread was half of why the slider felt awful
+    private void blurInBackground() {
+        final Bitmap base = mPreview.getBase();
+        final Bitmap raw = mPreview.getCutout();
+        final int amount = mBlurAmount;
+        if (base == null) return;
+        final int job = ++mBlurJob;
+        mApplyButton.setEnabled(false);
+        mSegmenter.getExecutor().execute(() -> {
+            Bitmap blurred = amount == 0 ? null : BackgroundBlur.apply(base, amount);
+            Bitmap blended = raw == null || amount == 0 ? null : BackgroundBlur.feather(raw, amount);
+            runOnUiThread(() -> {
+                if (isDestroyed() || job != mBlurJob) return;
+                if (base == mPreview.getBase() && raw == mPreview.getCutout()) {
+                    mBlurredBase = blurred;
+                    mBlendedCutout = blended;
+                    mPreview.mClock.setLiquidBackdrop(blurred != null ? blurred : base);
+                    mPreview.invalidate();
+                }
+                mApplyButton.setEnabled(!mBusy && mPreview.getCutout() != null);
+            });
+        });
+    }
+
     private void updateFeather() {
         Bitmap raw = mPreview.getCutout();
         mBlendedCutout = raw == null || mBlurAmount == 0 ? null
@@ -865,7 +1049,7 @@ public class DepthStudioActivity extends Activity {
 
     private void disableDepth() {
         if (mBusy) return;
-        Settings.System.putInt(getContentResolver(), PetalConfig.KEY_DEPTH_ENABLED, 0);
+        Settings.System.putInt(getContentResolver(), key(PetalConfig.KEY_DEPTH_ENABLED), 0);
         Toast.makeText(this, R.string.depth_disabled_toast, Toast.LENGTH_SHORT).show();
     }
 
@@ -932,37 +1116,48 @@ public class DepthStudioActivity extends Activity {
         private final Paint mStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        private int mFillColor = 0x2EFFFFFF;
-        private int mStrokeColor = 0x1FFFFFFF;
-        private int mTextColor = COLOR_GLYPH_LIGHT;
+        private int mFillColor = mT.surfaceHi;
+        private int mStrokeColor = mT.outline2;
+        private int mTextColor = mT.text;
         private String mLabel = "";
-        private boolean mCompact = false;
-        private boolean mChecked = false;
+        private boolean mSegment;
 
         LiquidPill(android.content.Context context) {
             super(context);
-            mTextPaint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            mTextPaint.setTypeface(DepthWidgets.font(context, 500));
             mTextPaint.setTextAlign(Paint.Align.CENTER);
             mTextPaint.setTextSize(sp(14));
-            mTextPaint.setColor(COLOR_GLYPH_LIGHT);
+            mStrokePaint.setStyle(Paint.Style.STROKE);
+            mStrokePaint.setStrokeWidth(Math.max(1, dp(1)));
             setClickable(true);
             setFocusable(true);
         }
 
         void setCompact(boolean compact) {
-            mCompact = compact;
-            mTextPaint.setTextSize(sp(compact ? 12 : 14));
+            mTextPaint.setTextSize(sp(compact ? 13 : 14));
             invalidate();
         }
 
+        /** flat until picked, goes inside a segmentTrack */
+        void setSegment(boolean segment) {
+            mSegment = segment;
+            setChecked(false);
+        }
+
+        void setPrimary() {
+            setColors(mT.accent, mT.onAccent);
+            mStrokeColor = 0;
+        }
+
         void setChecked(boolean checked) {
-            mChecked = checked;
-            if (checked) {
-                mFillColor = 0xFFFFFFFF;
-                mTextColor = COLOR_GLYPH_DARK;
+            if (mSegment) {
+                mFillColor = checked ? mT.accentContainer : 0;
+                mStrokeColor = 0;
+                mTextColor = checked ? mT.text : mT.text2;
             } else {
-                mFillColor = 0x2EFFFFFF;
-                mTextColor = COLOR_GLYPH_LIGHT;
+                mFillColor = checked ? mT.accentContainer : mT.surfaceHi;
+                mStrokeColor = mT.outline2;
+                mTextColor = mT.text;
             }
             setSelected(checked);
             invalidate();
@@ -970,9 +1165,8 @@ public class DepthStudioActivity extends Activity {
 
         void setColors(int fill, int text) {
             mFillColor = fill;
-            mStrokeColor = 0x1FFFFFFF;
+            mStrokeColor = mT.outline2;
             mTextColor = text;
-            mTextPaint.setColor(text);
             invalidate();
         }
 
@@ -997,22 +1191,38 @@ public class DepthStudioActivity extends Activity {
 
         @Override
         protected void onDraw(Canvas canvas) {
-            float r = getHeight() / 2f;
-            mFillPaint.setColor(isPressed() ? pressBlend(mFillColor) : mFillColor);
-            canvas.drawRoundRect(0, 0, getWidth(), getHeight(), r, r, mFillPaint);
-            mStrokePaint.setColor(mStrokeColor);
-            mStrokePaint.setStrokeWidth(Math.max(1, dp(1)));
-            mStrokePaint.setStyle(Paint.Style.STROKE);
-            canvas.drawRoundRect(0, 0, getWidth(), getHeight(), r, r, mStrokePaint);
+            float r = mSegment ? dp(12) : getHeight() / 2f;
+            float alpha = isEnabled() ? 1f : 0.4f;
+            if (mFillColor != 0) {
+                mFillPaint.setColor(mFillColor);
+                mFillPaint.setAlpha(Math.round(Color.alpha(mFillColor) * alpha));
+                canvas.drawRoundRect(0, 0, getWidth(), getHeight(), r, r, mFillPaint);
+            }
+            if (isPressed()) {
+                mFillPaint.setColor(mT.outline);
+                canvas.drawRoundRect(0, 0, getWidth(), getHeight(), r, r, mFillPaint);
+            }
+            int ring = isFocused() ? mT.accent : mStrokeColor;
+            if (ring != 0) {
+                mStrokePaint.setColor(ring);
+                canvas.drawRoundRect(0, 0, getWidth(), getHeight(), r, r, mStrokePaint);
+            }
             mTextPaint.setColor(mTextColor);
-            mTextPaint.setAlpha(isEnabled() ? 255 : 102);
+            mTextPaint.setAlpha(Math.round(255 * alpha));
             canvas.drawText(mLabel, getWidth() / 2f, getHeight() / 2f
                     - (mTextPaint.ascent() + mTextPaint.descent()) / 2f, mTextPaint);
         }
 
-        private int pressBlend(int fill) {
-            return Color.argb(Color.alpha(fill),
-                    Color.red(fill) + 24, Color.green(fill) + 24, Color.blue(fill) + 24);
+        @Override
+        public void setEnabled(boolean enabled) {
+            super.setEnabled(enabled);
+            invalidate();
+        }
+
+        @Override
+        public void setPressed(boolean pressed) {
+            super.setPressed(pressed);
+            invalidate();
         }
 
         @Override
@@ -1020,14 +1230,14 @@ public class DepthStudioActivity extends Activity {
             switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
                     if (isEnabled()) {
-                        animate().scaleX(0.94f).scaleY(0.94f).setDuration(90)
+                        animate().scaleX(0.96f).scaleY(0.96f).setDuration(90)
                                 .setInterpolator(null).start();
                     }
                     break;
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
-                    animate().scaleX(1f).scaleY(1f).setDuration(220)
-                            .setInterpolator(new OvershootInterpolator(2.4f)).start();
+                    animate().scaleX(1f).scaleY(1f).setDuration(180)
+                            .setInterpolator(new OvershootInterpolator(1.6f)).start();
                     break;
                 default:
                     break;
@@ -1042,7 +1252,7 @@ public class DepthStudioActivity extends Activity {
             super(context);
             setGravity(Gravity.CENTER);
             setTextSize(14);
-            setTextColor(COLOR_GLYPH_LIGHT);
+            setTextColor(mT.text2);
             setMaxLines(2);
             setEllipsize(android.text.TextUtils.TruncateAt.END);
             setPadding(dp(20), dp(4), dp(20), dp(4));
@@ -1112,12 +1322,12 @@ public class DepthStudioActivity extends Activity {
         DepthPreviewView(android.content.Context context) {
             super(context);
             reloadComposition();
-            mEmptyClockPaint.setTypeface(Typeface.create("sans-serif-black", Typeface.NORMAL));
-            mEmptyClockPaint.setColor(0xFFFF5A36);
+            mEmptyClockPaint.setTypeface(DepthWidgets.font(context, 700));
+            mEmptyClockPaint.setColor(mT.accent);
             mEmptyClockPaint.setTextAlign(Paint.Align.CENTER);
-            mEmptySubjectPaint.setColor(0xFF18181C);
-            mEmptyLabelPaint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-            mEmptyLabelPaint.setColor(0x99FFFFFF);
+            mEmptySubjectPaint.setColor(mT.accentContainer);
+            mEmptyLabelPaint.setTypeface(DepthWidgets.font(context, 500));
+            mEmptyLabelPaint.setColor(ON_PHOTO);
             mEmptyLabelPaint.setTextAlign(Paint.Align.CENTER);
             setOnTouchListener((v, event) -> {
                 if (!mBusy && handleNotificationDrag(event)) return true;
@@ -1184,10 +1394,10 @@ public class DepthStudioActivity extends Activity {
                         if (mDraggingClock) {
                             moveClock(event.getX(), event.getY());
                             Settings.System.putInt(getContentResolver(),
-                                    PetalConfig.KEY_DEPTH_CLOCK_X,
+                                    key(PetalConfig.KEY_DEPTH_CLOCK_X),
                                     Math.round(mClockAnchorX * 100f));
                             Settings.System.putInt(getContentResolver(),
-                                    PetalConfig.KEY_DEPTH_CLOCK_ANCHOR,
+                                    key(PetalConfig.KEY_DEPTH_CLOCK_ANCHOR),
                                     Math.round(mClockAnchorY * 100f));
                             mDraggingClock = false;
                             invalidate();
@@ -1259,7 +1469,7 @@ public class DepthStudioActivity extends Activity {
             float width = getWidth();
             float y = getHeight() * mNotificationStartPercent / 100f;
             float inset = width * 0.045f;
-            mNotificationGuidePaint.setColor(0xEEFFFFFF);
+            mNotificationGuidePaint.setColor(ON_PHOTO);
             mNotificationGuidePaint.setStrokeWidth(Math.max(1f, width * 0.005f));
             canvas.drawLine(inset, y, width - inset, y, mNotificationGuidePaint);
             mNotificationGuidePaint.setTextSize(width * 0.045f);
@@ -1270,22 +1480,22 @@ public class DepthStudioActivity extends Activity {
             canvas.drawRoundRect(mNotificationGuideRect, width * 0.01f, width * 0.01f, mNotificationGuidePaint);
             float cardTop = y + width * 0.035f;
             float cardHeight = getHeight() * 0.065f;
-            mNotificationGuidePaint.setColor(0xAA34343B);
+            mNotificationGuidePaint.setColor(NOTIFICATION_CARD);
             mNotificationGuideRect.set(inset, cardTop, width - inset, cardTop + cardHeight);
             canvas.drawRoundRect(mNotificationGuideRect, width * 0.045f, width * 0.045f, mNotificationGuidePaint);
-            mNotificationGuidePaint.setColor(0xBBFFFFFF);
+            mNotificationGuidePaint.setColor(ON_PHOTO);
             canvas.drawCircle(inset + cardHeight * 0.5f, cardTop + cardHeight * 0.5f,
                     cardHeight * 0.18f, mNotificationGuidePaint);
             canvas.drawLine(inset + cardHeight, cardTop + cardHeight * 0.38f,
                     width * 0.70f, cardTop + cardHeight * 0.38f, mNotificationGuidePaint);
-            mNotificationGuidePaint.setColor(0x66FFFFFF);
+            mNotificationGuidePaint.setColor(ON_PHOTO_DIM);
             canvas.drawLine(inset + cardHeight, cardTop + cardHeight * 0.65f,
                     width * 0.56f, cardTop + cardHeight * 0.65f, mNotificationGuidePaint);
         }
 
         void reloadComposition() {
-            mClockAnchorX = PetalConfig.getDepthClockXPct(getContext()) / 100f;
-            mClockAnchorY = PetalConfig.getDepthClockAnchorPct(getContext()) / 100f;
+            mClockAnchorX = PetalConfig.getDepthClockXPct(getContext(), mHome) / 100f;
+            mClockAnchorY = PetalConfig.getDepthClockAnchorPct(getContext(), mHome) / 100f;
             invalidate();
         }
 
@@ -1307,9 +1517,9 @@ public class DepthStudioActivity extends Activity {
             updateBlur();
             setCutoutInternal(null, false);
             // mirror the stored ink into the editor
-            mAutoInk = PetalConfig.getDepthClockColor(getContext()) == PetalConfig.DISABLED;
+            mAutoInk = PetalConfig.getDepthClockColor(getContext(), mHome) == PetalConfig.DISABLED;
             if (!mAutoInk) {
-                mInk = PetalConfig.getDepthClockColor(getContext());
+                mInk = PetalConfig.getDepthClockColor(getContext(), mHome);
             }
             invalidate();
         }
@@ -1452,7 +1662,7 @@ public class DepthStudioActivity extends Activity {
 
         @Override
         protected void onDraw(Canvas canvas) {
-            canvas.drawColor(COLOR_CANVAS);
+            canvas.drawColor(DepthWidgets.PREVIEW_STAGE);
             if (mBase == null) {
                 float w = getWidth();
                 float h = getHeight();
@@ -1470,12 +1680,12 @@ public class DepthStudioActivity extends Activity {
                 return;
             }
 
-            int style = PetalConfig.getDepthClockStyle(getContext());
+            int style = PetalConfig.getDepthClockStyle(getContext(), mHome);
             // square presets force vertical
-            boolean vertical = PetalConfig.isDepthClockStackVertical(getContext())
+            boolean vertical = PetalConfig.isDepthClockStackVertical(getContext(), mHome)
                     || org.petalos.config.DepthClockMaterials.isSquare(style);
             float anchorFrac = mClockAnchorY;
-            float scale = PetalConfig.getDepthClockScalePct(getContext()) / 100f;
+            float scale = PetalConfig.getDepthClockScalePct(getContext(), mHome) / 100f;
             int ink = resolveInk();
 
             java.util.Calendar cal = java.util.Calendar.getInstance();
@@ -1542,16 +1752,16 @@ public class DepthStudioActivity extends Activity {
                     }
                     mOutlinePath.close();
                     mOutlinePaint.setStyle(Paint.Style.FILL);
-                    mOutlinePaint.setColor(0x339BE8FF);
+                    mOutlinePaint.setColor(DRAW_FILL);
                     canvas.drawPath(mOutlinePath, mOutlinePaint);
                     mOutlinePaint.setStyle(Paint.Style.STROKE);
                     mOutlinePaint.setStrokeWidth(dp(2));
-                    mOutlinePaint.setColor(0xFFBCEEFF);
+                    mOutlinePaint.setColor(DRAW_LINE);
                     canvas.drawPath(mOutlinePath, mOutlinePaint);
                 }
                 // pen tip dot
                 mOutlinePaint.setStyle(Paint.Style.FILL);
-                mOutlinePaint.setColor(0xFFBCEEFF);
+                mOutlinePaint.setColor(DRAW_LINE);
                 canvas.drawCircle(tipX, tipY, dp(5), mOutlinePaint);
                 mOutlinePaint.setStyle(Paint.Style.STROKE);
                 mOutlinePaint.setStrokeWidth(dp(2));
@@ -1559,14 +1769,14 @@ public class DepthStudioActivity extends Activity {
             }
             if (mDraggingClock) {
                 mDragPaint.setStrokeWidth(dp(1));
-                mDragPaint.setColor(0x30FFFFFF);
+                mDragPaint.setColor(ON_PHOTO_DIM);
                 for (int i = 1; i < 20; i++) {
                     float x = getWidth() * i / 20f;
                     float y = getHeight() * i / 20f;
                     canvas.drawLine(x, 0, x, getHeight(), mDragPaint);
                     canvas.drawLine(0, y, getWidth(), y, mDragPaint);
                 }
-                mDragPaint.setColor(COLOR_GOLD);
+                mDragPaint.setColor(DRAW_LINE);
                 canvas.drawLine(getWidth() * mClockAnchorX, 0,
                         getWidth() * mClockAnchorX, getHeight(), mDragPaint);
                 canvas.drawLine(0, getHeight() * mClockAnchorY,

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- petal_config.xml minus the doze overlay: zygote aborts on any listed overlay
+     missing from the partition, and doze only ships on the phones. -->
+<config>
+    <overlay package="org.petalos.overlay.font.commissioner"
+        enabled="true" mutable="true" />
+</config>

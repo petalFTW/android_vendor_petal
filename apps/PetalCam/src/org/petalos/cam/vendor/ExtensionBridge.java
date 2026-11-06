@@ -34,15 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * "Petal Engine": wraps the OEM CameraX extension implementation.
- *
- * <p>On petalOS devices the vendor ships
- * {@code /system_ext/framework/androidx.camera.extensions.impl.jar}; CameraX
- * loads it and we can ask for real, hardware-accelerated Bokeh / HDR / Night /
- * Face-retouch pipelines. On a device without it, every call degrades to
- * {@code false} and the app falls back to its own software handling.
- */
+// "Petal Engine". only does anything if the rom ships androidx.camera.extensions.impl
 public final class ExtensionBridge {
 
     private static final String TAG = "PetalCamEngine";
@@ -56,7 +48,6 @@ public final class ExtensionBridge {
         void onReady(boolean available);
     }
 
-    /** Kick off async initialisation. Safe to call more than once. */
     public void initialize(@NonNull Context context, @NonNull CameraProvider provider,
             @NonNull Executor executor, ReadyCallback callback) {
         ListenableFuture<ExtensionsManager> future;
@@ -90,9 +81,8 @@ public final class ExtensionBridge {
         return mStatus;
     }
 
-    /** Probe the modes we care about for a given lens, caching the answer. */
     public void probe(@NonNull CameraSelector base, String lensTag) {
-        mAvailability.clear();
+        // used to clear the lot here, so probing the second lens binned the first
         if (!mReady) {
             return;
         }
@@ -108,6 +98,19 @@ public final class ExtensionBridge {
             mAvailability.put(lensTag + ":" + name, ok);
         } catch (Throwable t) {
             Log.d(TAG, "Extension probe failed for " + name, t);
+        }
+    }
+
+    /** not every oem pipeline takes an analysis stream, binding one anyway just throws */
+    public boolean supportsAnalysis(CameraSelector base, int mode) {
+        if (!mReady) {
+            return true;
+        }
+        try {
+            return mManager.isImageAnalysisSupported(base, mode);
+        } catch (Throwable t) {
+            Log.d(TAG, "Analysis support probe failed", t);
+            return false;
         }
     }
 
@@ -135,10 +138,7 @@ public final class ExtensionBridge {
         return out;
     }
 
-    /**
-     * Returns the extension-enabled selector for a mode, or the base selector if
-     * the extension is not available.
-     */
+    // falls back to the plain selector if the mode isnt there
     public CameraSelector selectorFor(CameraSelector base, String lensTag, String name, int mode) {
         if (!mReady || !isModeAvailable(lensTag, name)) {
             return base;

@@ -20,9 +20,12 @@
         android:directBootAware="true"
         android:label="petalOS Idle Power">
 
+        <!-- systemui relays screen/unlock/doze here and it's NOT uid 1000, so exported=false
+             bounced every single one. DEVICE_POWER keeps randos out -->
         <receiver
             android:name=".IdlePowerReceiver"
-            android:exported="false">
+            android:exported="true"
+            android:permission="android.permission.DEVICE_POWER">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.SCREEN_OFF" />

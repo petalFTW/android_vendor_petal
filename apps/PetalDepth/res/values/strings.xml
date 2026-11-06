@@ -9,7 +9,7 @@
     <string name="depth_empty_preview">Choose a portrait to begin</string>
     <string name="depth_pick_photo">Pick a photo</string>
     <string name="depth_hint_tap">Draw an outline or tap your subject</string>
-    <string name="depth_hint_drag_clock">Cutout ready · drag to position the clock</string>
+    <string name="depth_hint_drag_clock">Cutout ready. Drag to place the clock.</string>
     <string name="depth_segmenting">AI is finding the edges…</string>
     <string name="depth_applying">Applying wallpaper…</string>
     <string name="depth_apply">Apply wallpaper</string>
@@ -50,6 +50,13 @@
     <string name="depth_ink_auto">Auto</string>
     <string name="depth_date">Date</string>
     <string name="depth_show_date">Show date</string>
+    <string name="depth_target_lock">Lock screen</string>
+    <string name="depth_target_home">Home screen</string>
+    <string name="depth_apply_home">Apply to home screen</string>
+    <string name="depth_applied_body_home">Your photo, clock design, and foreground layer are now live on the home screen, behind your apps.</string>
+    <string name="depth_copy_lock">Use lock screen design</string>
+    <string name="depth_copy_lock_missing">Apply a lock screen design first.</string>
+    <string name="depth_copied_lock">Home screen now matches the lock screen.</string>
     <string name="depth_motion">Motion</string>
     <string name="depth_subject_reselect">Draw rough outline</string>
     <string name="depth_tab_photo">Photo</string>
@@ -81,12 +88,12 @@
     <string name="depth_preset_frost_square">Frost square</string>
     <string name="depth_preset_smoke_square">Smoked glass square</string>
     <string name="depth_preset_bloom_square">Petal bloom square</string>
-    <string name="depth_motion_strength">Motion (0 = off)</string>
+    <string name="depth_motion_strength">Motion</string>
     <string name="depth_refine_help">Tap Keep or Remove to refine. Tap it again to return to clock dragging.</string>
     <string name="depth_photo_heading">Photo &amp; subject</string>
     <string name="depth_clock_help">Choose a material, then drag the clock in the preview to place it.</string>
     <string name="depth_effects_heading">Depth &amp; atmosphere</string>
-    <string name="depth_effects_help">Add movement and soften the background to bring your subject forward.</string>
+    <string name="depth_effects_help">Soften the background and add a little movement on the lock screen.</string>
     <string name="depth_layout_horizontal">Horizontal</string>
     <string name="depth_layout_stacked">Stacked</string>
     <string name="depth_preset_liquid">Liquid</string>
@@ -95,7 +102,8 @@
     <string name="depth_collapse_styles">Show fewer styles</string>
     <string name="depth_notification_start">Notification start</string>
     <string name="depth_notification_custom">Place notifications myself</string>
-    <string name="depth_notification_automatic">Automatic · follows the lock-screen layout</string>
-    <string name="depth_notification_percent">Start %1$d%% down the screen</string>
-    <string name="depth_notification_help">For the portrait depth lock screen. Use the slider or drag the preview line to keep notifications clear of your subject. Saved automatically. Media may move the start upward to fit above the unlock area.</string>
+    <string name="depth_notification_automatic">Automatic, follows the lock screen layout</string>
+    <string name="depth_notification_percent">Starts %1$d%% down the screen</string>
+    <string name="depth_off">Off</string>
+    <string name="depth_notification_help">Keep notifications clear of your subject. Use the slider or drag the line on the preview.</string>
 </resources>

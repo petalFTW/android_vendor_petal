@@ -61,13 +61,14 @@ public final class DashboardFragment extends BasePreferenceFragment {
                 R.string.focus_theme_summary);
         focus.setChecked(engine.prefs().getBool(Prefs.FOCUS_ENABLED, false));
         focus.setOnPreferenceChangeListener((preference, value) -> {
-            engine.setFocusEnabled((Boolean) value);
+            boolean on = (Boolean) value;
+            engine.run(() -> engine.setFocusEnabled(on));
             return true;
         });
 
         Preference boost = action(R.string.profile_boost_title, R.string.profile_boost_summary);
         boost.setOnPreferenceClickListener(preference -> {
-            engine.applyActiveProfile();
+            engine.run(engine::applyActiveProfile);
             toast(getString(R.string.toast_applied, ProfileManager.active(ctx).label));
             return true;
         });

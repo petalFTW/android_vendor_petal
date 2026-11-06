@@ -34,41 +34,63 @@
             android:entries="@array/screen_dithering_percent_entries"
             android:entryValues="@array/screen_dithering_percent_values" />
     </PreferenceCategory>
-    <SwitchPreferenceCompat
-        android:key="petal_idle_power_enabled"
-        android:title="@string/power_policy_enabled_title"
-        android:summary="@string/power_policy_enabled_summary" />
-    <ListPreference
-        android:key="petal_idle_power_profile"
-        android:title="@string/power_profile_title"
-        android:entries="@array/power_profile_entries"
-        android:entryValues="@array/power_profile_values" />
-    <ListPreference
-        android:key="petal_idle_power_grace_minutes"
-        android:title="@string/power_grace_title"
-        android:entries="@array/power_grace_entries"
-        android:entryValues="@array/power_grace_values" />
-    <MultiSelectListPreference
-        android:key="petal_idle_power_packages"
-        android:title="@string/power_packages_title"
-        android:summary="@string/power_packages_none" />
+    <PreferenceCategory android:title="@string/power_policy_enabled_title">
+        <SwitchPreferenceCompat
+            android:key="petal_idle_power_enabled"
+            android:title="@string/power_policy_enabled_title"
+            android:summary="@string/power_policy_enabled_summary" />
+        <Preference
+            android:key="power_status"
+            android:title="@string/power_status_title" />
+        <SwitchPreferenceCompat
+            android:key="petal_idle_power_auto"
+            android:dependency="petal_idle_power_enabled"
+            android:title="@string/power_auto_title"
+            android:summary="@string/power_auto_summary" />
+        <ListPreference
+            android:key="petal_idle_power_profile"
+            android:dependency="petal_idle_power_enabled"
+            android:title="@string/power_profile_title"
+            android:entries="@array/power_profile_entries"
+            android:entryValues="@array/power_profile_values" />
+        <ListPreference
+            android:key="petal_idle_power_grace_minutes"
+            android:dependency="petal_idle_power_enabled"
+            android:title="@string/power_grace_title"
+            android:entries="@array/power_grace_entries"
+            android:entryValues="@array/power_grace_values" />
+        <MultiSelectListPreference
+            android:key="petal_idle_power_packages"
+            android:dependency="petal_idle_power_enabled"
+            android:title="@string/power_packages_title"
+            android:summary="@string/power_packages_none" />
+    </PreferenceCategory>
     <PreferenceCategory android:title="@string/power_scanning_category">
         <SwitchPreferenceCompat
             android:key="petal_idle_disable_wifi_scan"
+            android:dependency="petal_idle_power_enabled"
             android:title="@string/power_wifi_scan_title"
             android:summary="@string/power_wifi_scan_summary" />
         <SwitchPreferenceCompat
             android:key="petal_idle_disable_ble_scan"
+            android:dependency="petal_idle_power_enabled"
             android:title="@string/power_ble_scan_title"
             android:summary="@string/power_ble_scan_summary" />
     </PreferenceCategory>
-    <Preference
-        android:key="power_policy_audit"
-        android:selectable="false"
-        android:title="@string/power_audit_title"
-        android:summary="@string/power_audit_empty" />
-    <Preference
-        android:selectable="false"
-        android:title="@string/power_warning_title"
-        android:summary="@string/power_warning_summary" />
+    <PreferenceCategory android:title="@string/power_audit_category">
+        <Preference
+            android:key="power_audit_exempt"
+            android:title="@string/power_audit_title"
+            android:summary="@string/power_audit_none" />
+        <Preference
+            android:key="power_audit_last"
+            android:title="@string/power_last_title"
+            android:summary="@string/power_last_none" />
+        <Preference
+            android:key="power_audit_errors"
+            android:title="@string/power_errors_title" />
+        <Preference
+            android:selectable="false"
+            android:summary="@string/power_protected_note" />
+    </PreferenceCategory>
 </PreferenceScreen>

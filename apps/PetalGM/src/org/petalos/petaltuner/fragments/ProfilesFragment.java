@@ -42,50 +42,66 @@ public final class ProfilesFragment extends BasePreferenceFragment {
 
         SwitchPreferenceCompat auto = switchPref(R.string.profile_auto_title,
                 R.string.profile_auto_summary);
-        auto.setChecked(engine.prefs().getBool(Prefs.AUTO_BOOST_ON_GAME, false));
+        auto.setChecked(engine.prefs().getBool(Prefs.AUTO_BOOST_ON_GAME, true));
         auto.setOnPreferenceChangeListener((preference, value) -> {
             engine.prefs().putBool(Prefs.AUTO_BOOST_ON_GAME, (Boolean) value);
             return true;
         });
 
-        SwitchPreferenceCompat manager = switchPref(R.string.category_performance,
-                R.string.performance_summary);
-        manager.setTitle(R.string.profile_auto_title);
-        manager.setSummary(R.string.tuner_summary);
+        SwitchPreferenceCompat manager = switchPref(R.string.profile_game_manager_title,
+                R.string.profile_game_manager_summary);
         manager.setChecked(engine.prefs().getBool(Prefs.USE_GAME_MANAGER, true));
         manager.setOnPreferenceChangeListener((preference, value) -> {
             engine.prefs().putBool(Prefs.USE_GAME_MANAGER, (Boolean) value);
             if (!(Boolean) value) {
-                engine.gameMode().resetAll();
+                engine.run(() -> engine.gameMode().resetGames(engine.gm().games()));
             }
             return true;
         });
 
         MultiSelectListPreference games = new MultiSelectListPreference(requireContext());
-        games.setTitle(R.string.category_profiles);
-        games.setSummary(R.string.profiles_summary);
+        games.setTitle(R.string.profile_games_title);
         PackageManager packageManager = requireContext().getPackageManager();
-        List<ApplicationInfo> apps = new ArrayList<>(packageManager.getInstalledApplications(0));
-        apps.removeIf(app -> (app.flags & ApplicationInfo.FLAG_SYSTEM) != 0
-                || app.packageName.equals(requireContext().getPackageName()));
-        apps.sort(Comparator.comparing(app -> app.loadLabel(packageManager).toString(),
-                String.CASE_INSENSITIVE_ORDER));
+        // Launchable apps only, games first; services and libraries never belong in this list.
+        List<ApplicationInfo> apps = new ArrayList<>();
+        android.content.Intent launcher = new android.content.Intent(
+                android.content.Intent.ACTION_MAIN).addCategory(
+                android.content.Intent.CATEGORY_LAUNCHER);
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (android.content.pm.ResolveInfo info
+                : packageManager.queryIntentActivities(launcher, 0)) {
+            ApplicationInfo app = info.activityInfo.applicationInfo;
+            if (seen.add(app.packageName)
+                    && !app.packageName.equals(requireContext().getPackageName())) {
+                apps.add(app);
+            }
+        }
+        java.util.Map<String, String> names = new java.util.HashMap<>();
+        for (ApplicationInfo app : apps) {
+            names.put(app.packageName, app.loadLabel(packageManager).toString());
+        }
+        apps.sort(Comparator.<ApplicationInfo, Boolean>comparing(
+                        app -> app.category != ApplicationInfo.CATEGORY_GAME)
+                .thenComparing(app -> names.get(app.packageName),
+                        String.CASE_INSENSITIVE_ORDER));
         CharSequence[] labels = new CharSequence[apps.size()];
         CharSequence[] values = new CharSequence[apps.size()];
         for (int i = 0; i < apps.size(); i++) {
             ApplicationInfo app = apps.get(i);
-            labels[i] = app.loadLabel(packageManager) + "\n" + app.packageName;
+            labels[i] = names.get(app.packageName) + "\n" + app.packageName;
             values[i] = app.packageName;
         }
         games.setEntries(labels);
         games.setEntryValues(values);
         GmConfig gm = new GmConfig(ctx);
         games.setValues(new java.util.LinkedHashSet<>(gm.games()));
+        games.setSummary(getString(R.string.profile_games_summary, gm.games().size()));
         games.setOnPreferenceChangeListener((preference, value) -> {
             @SuppressWarnings("unchecked")
             Set<String> chosen = (Set<String>) value;
             gm.setGames(chosen);
             gm.requestGrants();
+            games.setSummary(getString(R.string.profile_games_summary, chosen.size()));
             if (!chosen.isEmpty()) {
                 org.petalos.petaltuner.OverlayService.start(ctx);
             }

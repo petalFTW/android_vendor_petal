@@ -47,6 +47,10 @@ public final class TunerEngine {
     private final Context mContext;
 
     private String mAppliedGame;
+    // Sysfs, su and HAL calls never run on the UI thread.
+    private final java.util.concurrent.ExecutorService mExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor(
+                    r -> new Thread(r, "petal-tuner-engine"));
 
     private TunerEngine(Context context) {
         Context app = context.getApplicationContext();
@@ -69,6 +73,17 @@ public final class TunerEngine {
             sInstance = new TunerEngine(context);
         }
         return sInstance;
+    }
+
+    /** Runs hardware work off the caller's thread, in submission order. */
+    public void run(Runnable work) {
+        mExecutor.execute(() -> {
+            try {
+                work.run();
+            } catch (RuntimeException e) {
+                Log.e(TAG, "tuner work failed", e);
+            }
+        });
     }
 
     public Prefs prefs() {
@@ -161,15 +176,23 @@ public final class TunerEngine {
         }
     }
 
+    /** Re-asserts only what the user set in the tuner; developer options set elsewhere stay. */
     public void applyDisplayState() {
         int refresh = mPrefs.getInt(Prefs.REFRESH_RATE, 0);
-        if (refresh > 0) {
-            mDisplay.applyRefreshRate(refresh, 60);
+        if (refresh > 0) mDisplay.applyRefreshRate(refresh, -1f);
+        if (mPrefs.raw().contains(Prefs.ANIMATION_SCALE)) {
+            try {
+                mDisplay.applyAnimationScale(
+                        Float.parseFloat(mPrefs.getString(Prefs.ANIMATION_SCALE, "1.0")));
+            } catch (NumberFormatException ignored) {
+            }
         }
-        float animation = Float.parseFloat(mPrefs.getString(Prefs.ANIMATION_SCALE, "1.0"));
-        mDisplay.applyAnimationScale(animation);
-        mDisplay.setForceGpuRendering(mPrefs.getBool(Prefs.FORCE_GPU, false));
-        mDisplay.setDisableHwOverlays(mPrefs.getBool(Prefs.DISABLE_HW_OVERLAYS, false));
+        if (mPrefs.raw().contains(Prefs.FORCE_GPU)) {
+            mDisplay.setForceGpuRendering(mPrefs.getBool(Prefs.FORCE_GPU, false));
+        }
+        if (mPrefs.raw().contains(Prefs.DISABLE_HW_OVERLAYS)) {
+            mDisplay.setDisableHwOverlays(mPrefs.getBool(Prefs.DISABLE_HW_OVERLAYS, false));
+        }
     }
 
     public void applyNetworkState() {
@@ -180,9 +203,11 @@ public final class TunerEngine {
         if (mPrefs.getBool(Prefs.NETWORK_BUFFERS, false)) {
             mNetwork.applyLowLatency();
         }
-        boolean suppress = mPrefs.getBool(Prefs.NETWORK_SUPPRESS_SCANS, false);
-        mNetwork.setWifiScanEnabled(!suppress);
-        mNetwork.setBleScanEnabled(!suppress);
+        // Only touch scanning if the user turned suppression on here; never force it back on.
+        if (mPrefs.getBool(Prefs.NETWORK_SUPPRESS_SCANS, false)) {
+            mNetwork.setWifiScanEnabled(false);
+            mNetwork.setBleScanEnabled(false);
+        }
     }
 
     public void applyMemoryState() {
@@ -225,11 +250,16 @@ public final class TunerEngine {
             startGameSession(game);
             return;
         }
-        if (mGm.flag(PetalConfig.KEY_GM_BYPASS, true) && mCharging.isPlugged()
-                && !mCharging.isBypassActive()) {
-            mCharging.setBypass(true);
+        // Charger plugged mid-game: let the shared charging decision pick it up.
+        if (wantsGameBypass() && !mPrefs.getBool(Prefs.GM_BYPASS_BY_GM, false)
+                && mCharging.isPlugged()) {
             mPrefs.putBool(Prefs.GM_BYPASS_BY_GM, true);
+            enforceCharging();
         }
+    }
+
+    private boolean wantsGameBypass() {
+        return mGm.flag(PetalConfig.KEY_GM_BYPASS, true) || mPrefs.getBool(Prefs.BYPASS_AUTO, false);
     }
 
     private void startGameSession(String game) {
@@ -237,17 +267,18 @@ public final class TunerEngine {
         mPrefs.putString(Prefs.GM_ACTIVE, game);
         mAppliedGame = game;
 
-        mPrefs.putString(Prefs.GM_PREV_PROFILE, getActiveProfile());
         String profile = mGm.profile();
-        applyProfile(profile);
+        // "Boost when a game opens" was a dead switch; it now gates the profile change.
+        if (mPrefs.getBool(Prefs.AUTO_BOOST_ON_GAME, true)) {
+            mPrefs.putString(Prefs.GM_PREV_PROFILE, getActiveProfile());
+            applyProfile(profile);
+        } else {
+            mPrefs.remove(Prefs.GM_PREV_PROFILE);
+        }
 
-        if (mGm.flag(PetalConfig.KEY_GM_BYPASS, true) && mCharging.isPlugged()
-                && !mCharging.isBypassActive()) {
-            mCharging.setBypass(true);
+        if (wantsGameBypass() && mCharging.isPlugged()) {
             mPrefs.putBool(Prefs.GM_BYPASS_BY_GM, true);
-        } else if (mPrefs.getBool(Prefs.BYPASS_AUTO, false) && mCharging.isPlugged()) {
-            mCharging.setBypass(true);
-            mPrefs.putBool(Prefs.GM_BYPASS_BY_GM, true);
+            enforceCharging();
         }
 
         if (mGm.flag(PetalConfig.KEY_GM_MAX_HZ, true)) {
@@ -313,19 +344,18 @@ public final class TunerEngine {
             restoreRefresh(Prefs.GM_ORIG_MIN, DisplayController.MIN_REFRESH_RATE);
             int refresh = mPrefs.getInt(Prefs.REFRESH_RATE, 0);
             if (refresh > 0) {
-                mDisplay.applyRefreshRate(refresh, mPrefs.getInt(Prefs.MIN_REFRESH_RATE, 60));
+                mDisplay.applyRefreshRate(refresh, -1f);
             }
         }
 
         if (mPrefs.getBool(Prefs.GM_BYPASS_BY_GM, false)) {
             mPrefs.putBool(Prefs.GM_BYPASS_BY_GM, false);
-            if (!mPrefs.getBool(Prefs.BYPASS_ENABLED, false)) {
-                mCharging.setBypass(false);
-            }
+            enforceCharging();
         }
 
         String previous = mPrefs.getString(Prefs.GM_PREV_PROFILE, null);
         if (previous != null) {
+            mPrefs.remove(Prefs.GM_PREV_PROFILE);
             applyProfile(previous);
         }
     }
@@ -353,13 +383,35 @@ public final class TunerEngine {
         }
     }
 
-    public void enforceCharging() {
+    /**
+     * The one place that decides whether the battery may charge. Bypass and the charge limit
+     * both want charging off; whoever turned it off also turns it back on, so switching either
+     * feature off can no longer leave the phone refusing to charge.
+     */
+    public synchronized void enforceCharging() {
+        android.content.Intent battery = mCharging.batterySnapshot();
+        boolean wantOff = mPrefs.getBool(Prefs.BYPASS_ENABLED, false)
+                || mPrefs.getBool(Prefs.GM_BYPASS_BY_GM, false);
+        boolean holding = false;
         if (mPrefs.getBool(Prefs.CHARGE_LIMIT_ENABLED, false)) {
-            mCharging.enforceChargeLimit(true, mPrefs.getInt(Prefs.CHARGE_LIMIT, 80),
-                    mPrefs.getInt(Prefs.CHARGE_RESUME, 75));
+            int limit = mPrefs.getInt(Prefs.CHARGE_LIMIT, 80);
+            int resume = Math.min(mPrefs.getInt(Prefs.CHARGE_RESUME, 75), limit - 1);
+            int level = ChargingController.level(battery);
+            holding = mPrefs.getBool(Prefs.LIMIT_HOLDING, false);
+            if (level >= limit) holding = true;
+            else if (level >= 0 && level <= resume) holding = false;
+            wantOff |= holding;
         }
-        if (mPrefs.getBool(Prefs.BYPASS_ENABLED, false)) {
-            mCharging.setBypass(true);
+        mPrefs.putBool(Prefs.LIMIT_HOLDING, holding);
+        boolean chargingOn = mCharging.isBatteryChargingEnabled();
+        if (wantOff && chargingOn) {
+            if (mCharging.setBatteryChargingEnabled(false)) {
+                mPrefs.putBool(Prefs.CHARGING_OFF_BY_TUNER, true);
+            }
+        } else if (!wantOff && !chargingOn && mPrefs.getBool(Prefs.CHARGING_OFF_BY_TUNER, false)) {
+            if (mCharging.setBatteryChargingEnabled(true)) {
+                mPrefs.putBool(Prefs.CHARGING_OFF_BY_TUNER, false);
+            }
         }
         applyChargingExtras();
     }
@@ -367,16 +419,15 @@ public final class TunerEngine {
     public void restoreDefaults() {
         mFocus.restore();
         mBackup.restoreAll();
-        mGameMode.resetAll();
+        mGameMode.resetGames(mGm.games());
         setActiveProfile("balanced");
         mPrefs.putBool(Prefs.BYPASS_ENABLED, false);
         mPrefs.putBool(Prefs.CHARGE_LIMIT_ENABLED, false);
         mPrefs.putBool(Prefs.FOCUS_ENABLED, false);
         mPrefs.putBool(Prefs.THERMAL_DISABLE, false);
         mPrefs.putBool(Prefs.EXPERT_FSYNC, false);
-        if (mCharging.isSupported()) {
-            mCharging.setBypass(false);
-        }
+        mPrefs.putBool(Prefs.GM_BYPASS_BY_GM, false);
+        enforceCharging();
         Log.i(TAG, "restored defaults");
     }
 }

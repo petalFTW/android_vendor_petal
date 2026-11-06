@@ -26,6 +26,9 @@ public final class PowerFragment extends PetalPreferenceFragment {
     private static final String KEY_GRACE = "petal_idle_power_grace_minutes";
     private static final String KEY_WIFI_SCAN = "petal_idle_disable_wifi_scan";
     private static final String KEY_BLE_SCAN = "petal_idle_disable_ble_scan";
+    private static final String KEY_AUTO = "petal_idle_power_auto";
+    private static final String KEY_STATUS = "petal_idle_power_status";
+    private static final String KEY_APPLIED = "petal_idle_power_applied";
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
@@ -49,6 +52,11 @@ public final class PowerFragment extends PetalPreferenceFragment {
 
         bindList(KEY_PROFILE, "1");
         bindList(KEY_GRACE, "10");
+        // profile summary actually says what it does now instead of that wall of text
+        ListPreference profile = findPreference(KEY_PROFILE);
+        profile.setSummaryProvider(p -> getString("2".equals(((ListPreference) p).getValue())
+                ? R.string.power_profile_deep_summary : R.string.power_profile_optimized_summary));
+        bindSwitch(KEY_AUTO, true);
 
         MultiSelectListPreference packages = findPreference(KEY_PACKAGES);
         populatePackages(packages);
@@ -57,12 +65,29 @@ public final class PowerFragment extends PetalPreferenceFragment {
             putString(KEY_PACKAGES, String.join(",", selected));
             updatePackageSummary(packages, selected);
             idlePolicyChanged(KEY_PACKAGES);
-            updateAudit();
             return true;
         });
 
         bindSwitch(KEY_WIFI_SCAN, false);
         bindSwitch(KEY_BLE_SCAN, false);
+
+        Preference exempt = findPreference("power_audit_exempt");
+        exempt.setOnPreferenceClickListener(p -> {
+            try {
+                startActivity(new android.content.Intent(
+                        android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            } catch (RuntimeException e) {
+                android.util.Log.w("PetalHub", "battery opt screen missing??", e);
+            }
+            return true;
+        });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // the service writes status on every screen cycle, re-read it whenever we come back
+        updateStatus();
         updateAudit();
     }
 
@@ -141,27 +166,109 @@ public final class PowerFragment extends PetalPreferenceFragment {
                         selected.size(), selected.size()));
     }
 
-    private void updateAudit() {
-        Preference audit = findPreference("power_policy_audit");
-        String raw = getStringSetting(KEY_PACKAGES);
-        if (raw == null || raw.trim().isEmpty()) {
-            audit.setSummary(R.string.power_audit_empty);
+    // status string from PetalPower: state;wallclock;count;profile
+    private void updateStatus() {
+        Preference status = findPreference("power_status");
+        if (status == null) return;
+        if (getInt(KEY_ENABLED, 1) == 0) {
+            status.setSummary(R.string.power_status_off);
             return;
         }
-        PowerExemptionManager exemptions = requireContext().getSystemService(PowerExemptionManager.class);
-        int allowlisted = 0;
-        int selected = 0;
-        for (String pkg : raw.split(",")) {
-            if (pkg.trim().isEmpty()) continue;
-            selected++;
-            if (exemptions != null && exemptions.isAllowListed(pkg.trim(), true)) allowlisted++;
+        int grace = getInt(KEY_GRACE, 10);
+        String graceText = grace <= 0 ? getString(R.string.power_grace_now)
+                : getString(R.string.power_grace_minutes, grace);
+        String raw = getStringSetting(KEY_STATUS);
+        String[] parts = raw == null ? new String[0] : raw.split(";");
+        String state = parts.length > 0 ? parts[0] : "";
+        long since = parts.length > 1 ? parseLong(parts[1]) : 0L;
+        int count = parts.length > 2 ? (int) parseLong(parts[2]) : 0;
+        switch (state) {
+            case "active":
+                status.setSummary(getString(R.string.power_status_active,
+                        android.text.format.DateFormat.getTimeFormat(requireContext())
+                                .format(new java.util.Date(since)), count));
+                break;
+            case "waiting":
+                status.setSummary(getString(R.string.power_status_waiting, graceText));
+                break;
+            case "empty":
+                status.setSummary(R.string.power_status_empty);
+                break;
+            case "ready":
+            case "off":
+                status.setSummary(getString(R.string.power_status_ready, graceText));
+                break;
+            default:
+                status.setSummary(R.string.power_status_unknown);
         }
-        audit.setSummary(getString(R.string.power_audit_summary, selected, allowlisted));
+    }
+
+    // the old audit only counted picked apps, which is why it looked dead. this shows the real culprits
+    private void updateAudit() {
+        PackageManager pm = requireContext().getPackageManager();
+        Preference exempt = findPreference("power_audit_exempt");
+        PowerExemptionManager exemptions = requireContext().getSystemService(PowerExemptionManager.class);
+        List<String> names = new ArrayList<>();
+        Set<Integer> allowed = new java.util.HashSet<>();
+        try {
+            if (exemptions != null) {
+                for (int id : exemptions.getAllowListedAppIds(false)) allowed.add(id);
+            }
+        } catch (RuntimeException e) {
+            android.util.Log.w("PetalHub", "allowlist read failed", e);
+        }
+        // one binder call, then match locally. the per-app version lagged the page
+        for (ApplicationInfo app : pm.getInstalledApplications(0)) {
+            if ((app.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
+            if (allowed.contains(android.os.UserHandle.getAppId(app.uid))) {
+                names.add(app.loadLabel(pm).toString());
+            }
+        }
+        names.sort(String.CASE_INSENSITIVE_ORDER);
+        exempt.setSummary(names.isEmpty() ? getString(R.string.power_audit_none)
+                : getString(R.string.power_audit_list, String.join(", ", names)));
+
+        Preference last = findPreference("power_audit_last");
+        last.setSummary(labelsOrNull(pm, getStringSetting(KEY_APPLIED)) == null
+                ? getString(R.string.power_last_none)
+                : getString(R.string.power_last_list, labelsOrNull(pm, getStringSetting(KEY_APPLIED))));
+
+        Preference errors = findPreference("power_audit_errors");
+        String failed = labelsOrNull(pm, android.provider.Settings.Secure.getString(
+                requireContext().getContentResolver(), "petal_spoof_power_errors"));
+        errors.setVisible(failed != null);
+        if (failed != null) errors.setSummary(getString(R.string.power_errors_summary, failed));
+    }
+
+    private static String labelsOrNull(PackageManager pm, String csv) {
+        if (csv == null || csv.trim().isEmpty()) return null;
+        List<String> out = new ArrayList<>();
+        for (String pkg : csv.split(",")) {
+            String p = pkg.trim();
+            if (p.isEmpty()) continue;
+            try {
+                out.add(pm.getApplicationInfo(p, 0).loadLabel(pm).toString());
+            } catch (PackageManager.NameNotFoundException e) {
+                out.add(p);
+            }
+        }
+        if (out.isEmpty()) return null;
+        out.sort(String.CASE_INSENSITIVE_ORDER);
+        return String.join(", ", out);
+    }
+
+    private static long parseLong(String s) {
+        try {
+            return Long.parseLong(s.trim());
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 
     private void idlePolicyChanged(String key) {
         if (!key.startsWith("petal_idle_")) return;
         requireContext().sendBroadcast(new android.content.Intent(
                 "org.petalos.power.action.UPDATE_IDLE_POLICY").setPackage("org.petalos.power"));
+        updateStatus();
     }
 }

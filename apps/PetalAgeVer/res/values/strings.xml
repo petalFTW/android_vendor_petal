@@ -13,7 +13,7 @@
     <string name="notification_stop">Stop</string>
     <string name="notification_joystick_on">Show joystick</string>
     <string name="notification_joystick_off">Hide joystick</string>
-    <string name="main_subtitle">Preview an avatar locally, then choose whether to publish it through the privacy camera.</string>
+    <string name="main_subtitle">Preview an avatar here, then choose when other apps see it.</string>
     <string name="section_stage">Avatar stage</string>
     <string name="section_control">Control</string>
     <string name="section_output">Output</string>
@@ -27,7 +27,7 @@
     <string name="summary_mode">How the avatar is driven</string>
     <string name="summary_idle_motion">Subtle movement when you are not steering</string>
     <string name="summary_joystick">Move, turn and pull the avatar closer/further while another app is open</string>
-    <string name="mode_joystick">On-screen stick (move / tilt)</string>
+    <string name="mode_joystick">Joystick</string>
     <string name="mode_idle">Idle only</string>
     <string name="button_start">Start virtual camera</string>
     <string name="button_stop">Stop virtual camera</string>
@@ -93,7 +93,8 @@
     <string name="detail_action_failed">Could not change the session: %1$s</string>
     <string name="session_scope">A camera session changes front-camera access for other apps until stopped. Local preview does not enable replacement. An avatar is synthetic content, not proof of age or identity.</string>
     <string name="library_title">Avatars</string>
-    <string name="library_storage">%1$d imported · %2$s stored locally</string>
+    <string name="library_manage">Manage</string>
+    <string name="library_storage">%1$d imported, %2$s stored locally</string>
     <string name="imported_avatar">Imported avatar</string>
     <string name="importing_avatar">Importing and validating avatar</string>
     <string name="cancel_import">Cancel import</string>
@@ -104,11 +105,11 @@
     <string name="avatar_delete_failed">Could not delete the avatar.</string>
     <string name="advanced_title">Advanced</string>
     <string name="frame_rate">Rendering frame rate</string>
-    <string name="fps_balanced">24 fps · balanced</string>
-    <string name="fps_smooth">30 fps · smoother</string>
+    <string name="fps_balanced">24 fps, balanced</string>
+    <string name="fps_smooth">30 fps, smoother</string>
     <string name="restore_on_boot">Restore a camera session after reboot</string>
     <string name="restore_on_boot_summary">Off by default. Restores a previously active camera session after unlock. Removing IDHelper from recents cancels restoration. Protection before the app restarts is not guaranteed.</string>
-    <string name="avatar_credits">“Free Old Man Head” by dayinji\nhttps://sketchfab.com/3d-models/free-old-man-head-d56a7cdda5e9452b847a8139d939b4d3\nCC BY 4.0: https://creativecommons.org/licenses/by/4.0/\nFilament: Apache 2.0. Rubik: SIL OFL 1.1.</string>
+    <string name="avatar_credits">“Free Old Man Head” by dayinji\nhttps://sketchfab.com/3d-models/free-old-man-head-d56a7cdda5e9452b847a8139d939b4d3\nCC BY 4.0: https://creativecommons.org/licenses/by/4.0/\nFilament: Apache 2.0. Commissioner: SIL OFL 1.1.</string>
     <string name="import_help">Self-contained GLB files, up to 64 MB. Imported models stay in private app storage.</string>
     <string name="detail_notifications_hidden">Notifications are disabled. Use IDHelper or its Quick Settings tile to stop the session.</string>
     <string name="panel_title">Avatar controls</string>

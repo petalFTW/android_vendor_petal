@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 petalOS
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <color name="depth_canvas">#FAF9FD</color>
+    <color name="depth_surface">#FFFFFF</color>
+    <color name="depth_surface_hi">#F4F1FB</color>
+    <color name="depth_text">#17132B</color>
+    <color name="depth_text_2">#524D69</color>
+    <color name="depth_accent">#6938EF</color>
+    <color name="depth_accent_container">#EFE9FF</color>
+    <color name="depth_on_accent">#FFFFFF</color>
+    <color name="depth_outline">#171E1446</color>
+    <color name="depth_outline_2">#2E1E1446</color>
+    <color name="depth_danger">#B3261E</color>
+    <color name="depth_danger_container">#FCE9E7</color>
+    <bool name="depth_light_bars">true</bool>
+</resources>

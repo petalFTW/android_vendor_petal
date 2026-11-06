@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.petalos.depth;
+package org.petalos.config;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -52,6 +52,17 @@ public final class DepthClockRenderer {
     private final Paint mDepth = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mDate = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mProbe = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    /** Lock screen ink: the chosen colour, else each style's signature tint, else white. */
+    public static int inkFor(int style, int chosenColor) {
+        if (chosenColor != PetalConfig.DISABLED) return chosenColor;
+        switch (style) {
+            case STYLE_POSTER: return Color.rgb(255, 59, 48);
+            case STYLE_NEON: return Color.rgb(155, 232, 255);
+            case STYLE_GOLD: return Color.rgb(255, 201, 77);
+            default: return Color.WHITE;
+        }
+    }
 
     public DepthClockRenderer() {
         mStroke.setStyle(Paint.Style.STROKE);

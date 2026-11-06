@@ -37,10 +37,15 @@ public class ShutterButtonView extends View {
         void onShutterClick();
         void onShutterLongPress();
         void onShutterRelease();
+        /** Finger moved during a hold, screen coordinates. */
+        void onShutterDrag(float rawX, float rawY);
     }
 
     private static final float SPRING_STIFFNESS = 520f;
     private static final float SPRING_DAMPING = 0.72f;
+    // a hold is the point of the video button, in photo it just guards the tap
+    private static final long HOLD_VIDEO_MS = 300L;
+    private static final long HOLD_PHOTO_MS = 650L;
 
     private final Paint mRing = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mCore = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -111,7 +116,15 @@ public class ShutterButtonView extends View {
                 mLongPressFired = false;
                 mPress.set(0.86f);
                 startTicking();
-                postDelayed(mLongPress, 650);
+                // already recording means this press is the stop tap
+                if (!mRecording) {
+                    postDelayed(mLongPress, mVideoMode ? HOLD_VIDEO_MS : HOLD_PHOTO_MS);
+                }
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                if (mLongPressFired && mListener != null) {
+                    mListener.onShutterDrag(event.getRawX(), event.getRawY());
+                }
                 return true;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
@@ -121,13 +134,15 @@ public class ShutterButtonView extends View {
                 startTicking();
                 if (event.getActionMasked() == MotionEvent.ACTION_UP) {
                     performClick();
-                    if (wasLong) {
-                        if (mListener != null) {
-                            mListener.onShutterRelease();
-                        }
-                    } else if (mListener != null) {
-                        mListener.onShutterClick();
+                }
+                // a cancelled hold still lets go of the deadman switch
+                if (wasLong) {
+                    if (mListener != null) {
+                        mListener.onShutterRelease();
                     }
+                } else if (event.getActionMasked() == MotionEvent.ACTION_UP
+                        && mListener != null) {
+                    mListener.onShutterClick();
                 }
                 return true;
             default:

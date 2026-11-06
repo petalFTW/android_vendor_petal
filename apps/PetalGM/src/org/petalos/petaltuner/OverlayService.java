@@ -65,12 +65,14 @@ public final class OverlayService extends Service {
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private HandlerThread mWorkerThread;
     private Handler mWorker;
+    // Game detection only; charging rides the battery broadcasts. It stops with the screen
+    // off or no games picked, instead of waking the CPU every two seconds forever.
+    private volatile boolean mScreenOn = true;
     private final Runnable mPoll = new Runnable() {
         @Override
         public void run() {
             try {
                 mEngine.onForegroundChanged();
-                mEngine.enforceCharging();
             } catch (RuntimeException e) {
                 android.util.Log.e("PetalTuner/Overlay", "poll failed", e);
             }
@@ -78,7 +80,20 @@ public final class OverlayService extends Service {
                 showGamePopupIfNeeded();
                 updateState();
             });
-            mWorker.postDelayed(this, POLL_MS);
+            if (mScreenOn && !mEngine.gm().games().isEmpty()) {
+                mWorker.postDelayed(this, POLL_MS);
+            }
+        }
+    };
+
+    private final BroadcastReceiver mScreenReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            mScreenOn = Intent.ACTION_SCREEN_ON.equals(intent.getAction());
+            if (mWorker == null) return;
+            mWorker.removeCallbacks(mPoll);
+            // Screen off still gets one pass, so a running game session ends and restores.
+            mWorker.post(mPoll);
         }
     };
     private final Runnable mHidePopup = this::removeOverlay;
@@ -91,7 +106,7 @@ public final class OverlayService extends Service {
             if (mWorker != null) {
                 mWorker.post(mEngine::onPowerChanged);
             }
-            updateState();
+            mHandler.post(OverlayService.this::updateState);
         }
     };
 
@@ -127,10 +142,7 @@ public final class OverlayService extends Service {
             return START_NOT_STICKY;
         }
         if (ACTION_TOGGLE_BYPASS.equals(action)) {
-            boolean next = !mEngine.charging().isBypassActive();
-            mEngine.charging().setBypass(next);
-            mEngine.prefs().putBool(Prefs.BYPASS_ENABLED, next);
-            mEngine.prefs().putBool(Prefs.GM_BYPASS_BY_GM, false);
+            toggleBypass();
         }
         mEngine.gm().requestGrants();
         registerBatteryReceiver();
@@ -139,6 +151,7 @@ public final class OverlayService extends Service {
             if (mEngine.prefs().getBool(Prefs.FOCUS_ENABLED, false)) {
                 mEngine.setFocusEnabled(true);
             }
+            mEngine.enforceCharging();
         });
         mWorker.postDelayed(mPoll, 500);
         return START_STICKY;
@@ -155,6 +168,7 @@ public final class OverlayService extends Service {
         if (mReceiverRegistered) {
             try {
                 unregisterReceiver(mBatteryReceiver);
+                unregisterReceiver(mScreenReceiver);
             } catch (IllegalArgumentException ignored) {
             }
             mReceiverRegistered = false;
@@ -168,10 +182,29 @@ public final class OverlayService extends Service {
         return null;
     }
 
+    /** Flips what the user asked for; the engine reconciles the hardware. */
+    private boolean toggleBypass() {
+        boolean next = !(mEngine.prefs().getBool(Prefs.BYPASS_ENABLED, false)
+                || mEngine.prefs().getBool(Prefs.GM_BYPASS_BY_GM, false));
+        mEngine.prefs().putBool(Prefs.BYPASS_ENABLED, next);
+        mEngine.prefs().putBool(Prefs.GM_BYPASS_BY_GM, false);
+        mWorker.post(() -> {
+            mEngine.enforceCharging();
+            mHandler.post(this::updateState);
+        });
+        updateState();
+        return next;
+    }
+
     private void registerBatteryReceiver() {
         if (mReceiverRegistered) {
             return;
         }
+        IntentFilter screen = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        screen.addAction(Intent.ACTION_SCREEN_OFF);
+        registerReceiver(mScreenReceiver, screen, Context.RECEIVER_NOT_EXPORTED);
+        android.os.PowerManager power = getSystemService(android.os.PowerManager.class);
+        mScreenOn = power == null || power.isInteractive();
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_BATTERY_CHANGED);
         filter.addAction(Intent.ACTION_POWER_CONNECTED);
@@ -254,16 +287,9 @@ public final class OverlayService extends Service {
             mWorker.post(() -> mEngine.applyProfile(next));
         });
         mBypassChip.setOnClickListener(v -> {
-            boolean next = !mEngine.charging().isBypassActive();
-            mEngine.prefs().putBool(Prefs.BYPASS_ENABLED, next);
-            mEngine.prefs().putBool(Prefs.GM_BYPASS_BY_GM, false);
-            mWorker.post(() -> {
-                mEngine.charging().setBypass(next);
-                mHandler.post(this::updateState);
-            });
+            boolean next = toggleBypass();
             toast(getString(R.string.bypass_title) + ": " + (next ? getString(R.string.value_on)
                     : getString(R.string.value_off)));
-            updateState();
         });
         boostChip.setOnClickListener(v -> {
             mWorker.post(mEngine::applyActiveProfile);
@@ -302,7 +328,8 @@ public final class OverlayService extends Service {
         }
         mStateView.setText(state);
         mProfileChip.setText(profile.label);
-        boolean bypass = mEngine.charging().isBypassActive();
+        boolean bypass = mEngine.prefs().getBool(Prefs.BYPASS_ENABLED, false)
+                || mEngine.prefs().getBool(Prefs.GM_BYPASS_BY_GM, false);
         int color = getColor(bypass ? R.color.tuner_accent_teal : R.color.tuner_text_secondary);
         mBypassChip.setText(bypass ? getString(R.string.value_on) : getString(R.string.value_off));
         mBypassChip.setTextColor(color);

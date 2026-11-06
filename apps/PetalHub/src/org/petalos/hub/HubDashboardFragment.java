@@ -103,6 +103,9 @@ public class HubDashboardFragment extends PetalPreferenceFragment {
                     R.drawable.ic_hub_game_mode, GameModeFragment.class.getName()),
             new Entry(R.string.category_bridge, R.string.bridge_summary,
                     R.drawable.ic_hub_qs, BridgeFragment.class.getName()),
+            new Entry(R.string.catback_title, R.string.catback_summary,
+                    R.drawable.ic_hub_catback, null,
+                    "org.petal.catback", "org.petal.catback.MainActivity"),
     };
 
     /** optional petalOS apps, install/uninstall at will */

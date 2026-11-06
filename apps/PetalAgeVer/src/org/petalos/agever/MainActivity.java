@@ -144,8 +144,10 @@ public final class MainActivity extends AppCompatActivity implements StageServic
             }
         });
         Spinner fps = findViewById(R.id.fps_spinner);
-        fps.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                new String[]{getString(R.string.fps_balanced), getString(R.string.fps_smooth)}));
+        ArrayAdapter<String> rates = new ArrayAdapter<>(this, R.layout.avatar_item,
+                new String[]{getString(R.string.fps_balanced), getString(R.string.fps_smooth)});
+        rates.setDropDownViewResource(R.layout.avatar_dropdown_item);
+        fps.setAdapter(rates);
         fps.setSelection(Prefs.get().getFrameRate() == 30 ? 1 : 0);
         fps.setOnItemSelectedListener(selection(position -> {
             Prefs.get().setFrameRate(position == 1 ? 30 : 24);

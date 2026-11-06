@@ -16,6 +16,7 @@
 
 package org.petalos.depth;
 
+import org.petalos.config.DepthClockRenderer;
 import org.petalos.config.PetalConfig;
 
 // clock presets
@@ -107,18 +108,18 @@ public final class DepthPresets {
     }
 
     /** write a preset to Settings.System */
-    public static void apply(android.content.Context context, Preset preset) {
+    public static void apply(android.content.Context context, Preset preset, boolean home) {
         android.provider.Settings.System.putInt(context.getContentResolver(),
-                PetalConfig.KEY_DEPTH_CLOCK_STYLE, preset.style);
+                PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_STYLE, home), preset.style);
         android.provider.Settings.System.putInt(context.getContentResolver(),
-                PetalConfig.KEY_DEPTH_CLOCK_ANCHOR, preset.anchorPct);
+                PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_ANCHOR, home), preset.anchorPct);
         android.provider.Settings.System.putInt(context.getContentResolver(),
-                PetalConfig.KEY_DEPTH_CLOCK_X, preset.anchorXPct);
+                PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_X, home), preset.anchorXPct);
         android.provider.Settings.System.putInt(context.getContentResolver(),
-                PetalConfig.KEY_DEPTH_CLOCK_SCALE, preset.scalePct);
+                PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_SCALE, home), preset.scalePct);
         android.provider.Settings.System.putInt(context.getContentResolver(),
-                PetalConfig.KEY_DEPTH_CLOCK_STACK, preset.stackVertical ? 1 : 0);
+                PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_STACK, home), preset.stackVertical ? 1 : 0);
         android.provider.Settings.System.putInt(context.getContentResolver(),
-                PetalConfig.KEY_DEPTH_CLOCK_COLOR, preset.ink);
+                PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_COLOR, home), preset.ink);
     }
 }

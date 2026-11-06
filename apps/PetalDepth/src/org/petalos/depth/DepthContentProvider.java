@@ -57,6 +57,11 @@ public class DepthContentProvider extends ContentProvider {
 
     private File assetFile(String name) {
         Context context = getContext();
+        if (name.startsWith("home_")) {
+            // Home assets are only read by Launcher, which never runs before the first unlock.
+            return context.getSystemService(UserManager.class).isUserUnlocked()
+                    ? new File(context.getFilesDir(), name) : null;
+        }
         boolean lockscreenAsset = name.equals("cutout.png") || name.equals("frost.png")
                 || name.equals("liquid.png");
         if (context.getSystemService(UserManager.class).isUserUnlocked()) {
@@ -92,9 +97,10 @@ public class DepthContentProvider extends ContentProvider {
         if (TextUtils.isEmpty(name)) {
             throw new FileNotFoundException(uri.toString());
         }
-        if (!name.equals("cutout.png") && !name.equals("base.png")
-                && !name.equals("base.jpg") && !name.equals("frost.png")
-                && !name.equals("liquid.png")) {
+        String plain = name.startsWith("home_") ? name.substring("home_".length()) : name;
+        if (!plain.equals("cutout.png") && !plain.equals("base.png")
+                && !plain.equals("base.jpg") && !plain.equals("frost.png")
+                && !plain.equals("liquid.png")) {
             throw new FileNotFoundException(uri.toString());
         }
         File file = assetFile(name);
@@ -113,6 +119,7 @@ public class DepthContentProvider extends ContentProvider {
     @Override
     public String getType(Uri uri) {
         String name = uri.getLastPathSegment();
+        if (name != null && name.startsWith("home_")) name = name.substring("home_".length());
         if ("cutout.png".equals(name)) return "image/png";
         if ("liquid.png".equals(name)) return "image/png";
         if ("frost.png".equals(name)) return "image/png";

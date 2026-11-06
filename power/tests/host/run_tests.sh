@@ -30,7 +30,9 @@ CORETESTS="$TOP/frameworks/base/core/tests/coretests/src/com/android/internal/ap
     "$TOP/vendor/petal/power/src/org/petalos/power/IdlePowerReceiver.java" \
     "$TOP/vendor/petal/power/src/org/petalos/power/IdlePowerProtection.java" \
     "$TOP/vendor/petal/power/src/org/petalos/power/NetworkPolicyReceiver.java" \
+    "$TOP/vendor/petal/power/src/org/petalos/power/PolicyUpdateQueue.java" \
     "$TOP/vendor/petal/power/src/org/petalos/power/SpoofPolicyReceiver.java" \
+    "$HERE/PolicyUpdateQueueTest.java" \
     "$HERE/IdlePowerJournalTest.java"
 
 "$JDK/java" -cp "$WORK:$ANDROID16:$JUNIT:$HAMCREST" org.junit.runner.JUnitCore \
@@ -40,4 +42,4 @@ CORETESTS="$TOP/frameworks/base/core/tests/coretests/src/com/android/internal/ap
 "$JDK/java" -XX:+EnableDynamicAgentLoading -Djdk.attach.allowAttachSelf=true \
     -cp "$WORK:$ANDROID13:$JUNIT:$HAMCREST:$MOCKITO:$INLINE:$BUDDY:$AGENT:$OBJENESIS" \
     org.junit.runner.JUnitCore com.android.internal.app.PetalSpoofIdentityTest \
-    org.petalos.power.IdlePowerJournalTest
+    org.petalos.power.IdlePowerJournalTest org.petalos.power.PolicyUpdateQueueTest

@@ -7,8 +7,8 @@
     <style name="Theme.PetalAgeVer" parent="@style/Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">@color/agever_void</item>
         <item name="android:colorBackground">@color/agever_void</item>
-        <item name="android:fontFamily">@font/petal_rubik</item>
-        <item name="fontFamily">@font/petal_rubik</item>
+        <item name="android:fontFamily">@font/petal_ui</item>
+        <item name="fontFamily">@font/petal_ui</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
@@ -22,17 +22,17 @@
         <item name="colorControlHighlight">@color/agever_ripple</item>
     </style>
     <style name="AgeVer.SectionTitle" parent="">
-        <item name="android:textColor">@color/agever_accent</item>
-        <item name="android:fontFamily">@font/petal_rubik</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:textFontWeight">500</item>
+        <item name="android:textColor">@color/agever_text_primary</item>
+        <item name="android:fontFamily">@font/petal_ui</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textFontWeight">600</item>
         <item name="android:paddingTop">24dp</item>
-        <item name="android:paddingBottom">10dp</item>
+        <item name="android:paddingBottom">12dp</item>
     </style>
     <style name="AgeVer.RowTitle" parent="">
         <item name="android:textColor">@color/agever_text_primary</item>
         <item name="android:textSize">15sp</item>
-        <item name="android:fontFamily">@font/petal_rubik</item>
+        <item name="android:fontFamily">@font/petal_ui</item>
     </style>
     <style name="AgeVer.RowSummary" parent="">
         <item name="android:textColor">@color/agever_text_secondary</item>
@@ -41,7 +41,7 @@
     </style>
     <style name="AgeVer.Body" parent="">
         <item name="android:textColor">@color/agever_text_secondary</item>
-        <item name="android:textSize">13sp</item>
+        <item name="android:textSize">14sp</item>
         <item name="android:lineSpacingMultiplier">1.15</item>
     </style>
     <style name="AgeVer.Card" parent="">
@@ -51,23 +51,48 @@
     <style name="AgeVer.Button" parent="@style/Widget.AppCompat.Button.Borderless">
         <item name="android:background">@drawable/bg_button</item>
         <item name="backgroundTint">@null</item>
-        <item name="android:fontFamily">@font/petal_rubik</item>
-        <item name="android:textColor">@color/agever_on_accent</item>
+        <item name="android:fontFamily">@font/petal_ui</item>
+        <item name="android:textColor">@color/agever_button_text</item>
         <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textFontWeight">500</item>
         <item name="android:paddingStart">20dp</item>
         <item name="android:paddingEnd">20dp</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+    <style name="AgeVer.Button.Secondary">
+        <item name="android:background">@drawable/bg_button_ghost</item>
+        <item name="android:textColor">@color/agever_ghost_text</item>
+    </style>
+    <style name="AgeVer.SwitchRow" parent="">
         <item name="android:minHeight">56dp</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/agever_text_primary</item>
+        <item name="android:fontFamily">@font/petal_ui</item>
+    </style>
+    <style name="AgeVer.Divider" parent="">
+        <item name="android:background">@color/agever_divider</item>
+    </style>
+    <style name="AgeVer.Field" parent="">
+        <item name="android:background">@drawable/bg_field</item>
+        <item name="android:popupBackground">@drawable/bg_card</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
     </style>
     <style name="AgeVer.Mode" parent="Widget.AppCompat.CompoundButton.RadioButton">
-        <item name="android:minHeight">56dp</item>
+        <item name="android:button">@null</item>
+        <item name="buttonCompat">@null</item>
+        <item name="android:gravity">center</item>
+        <item name="android:minHeight">48dp</item>
         <item name="android:paddingStart">12dp</item>
         <item name="android:paddingEnd">12dp</item>
-        <item name="android:paddingTop">8dp</item>
-        <item name="android:paddingBottom">8dp</item>
         <item name="android:background">@drawable/bg_mode</item>
-        <item name="android:textSize">15sp</item>
-        <item name="android:fontFamily">@font/petal_rubik</item>
-        <item name="android:textColor">@color/agever_text_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textFontWeight">500</item>
+        <item name="android:fontFamily">@font/petal_ui</item>
+        <item name="android:textColor">@color/agever_mode_text</item>
     </style>
     <style name="AgeVer.Expression" parent="">
         <item name="android:background">@drawable/bg_button_ghost</item>

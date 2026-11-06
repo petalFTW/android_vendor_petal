@@ -18,8 +18,6 @@ package org.petalos.petaltuner.core;
 
 import android.app.GameManager;
 import android.content.Context;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
 import android.util.Log;
 
 public final class GameModeController {
@@ -64,17 +62,10 @@ public final class GameModeController {
         applyGameMode(packageName, mode);
     }
 
-    public void resetAll() {
-        GameManager manager = manager();
-        if (manager == null) {
-            return;
-        }
-        PackageManager packageManager = mContext.getPackageManager();
-        for (ApplicationInfo info : packageManager.getInstalledApplications(0)) {
-            if ((info.flags & ApplicationInfo.FLAG_SYSTEM) != 0) {
-                continue;
-            }
-            applyGameMode(info.packageName, GameManager.GAME_MODE_STANDARD);
+    /** Only the user's games: iterating every installed app made this take seconds. */
+    public void resetGames(java.util.Collection<String> packages) {
+        for (String packageName : packages) {
+            applyGameMode(packageName, GameManager.GAME_MODE_STANDARD);
         }
     }
 }

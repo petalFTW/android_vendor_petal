@@ -25,6 +25,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,6 +38,26 @@ public final class Sysfs {
     // engine does not log the same permission denial twice a second.
     private static final long DENIED_TTL_MS = 5 * 60 * 1000;
     private static final Map<String, Long> sDenied = new ConcurrentHashMap<>();
+    // Per-thread batch: writes the app can't make directly wait here for one su call.
+    private static final ThreadLocal<Map<String, String>> sBatch = new ThreadLocal<>();
+
+    /** Start collecting root writes on this thread; pair with {@link #endBatch()}. */
+    public static void beginBatch() {
+        if (sBatch.get() == null) sBatch.set(new LinkedHashMap<>());
+    }
+
+    /** Flush the collected root writes in one su process; true if all landed. */
+    public static boolean endBatch() {
+        Map<String, String> pending = sBatch.get();
+        sBatch.remove();
+        if (pending == null || pending.isEmpty()) return true;
+        boolean ok = Shell.writeAllAsRoot(pending);
+        long now = System.currentTimeMillis();
+        for (String path : pending.keySet()) {
+            if (ok) sDenied.remove(path); else sDenied.put(path, now);
+        }
+        return ok;
+    }
 
     private Sysfs() {}
 
@@ -93,18 +114,22 @@ public final class Sysfs {
         if (deniedAt != null && System.currentTimeMillis() - deniedAt < DENIED_TTL_MS) {
             return false;
         }
-        if (directWrite(path, value, appendNewline)) {
+        if (new File(path).canWrite() && directWrite(path, value, appendNewline)) {
             sDenied.remove(path);
             return true;
         }
-        if (!new File(path).canWrite()) {
-            sDenied.put(path, System.currentTimeMillis());
-            return false;
+        // Kernel nodes are root-owned and this app isn't system, so root is the normal path,
+        // not an afterthought.
+        Map<String, String> batch = sBatch.get();
+        if (batch != null) {
+            batch.put(path, value);
+            return true;
         }
         if (Shell.writeAsRoot(path, value)) {
             sDenied.remove(path);
             return true;
         }
+        sDenied.put(path, System.currentTimeMillis());
         return false;
     }
 
@@ -116,7 +141,6 @@ public final class Sysfs {
             stream.flush();
             return true;
         } catch (Exception e) {
-            Log.w(TAG, "direct write failed " + path + "=" + value + ": " + e.getMessage());
             return false;
         } finally {
             if (stream != null) {

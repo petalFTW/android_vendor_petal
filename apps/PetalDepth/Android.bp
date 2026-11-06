@@ -14,8 +14,7 @@
 // limitations under the License.
 //
 
-// MediaPipe tasks-vision prebuilt (arm64-v8a JNI only — the repacked AAR strips
-// armeabi-v7a / x86 / x86_64).
+// arm64 only, the repack ate the other abis
 android_library_import {
     name: "mediapipe-tasks-vision-aar",
     aars: ["libs/tasks-vision.aar"],
@@ -31,9 +30,7 @@ android_library_import {
     min_sdk_version: "24",
 }
 
-// MediaPipe tasks' stats logger (TasksStatsProtoLogger / RemoteLoggingClient) requires the
-// Firebase data-transport runtime at class-init time; without these the app crashes with
-// NoClassDefFoundError on TransportRuntime as soon as a segmenter is created.
+// mediapipe's logger wants firebase transport or the segmenter dies on init, cheers google
 android_library_import {
     name: "petal-transport-api-aar",
     aars: ["libs/petal-transport-api-3.0.0.aar"],
@@ -61,17 +58,14 @@ java_import {
     sdk_version: "current",
 }
 
-// dagger's relocated Factory (inside transport-runtime) implements javax.inject.Provider;
-// the javax.inject classes are a separate artifact and must be on the classpath.
+// transport-runtime's dagger needs this lying about on the classpath
 java_import {
     name: "petal-javax-inject-jar",
     jars: ["libs/javax.inject-1.jar"],
     sdk_version: "current",
 }
 
-// MediaPipe's generated protos reference well-known types (com.google.protobuf.Any etc.)
-// that AOSP's bare libprotobuf-java-lite runtime does not ship; the maven javalite jar
-// provides the full lite runtime including the WKT message classes.
+// aosp's lite proto has no Any and friends, mediapipe does, so maven's jar it is
 java_import {
     name: "petal-protobuf-javalite-jar",
     jars: ["libs/protobuf-javalite-3.25.1.jar"],
@@ -104,9 +98,7 @@ android_app {
     manifest: "AndroidManifest.xml",
     // libmediapipe_tasks_vision_jni.so is arm64-only.
     compile_multilib: "64",
-    // Required for soong to package the AAR-provided JNI libs (extract_jni prebuilt
-    // packages are only merged when embedded); without it the .so is dropped and the
-    // app dies with UnsatisfiedLinkError on first segmentation.
+    // no embed, no .so, instant UnsatisfiedLinkError. fun
     use_embedded_native_libs: true,
     platform_apis: true,
     certificate: "platform",

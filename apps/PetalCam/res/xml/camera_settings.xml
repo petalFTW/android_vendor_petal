@@ -28,13 +28,6 @@
 
         <SwitchPreference
             android:layout="@layout/preference_petal_switch"
-            android:key="petal_engine"
-            android:defaultValue="true"
-            android:title="@string/settings_petal_engine"
-            android:summary="@string/settings_petal_engine_summary" />
-
-        <SwitchPreference
-            android:layout="@layout/preference_petal_switch"
             android:key="watermark"
             android:defaultValue="false"
             android:title="@string/settings_watermark"
@@ -60,12 +53,5 @@
             android:defaultValue="true"
             android:title="@string/settings_volume_shutter"
             android:summary="@string/settings_volume_shutter_summary" />
-
-        <SwitchPreference
-            android:layout="@layout/preference_petal_switch"
-            android:key="vendor_force"
-            android:defaultValue="false"
-            android:title="@string/settings_vendor_force"
-            android:summary="@string/settings_vendor_force_summary" />
     </PreferenceCategory>
 </PreferenceScreen>

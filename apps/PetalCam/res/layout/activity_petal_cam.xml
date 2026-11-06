@@ -68,7 +68,7 @@
         <ImageButton
             android:id="@+id/btn_hdr"
             style="@style/PetalCam.IconButton"
-            android:contentDescription="@string/settings_petal_engine"
+            android:contentDescription="@string/cd_hdr"
             android:src="@drawable/ic_cam_hdr" />
 
         <TextView
@@ -236,6 +236,19 @@
                 android:layout_height="@dimen/cam_shutter_outer"
                 android:layout_gravity="center_horizontal"
                 android:contentDescription="@string/cd_shutter" />
+
+            <!-- Hold-to-record padlock, slide onto it to keep recording hands free -->
+            <ImageView
+                android:id="@+id/rec_lock"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="center"
+                android:translationX="-78dp"
+                android:padding="10dp"
+                android:background="@drawable/cam_chip_background"
+                android:contentDescription="@string/cd_rec_lock"
+                android:src="@drawable/ic_cam_lock"
+                android:visibility="gone" />
 
             <ImageButton
                 android:id="@+id/btn_flip"

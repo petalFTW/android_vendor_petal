@@ -34,6 +34,14 @@ import java.util.List;
 
 public final class PerformanceFragment extends BasePreferenceFragment {
 
+    // "CPU 0-5 · up to 3.5 GHz" reads better than "policy0".
+    private static String clusterLabel(CpuController cpu, String policy) {
+        String cpus = Sysfs.read(policy + "/related_cpus");
+        String range = cpus == null ? policy.substring(policy.lastIndexOf('/') + 1) : "CPU "
+                + cpus.trim().replaceAll("\\s+", ",");
+        return range + " · up to " + Sysfs.mhz(cpu.getCpuInfoMax(policy)) + " MHz";
+    }
+
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
         createScreen();
@@ -46,55 +54,59 @@ public final class PerformanceFragment extends BasePreferenceFragment {
         profile.setValue(engine.getActiveProfile());
         profile.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
         profile.setOnPreferenceChangeListener((preference, value) -> {
-            engine.applyProfile((String) value);
-            toast(getString(R.string.toast_applied, ProfileManager.get((String) value).label));
+            String key = (String) value;
+            engine.run(() -> engine.applyProfile(key));
+            toast(getString(R.string.toast_applied, ProfileManager.get(key).label));
             return true;
         });
 
         CpuController cpu = engine.performance().cpu();
         List<String> policies = cpu.policies();
         if (!policies.isEmpty()) {
-            String policy = policies.get(0);
             category(R.string.cpu_category);
-
-            String[] governors = cpu.getAvailableGovernors(policy);
+            String[] governors = cpu.getAvailableGovernors(policies.get(0));
             if (governors.length > 0) {
                 ListPreference governor = listPref(R.string.cpu_governor_title);
                 governor.setEntries(governors);
                 governor.setEntryValues(governors);
-                governor.setValue(cpu.getGovernor(policy));
+                governor.setValue(cpu.getGovernor(policies.get(0)));
                 governor.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
                 governor.setOnPreferenceChangeListener((preference, value) -> {
-                    engine.performance().setCpuGovernor((String) value);
+                    engine.run(() -> engine.performance().setCpuGovernor((String) value));
                     return true;
                 });
             }
-
-            int[] freqs = cpu.getAvailableFreqs(policy);
-            if (freqs.length > 0) {
+            // One pair per cluster: each has its own frequency table.
+            for (String policy : policies) {
+                int[] freqs = cpu.getAvailableFreqs(policy);
+                if (freqs.length == 0) continue;
                 CharSequence[] labels = new CharSequence[freqs.length];
                 CharSequence[] values = new CharSequence[freqs.length];
                 for (int i = 0; i < freqs.length; i++) {
                     labels[i] = Sysfs.mhz(freqs[i]) + " MHz";
                     values[i] = Integer.toString(freqs[i]);
                 }
+                String cluster = clusterLabel(cpu, policy);
                 ListPreference min = listPref(R.string.cpu_min_freq_title);
+                min.setTitle(getString(R.string.cpu_min_freq_title) + " · " + cluster);
                 min.setEntries(labels);
                 min.setEntryValues(values);
                 min.setValue(Integer.toString(cpu.getMinFreq(policy)));
                 min.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
                 min.setOnPreferenceChangeListener((preference, value) -> {
-                    engine.performance().setCpuMinFreq(Integer.parseInt((String) value));
+                    int khz = Integer.parseInt((String) value);
+                    engine.run(() -> engine.performance().setCpuMinFreq(policy, khz));
                     return true;
                 });
-
                 ListPreference max = listPref(R.string.cpu_max_freq_title);
+                max.setTitle(getString(R.string.cpu_max_freq_title) + " · " + cluster);
                 max.setEntries(labels);
                 max.setEntryValues(values);
                 max.setValue(Integer.toString(cpu.getMaxFreq(policy)));
                 max.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
                 max.setOnPreferenceChangeListener((preference, value) -> {
-                    engine.performance().setCpuMaxFreq(Integer.parseInt((String) value));
+                    int khz = Integer.parseInt((String) value);
+                    engine.run(() -> engine.performance().setCpuMaxFreq(policy, khz));
                     return true;
                 });
             }
@@ -111,7 +123,7 @@ public final class PerformanceFragment extends BasePreferenceFragment {
                 governor.setValue(gpu.getGovernor());
                 governor.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
                 governor.setOnPreferenceChangeListener((preference, value) -> {
-                    engine.performance().setGpuGovernor((String) value);
+                    engine.run(() -> engine.performance().setGpuGovernor((String) value));
                     return true;
                 });
             }
@@ -129,7 +141,8 @@ public final class PerformanceFragment extends BasePreferenceFragment {
                 max.setValue(Integer.toString(gpu.getMaxFreq()));
                 max.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
                 max.setOnPreferenceChangeListener((preference, value) -> {
-                    engine.performance().setGpuMaxFreq(Integer.parseInt((String) value));
+                    int hz = Integer.parseInt((String) value);
+                    engine.run(() -> engine.performance().setGpuMaxFreq(hz));
                     return true;
                 });
             }
@@ -147,7 +160,7 @@ public final class PerformanceFragment extends BasePreferenceFragment {
                 scheduler.setValue(io.getScheduler(devices.get(0)));
                 scheduler.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
                 scheduler.setOnPreferenceChangeListener((preference, value) -> {
-                    engine.performance().setIoScheduler((String) value);
+                    engine.run(() -> engine.performance().setIoScheduler((String) value));
                     return true;
                 });
             }
@@ -158,7 +171,7 @@ public final class PerformanceFragment extends BasePreferenceFragment {
                 R.string.touch_rate_summary);
         touch.setChecked(engine.prefs().getBool(Prefs.TOUCH_BOOST, false));
         touch.setOnPreferenceChangeListener((preference, value) -> {
-            engine.performance().setTouchBoost((Boolean) value);
+            engine.run(() -> engine.performance().setTouchBoost((Boolean) value));
             return true;
         });
 
@@ -168,7 +181,7 @@ public final class PerformanceFragment extends BasePreferenceFragment {
         thermal.setEnabled(expert);
         thermal.setChecked(engine.prefs().getBool(Prefs.THERMAL_DISABLE, false));
         thermal.setOnPreferenceChangeListener((preference, value) -> {
-            engine.performance().setThermalOverride((Boolean) value);
+            engine.run(() -> engine.performance().setThermalOverride((Boolean) value));
             return true;
         });
 
@@ -176,7 +189,7 @@ public final class PerformanceFragment extends BasePreferenceFragment {
         Preference restore = action(R.string.profile_restore_title,
                 R.string.profile_restore_summary);
         restore.setOnPreferenceClickListener(preference -> {
-            engine.restoreDefaults();
+            engine.run(engine::restoreDefaults);
             toast(R.string.toast_restored);
             return true;
         });

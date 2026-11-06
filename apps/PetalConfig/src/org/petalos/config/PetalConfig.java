@@ -30,6 +30,12 @@ import java.util.Set;
 // shared with SystemUI. change these and stuff breaks
 public final class PetalConfig {
 
+    /** Secure setting: 0 preserves the existing appearance, 1 Island Glass, 2 Petal Silk. */
+    public static final String KEY_NOTIFICATION_STYLE = "petal_notification_style";
+    public static final int NOTIFICATION_STYLE_EXISTING = 0;
+    public static final int NOTIFICATION_STYLE_ISLAND_GLASS = 1;
+    public static final int NOTIFICATION_STYLE_PETAL_SILK = 2;
+
     private PetalConfig() {}
 
     public static final String KEY_DITHERING_ENABLED = "petal_screen_dither_enabled";
@@ -152,6 +158,19 @@ public final class PetalConfig {
     public static final String KEY_DEPTH_TILT_DP = "petal_depth_tilt_dp";
     // -1 follows the clock; otherwise a percentage from the top
     public static final String KEY_DEPTH_NOTIFICATION_START = "petal_depth_notification_start";
+    /** home screen depth on/off, 0/1. Home keeps its own photo, cutout and clock. */
+    public static final String KEY_DEPTH_HOME = "petal_depth_home";
+    /** home wallpaper id Depth Studio set; another wallpaper means the cutout won't line up */
+    public static final String KEY_DEPTH_HOME_WALLPAPER_ID = "petal_depth_home_wallpaper_id";
+
+    /**
+     * The lock screen key, or its home screen twin. Clock, cutout and generation settings are
+     * kept per screen; the on/off switch for home is {@link #KEY_DEPTH_HOME}.
+     */
+    public static String depthKey(String key, boolean home) {
+        if (!home) return key;
+        return KEY_DEPTH_ENABLED.equals(key) ? KEY_DEPTH_HOME : key + "_home";
+    }
 
     // lockscreen clock style key
     /** 0 stock, 1 bold, 2 minimal, 3 analog */
@@ -349,12 +368,20 @@ public final class PetalConfig {
 
     /** cutout uri, null if unset */
     public static String getDepthCutoutUri(Context context) {
-        return Settings.System.getString(context.getContentResolver(), KEY_DEPTH_CUTOUT_URI);
+        return getDepthCutoutUri(context, false);
+    }
+
+    public static String getDepthCutoutUri(Context context, boolean home) {
+        return Settings.System.getString(context.getContentResolver(), depthKey(KEY_DEPTH_CUTOUT_URI, home));
     }
 
     /** bumped on every cutout save */
     public static int getDepthGeneration(Context context) {
-        return Settings.System.getInt(context.getContentResolver(), KEY_DEPTH_GENERATION, 0);
+        return getDepthGeneration(context, false);
+    }
+
+    public static int getDepthGeneration(Context context, boolean home) {
+        return Settings.System.getInt(context.getContentResolver(), depthKey(KEY_DEPTH_GENERATION, home), 0);
     }
 
     /** parallax toggle */
@@ -365,30 +392,50 @@ public final class PetalConfig {
 
     /** clock style id */
     public static int getDepthClockStyle(Context context) {
-        return Settings.System.getInt(context.getContentResolver(), KEY_DEPTH_CLOCK_STYLE, 0);
+        return getDepthClockStyle(context, false);
+    }
+
+    public static int getDepthClockStyle(Context context, boolean home) {
+        return Settings.System.getInt(context.getContentResolver(), depthKey(KEY_DEPTH_CLOCK_STYLE, home), 0);
     }
 
     /** stack digits vertically */
     public static boolean isDepthClockStackVertical(Context context) {
-        return Settings.System.getInt(context.getContentResolver(), KEY_DEPTH_CLOCK_STACK, 0) == 1;
+        return isDepthClockStackVertical(context, false);
+    }
+
+    public static boolean isDepthClockStackVertical(Context context, boolean home) {
+        return Settings.System.getInt(context.getContentResolver(), depthKey(KEY_DEPTH_CLOCK_STACK, home), 0) == 1;
     }
 
     /** clock anchor, 5-85 */
     public static int getDepthClockAnchorPct(Context context) {
+        return getDepthClockAnchorPct(context, false);
+    }
+
+    public static int getDepthClockAnchorPct(Context context, boolean home) {
         return clamp(Settings.System.getInt(
-                context.getContentResolver(), KEY_DEPTH_CLOCK_ANCHOR, 20), 5, 85);
+                context.getContentResolver(), depthKey(KEY_DEPTH_CLOCK_ANCHOR, home), 20), 5, 85);
     }
 
     /** clock x, 10-90 % */
     public static int getDepthClockXPct(Context context) {
+        return getDepthClockXPct(context, false);
+    }
+
+    public static int getDepthClockXPct(Context context, boolean home) {
         return clamp(Settings.System.getInt(
-                context.getContentResolver(), KEY_DEPTH_CLOCK_X, 50), 10, 90);
+                context.getContentResolver(), depthKey(KEY_DEPTH_CLOCK_X, home), 50), 10, 90);
     }
 
     /** clock size %, 60-160 */
     public static int getDepthClockScalePct(Context context) {
+        return getDepthClockScalePct(context, false);
+    }
+
+    public static int getDepthClockScalePct(Context context, boolean home) {
         return clamp(Settings.System.getInt(
-                context.getContentResolver(), KEY_DEPTH_CLOCK_SCALE, 100), 60, 160);
+                context.getContentResolver(), depthKey(KEY_DEPTH_CLOCK_SCALE, home), 100), 60, 160);
     }
 
     /** parallax dp, 4-24 */
@@ -405,12 +452,25 @@ public final class PetalConfig {
 
     /** ink colour, DISABLED = auto */
     public static int getDepthClockColor(Context context) {
-        return Settings.System.getInt(context.getContentResolver(), KEY_DEPTH_CLOCK_COLOR, DISABLED);
+        return getDepthClockColor(context, false);
+    }
+
+    public static int getDepthClockColor(Context context, boolean home) {
+        return Settings.System.getInt(context.getContentResolver(), depthKey(KEY_DEPTH_CLOCK_COLOR, home), DISABLED);
+    }
+
+    /** depth layers on the home screen as well as the lock screen */
+    public static boolean isDepthHomeEnabled(Context context) {
+        return Settings.System.getInt(context.getContentResolver(), KEY_DEPTH_HOME, 0) == 1;
     }
 
     /** draw the date or not */
     public static boolean isDepthClockDateEnabled(Context context) {
-        return Settings.System.getInt(context.getContentResolver(), KEY_DEPTH_CLOCK_DATE, 1) == 1;
+        return isDepthClockDateEnabled(context, false);
+    }
+
+    public static boolean isDepthClockDateEnabled(Context context, boolean home) {
+        return Settings.System.getInt(context.getContentResolver(), depthKey(KEY_DEPTH_CLOCK_DATE, home), 1) == 1;
     }
 
     /** clock style 0-3 */

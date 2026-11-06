@@ -48,12 +48,15 @@ public final class MemoryFragment extends BasePreferenceFragment {
         apply.setChecked(engine.prefs().getBool(Prefs.MEMORY_APPLY, false));
         apply.setOnPreferenceChangeListener((preference, value) -> {
             engine.prefs().putBool(Prefs.MEMORY_APPLY, (Boolean) value);
-            if ((Boolean) value) {
-                engine.applyMemoryState();
-            } else {
-                engine.backup().restore("/proc/sys/vm/swappiness");
-                engine.backup().restore("/proc/sys/vm/extra_free_kbytes");
-            }
+            boolean on = (Boolean) value;
+            engine.run(() -> {
+                if (on) {
+                    engine.applyMemoryState();
+                } else {
+                    engine.backup().restore("/proc/sys/vm/swappiness");
+                    engine.backup().restore("/proc/sys/vm/extra_free_kbytes");
+                }
+            });
             return true;
         });
 
@@ -61,7 +64,10 @@ public final class MemoryFragment extends BasePreferenceFragment {
         swappiness.setValue(engine.prefs().getInt(Prefs.MEMORY_SWAPPINESS, 100));
         swappiness.setOnPreferenceChangeListener((preference, value) -> {
             engine.prefs().putInt(Prefs.MEMORY_SWAPPINESS, (Integer) value);
-            engine.memory().setSwappiness((Integer) value);
+            // only live while "apply" is on, otherwise it's just the saved value
+            if (engine.prefs().getBool(Prefs.MEMORY_APPLY, false)) {
+                engine.run(() -> engine.memory().setSwappiness((Integer) value));
+            }
             return true;
         });
 
@@ -69,13 +75,15 @@ public final class MemoryFragment extends BasePreferenceFragment {
         freeKb.setValue(engine.prefs().getInt(Prefs.MEMORY_EXTRA_FREE_KB, 32768));
         freeKb.setOnPreferenceChangeListener((preference, value) -> {
             engine.prefs().putInt(Prefs.MEMORY_EXTRA_FREE_KB, (Integer) value);
-            engine.memory().setExtraFreeKbytes((Integer) value);
+            if (engine.prefs().getBool(Prefs.MEMORY_APPLY, false)) {
+                engine.run(() -> engine.memory().setExtraFreeKbytes((Integer) value));
+            }
             return true;
         });
 
         Preference kill = action(R.string.memory_kill_bg_title, R.string.memory_kill_bg_summary);
         kill.setOnPreferenceClickListener(preference -> {
-            engine.memory().killBackgroundProcesses();
+            engine.run(() -> engine.memory().killBackgroundProcesses());
             toast(R.string.memory_kill_bg_title);
             return true;
         });

@@ -14,12 +14,7 @@
 // limitations under the License.
 //
 
-// petalOS flagship camera.
-//
-// Built on CameraX (the same vendored AARs Aperture uses) so it rides whatever
-// camera HAL the device ships. Vendor bits (OPlus CameraUnit SDK, QTI/oplus
-// vendor tags, CameraX vendor extensions) are reached reflectively at runtime
-// so the same APK works on every petal device / blob set.
+// petalOS camera. camerax on whatever hal is there, oem bits are found at runtime
 android_app {
     name: "PetalCam",
 
@@ -62,17 +57,14 @@ android_app {
         "kotlin-stdlib",
         // Pure-Java ZXing core (external/zxing) for on-device QR/barcode decode.
         "zxing-core",
-        // TF Lite for the denoiser; SplitterNet falls back to XNNPACK cpu since
-        // its slice/pad ops dont sit on the gpu delegate
+        // denoiser, ends up on cpu cos the gpu delegate hates its ops
         "petal-tflite",
         "petal-tflite-api",
         "petal-tflite-gpu",
         "petal-tflite-gpu-api",
-        // ONNX Runtime for the monocular depth / portrait bokeh model.
-        // Module is defined in vendor/petal/apps/PetalDepth/Android.bp.
+        // portrait depth model, the module lives in PetalDepth
         "petal-depth-onnxruntime",
-        // CameraX, vendored under packages/apps/Aperture/app/libs so petalOS
-        // stays on the exact same camera stack Aperture is validated against.
+        // borrowed off Aperture so we're on the same stack
         "Aperture_androidx.camera_camera-camera2",
         "Aperture_androidx.camera_camera-core",
         "Aperture_androidx.camera_camera-extensions",
@@ -81,8 +73,7 @@ android_app {
         "Aperture_androidx.camera_camera-view",
     ],
 
-    // Lets CameraX auto-load the OEM extension implementation
-    // (/system_ext/framework/androidx.camera.extensions.impl.jar on OPlus).
+    // the only oem thing this app knows about. the device's permissions xml sorts out the rest
     optional_uses_libs: [
         "androidx.camera.extensions.impl",
     ],

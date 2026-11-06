@@ -20,6 +20,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 
 import androidx.preference.SeekBarPreference;
+import androidx.preference.ListPreference;
 import androidx.preference.SwitchPreferenceCompat;
 
 import org.petalos.config.PetalConfig;
@@ -45,6 +46,32 @@ public class IslandFragment extends PetalPreferenceFragment {
         glass.setChecked(getSecureInt(KEY_GLASS_NOTIFICATIONS, 1) == 1);
         glass.setOnPreferenceChangeListener((pref, newValue) -> {
             putSecureInt(KEY_GLASS_NOTIFICATIONS, (Boolean) newValue ? 1 : 0);
+            return true;
+        });
+
+        SwitchPreferenceCompat popup = findPreference("petal_aod_popup_enabled");
+        popup.setChecked(getSecureInt("petal_aod_popup_enabled", 0) == 1);
+        popup.setOnPreferenceChangeListener((pref, newValue) -> {
+            putSecureInt("petal_aod_popup_enabled", (Boolean) newValue ? 1 : 0);
+            return true;
+        });
+
+        ListPreference popupStyle = findPreference("petal_aod_popup_style");
+        popupStyle.setValue(Integer.toString(getSecureInt("petal_aod_popup_style", 0) == 1 ? 1 : 0));
+        popupStyle.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
+        popupStyle.setOnPreferenceChangeListener((pref, newValue) -> {
+            putSecureInt("petal_aod_popup_style", Integer.parseInt((String) newValue));
+            return true;
+        });
+
+        ListPreference style = findPreference(PetalConfig.KEY_NOTIFICATION_STYLE);
+        int selected = getSecureInt(PetalConfig.KEY_NOTIFICATION_STYLE, 0);
+        style.setValue(Integer.toString(selected >= 0 && selected <= 2 ? selected : 0));
+        style.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
+        glass.setEnabled("0".equals(style.getValue()));
+        style.setOnPreferenceChangeListener((pref, newValue) -> {
+            putSecureInt(PetalConfig.KEY_NOTIFICATION_STYLE, Integer.parseInt((String) newValue));
+            glass.setEnabled("0".equals(newValue));
             return true;
         });
 

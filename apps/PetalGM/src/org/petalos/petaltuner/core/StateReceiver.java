@@ -28,18 +28,23 @@ public final class StateReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
         TunerEngine engine = TunerEngine.get(context);
-        if (Intent.ACTION_POWER_CONNECTED.equals(action)) {
-            if (engine.prefs().getBool(Prefs.BYPASS_AUTO, false)
-                    && engine.foreground().isForegroundGame()) {
-                engine.charging().setBypass(true);
-            }
-            if (engine.prefs().getBool(Prefs.CHARGE_LIMIT_ENABLED, false)
-                    || engine.prefs().getBool(Prefs.BYPASS_ENABLED, false)) {
-                OverlayService.start(context);
-            }
-            engine.onPowerChanged();
-        } else if (Intent.ACTION_POWER_DISCONNECTED.equals(action)) {
-            engine.onPowerChanged();
+        boolean connected = Intent.ACTION_POWER_CONNECTED.equals(action);
+        if (!connected && !Intent.ACTION_POWER_DISCONNECTED.equals(action)) return;
+        if (connected && (engine.prefs().getBool(Prefs.CHARGE_LIMIT_ENABLED, false)
+                || engine.prefs().getBool(Prefs.BYPASS_ENABLED, false))) {
+            OverlayService.start(context);
         }
+        PendingResult result = goAsync();
+        engine.run(() -> {
+            try {
+                if (connected && engine.prefs().getBool(Prefs.BYPASS_AUTO, false)
+                        && engine.foreground().isForegroundGame()) {
+                    engine.prefs().putBool(Prefs.GM_BYPASS_BY_GM, true);
+                }
+                engine.onPowerChanged();
+            } finally {
+                result.finish();
+            }
+        });
     }
 }

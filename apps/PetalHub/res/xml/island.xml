@@ -11,10 +11,32 @@
         android:title="@string/island_enabled_title"
         android:summary="@string/island_enabled_summary" />
 
+    <ListPreference
+        android:key="petal_notification_style"
+        android:persistent="false"
+        android:title="@string/notification_appearance_title"
+        android:entries="@array/notification_appearance_entries"
+        android:entryValues="@array/notification_appearance_values" />
+
     <SwitchPreferenceCompat
         android:key="island_glass_notifications"
+        android:persistent="false"
         android:title="@string/island_glass_title"
         android:summary="@string/island_glass_summary" />
+
+    <SwitchPreferenceCompat
+        android:key="petal_aod_popup_enabled"
+        android:persistent="false"
+        android:title="@string/aod_popup_title"
+        android:summary="@string/aod_popup_summary" />
+
+    <ListPreference
+        android:key="petal_aod_popup_style"
+        android:persistent="false"
+        android:title="@string/aod_popup_style_title"
+        android:entries="@array/aod_popup_style_entries"
+        android:entryValues="@array/aod_popup_style_values"
+        app:dependency="petal_aod_popup_enabled" />
 
     <SeekBarPreference
         android:key="island_blur_intensity"

@@ -60,6 +60,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import org.petalos.cam.capture.LocationProvider;
 import org.petalos.cam.capture.MediaSaver;
+import org.petalos.cam.capture.NightStacker;
 import org.petalos.cam.capture.QrAnalyzer;
 import org.petalos.cam.vendor.ExtensionBridge;
 import org.petalos.cam.vendor.VendorCameraBridge;
@@ -74,11 +75,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Executor;
 
-/**
- * CameraX orchestration. Owns the process camera provider, rebinds use cases
- * when the user changes lens or mode, and routes through the OEM extension
- * implementation when "Petal Engine" is on.
- */
+// camerax wrangling, rebinds on lens or mode changes
 public class CameraController {
 
     private static final String TAG = "PetalCamController";
@@ -175,7 +172,15 @@ public class CameraController {
     private VendorCameraInfo mVendorInfo;
     private float mPendingZoom = 1f;
 
+    private static final long ENGINE_START_TIMEOUT_MS = 4000L;
+    private static final int NIGHT_FRAMES = 6;
+    private static final float NIGHT_DENOISE = 0.25f;
+
     private boolean mBound;
+    private boolean mReleased;
+    private boolean mEngineStartDone;
+    // what the camera's actually bound with right now
+    private int mBoundExtension = ExtensionMode.NONE;
 
     public CameraController(@NonNull Context context, @NonNull LifecycleOwner owner,
             @NonNull PreviewView previewView, @NonNull Listener listener) {
@@ -211,14 +216,18 @@ public class CameraController {
         return mRecording != null;
     }
 
-    /** Resolve the provider, probe vendor bits, then bind the current mode. */
     public void initialize() {
-        mVendorInfo = VendorCameraBridge.detect(mContext);
+        // walks every camera over binder, keep that off the main thread
+        mCaptureExecutor.execute(() -> {
+            VendorCameraInfo info = VendorCameraBridge.detect(mContext);
+            mExecutor.execute(() -> {
+                mVendorInfo = info;
+                if (!mReleased) startProvider();
+            });
+        });
+    }
 
-        // Best-effort vendor SDK bring-up; null means "sidestep and use CameraX".
-        Object vendorHandle = VendorCameraBridge.tryOpenVendorCameraUnit(mContext);
-        Log.i(TAG, "Vendor camera unit: " + (vendorHandle != null ? "opened" : "skipped"));
-
+    private void startProvider() {
         ListenableFuture<ProcessCameraProvider> future =
                 ProcessCameraProvider.getInstance(mContext);
         future.addListener(() -> {
@@ -229,19 +238,34 @@ public class CameraController {
                 mListener.onCameraError("Camera provider unavailable");
                 return;
             }
-            if (PetalCamPrefs.petalEngine(mContext)) {
+            if (!PetalCamPrefs.engineStruckOut(mContext)) {
+                mMain.postDelayed(mEngineGaveUp, ENGINE_START_TIMEOUT_MS);
                 mEngine.initialize(mContext, mProvider, mExecutor, available -> {
-                    mEngineReady = available;
-                    mListener.onVendorInfo(mVendorInfo, mEngine.status());
-                    bindCurrentMode(true);
+                    finishEngineStart(available, mEngine.status());
                 });
             } else {
-                mEngineReady = false;
-                mListener.onVendorInfo(mVendorInfo, "disabled");
-                bindCurrentMode(true);
+                finishEngineStart(false, "disabled");
             }
         }, mExecutor);
     }
+
+    // a stuck oem init can't get to keep the viewfinder black
+    private void finishEngineStart(boolean available, String status) {
+        if (mEngineStartDone || mReleased) {
+            return;
+        }
+        mEngineStartDone = true;
+        mMain.removeCallbacks(mEngineGaveUp);
+        mEngineReady = available;
+        mListener.onVendorInfo(mVendorInfo, status);
+        bindCurrentMode(true);
+    }
+
+    private final Runnable mEngineGaveUp = () -> {
+        Log.w(TAG, "Engine start timed out, going plain");
+        finishEngineStart(false, "timed out");
+    };
+
 
     public void setLens(Lens lens) {
         if (mLens == lens) {
@@ -259,7 +283,8 @@ public class CameraController {
     }
 
     public void setMode(@NonNull String mode) {
-        if (mMode.equals(mode)) {
+        // a persistent recording ignores unbinds, it would keep running headless
+        if (mMode.equals(mode) || mRecording != null) {
             return;
         }
         mMode = mode;
@@ -328,11 +353,11 @@ public class CameraController {
         }
 
         CameraSelector selector = base;
+        int boundExt = ExtensionMode.NONE;
         // below 1x we need the physical wide cam, and oem extensions tend to
         // clamp zoom at 1.0, so drop them until we are back on the main lens
         boolean wantUltrawide = mPendingZoom < 0.95f;
-        int ext = mEngineReady && PetalCamPrefs.petalEngine(mContext)
-                ? extensionModeFor(mMode) : ExtensionMode.NONE;
+        int ext = mEngineReady ? extensionModeFor(mMode) : ExtensionMode.NONE;
         if (wantUltrawide && ext != ExtensionMode.NONE) {
             Log.i(TAG, "zoom " + mPendingZoom + " wants the wide cam, dropping extension");
             ext = ExtensionMode.NONE;
@@ -341,11 +366,12 @@ public class CameraController {
         if (ext != ExtensionMode.NONE) {
             selector = mEngine.selectorFor(base, lensTag(),
                     ext == ExtensionMode.BOKEH ? "Bokeh" : "Night", ext);
+            boundExt = ext;
         } else if (!wantUltrawide && mMode.equals(MODE_PHOTO) && mHdrEnabled && mEngineReady
-                && PetalCamPrefs.petalEngine(mContext)
                 && mEngine.isModeAvailable(lensTag(), "HDR")) {
             // Photo mode leans on the OEM HDR pipeline when it exists.
             selector = mEngine.selectorFor(base, lensTag(), "HDR", ExtensionMode.HDR);
+            boundExt = ExtensionMode.HDR;
         }
 
         mProvider.unbindAll();
@@ -358,17 +384,21 @@ public class CameraController {
             mPreview.setSurfaceProvider(mPreviewView.getSurfaceProvider());
 
             if (MODE_VIDEO.equals(mMode)) {
-                List<Quality> qualities;
-                switch (mVideoQuality) {
-                    case "uhd": qualities = Arrays.asList(Quality.UHD, Quality.FHD,
-                            Quality.HD, Quality.SD); break;
-                    case "hd": qualities = Arrays.asList(Quality.HD, Quality.SD); break;
-                    default: qualities = Arrays.asList(Quality.FHD, Quality.HD, Quality.SD);
+                // a live recording belongs to this VideoCapture, so a lens flip
+                // moves it to the new camera instead of building a new one
+                if (mRecording == null || mVideoCapture == null) {
+                    List<Quality> qualities;
+                    switch (mVideoQuality) {
+                        case "uhd": qualities = Arrays.asList(Quality.UHD, Quality.FHD,
+                                Quality.HD, Quality.SD); break;
+                        case "hd": qualities = Arrays.asList(Quality.HD, Quality.SD); break;
+                        default: qualities = Arrays.asList(Quality.FHD, Quality.HD, Quality.SD);
+                    }
+                    Recorder recorder = new Recorder.Builder()
+                            .setQualitySelector(QualitySelector.fromOrderedList(qualities))
+                            .build();
+                    mVideoCapture = VideoCapture.withOutput(recorder);
                 }
-                Recorder recorder = new Recorder.Builder()
-                        .setQualitySelector(QualitySelector.fromOrderedList(qualities))
-                        .build();
-                mVideoCapture = VideoCapture.withOutput(recorder);
                 mImageCapture = null;
                 mImageAnalysis = null;
                 mCamera = mProvider.bindToLifecycle(mLifecycleOwner, selector, mPreview,
@@ -381,23 +411,30 @@ public class CameraController {
                         .setFlashMode(mFlashMode);
                 mVideoCapture = null;
 
-                if (PetalCamPrefs.vendorForce(mContext)) {
-                    applyVendorHints(icb);
+                if (MODE_NIGHT.equals(mMode) && boundExt == ExtensionMode.NONE) {
+                    allowLongExposure(icb);
                 }
                 mImageCapture = icb.build();
 
-                // live QR/barcode scanning alongside every still photo mode
-                mImageAnalysis = new ImageAnalysis.Builder()
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .setTargetResolution(new android.util.Size(1280, 720))
-                        .build();
-                mImageAnalysis.setAnalyzer(mAnalysisExecutor, mQrAnalyzer);
-
-                mCamera = mProvider.bindToLifecycle(mLifecycleOwner, selector, mPreview,
-                        mImageCapture, mImageAnalysis);
+                // qr scanning, unless the oem pipeline won't take a third stream
+                if (boundExt == ExtensionMode.NONE || mEngine.supportsAnalysis(base, boundExt)) {
+                    mImageAnalysis = new ImageAnalysis.Builder()
+                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                            .setTargetResolution(new android.util.Size(1280, 720))
+                            .build();
+                    mImageAnalysis.setAnalyzer(mAnalysisExecutor, mQrAnalyzer);
+                    mCamera = mProvider.bindToLifecycle(mLifecycleOwner, selector, mPreview,
+                            mImageCapture, mImageAnalysis);
+                } else {
+                    mImageAnalysis = null;
+                    mCamera = mProvider.bindToLifecycle(mLifecycleOwner, selector, mPreview,
+                            mImageCapture);
+                }
             }
 
             mBound = true;
+            mBoundExtension = boundExt;
+            if (boundExt != ExtensionMode.NONE) watchExtension(mCamera);
             applyZoom(mPendingZoom);
             logBoundCamera();
             scheduleZoomVerify();
@@ -406,37 +443,57 @@ public class CameraController {
         } catch (Throwable t) {
             Log.e(TAG, "Bind failed", t);
             mBound = false;
+            // oem pipeline said no, a plain camera beats a dead viewfinder
+            if (boundExt != ExtensionMode.NONE) {
+                Log.w(TAG, "Extension bind failed, going plain");
+                mEngineReady = false;
+                bindCurrentMode(false);
+                return;
+            }
+            // nothing feeds it now, end the file while it can still be saved
+            stopRecording();
             mListener.onCameraError("Could not start camera");
         }
     }
 
-    /**
-     * Attach known vendor capture keys for photo capture on OEM HALs. Only runs
-     * when the user has forced the vendor pipeline, and only writes keys the HAL
-     * already advertises.
-     */
+    // let ae drop the frame rate so night frames can actually soak up some light
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private void applyVendorHints(ImageCapture.Builder builder) {
+    private void allowLongExposure(ImageCapture.Builder builder) {
         try {
             CameraCharacteristics chars = characteristicsForLens();
             if (chars == null) {
                 return;
             }
-            boolean night = MODE_NIGHT.equals(mMode);
-            boolean hdr = MODE_PHOTO.equals(mMode);
-            java.util.Map<CaptureRequest.Key<?>, Object> options =
-                    VendorCameraBridge.knownVendorOptions(chars, night, hdr);
-            if (options.isEmpty()) {
+            android.util.Range<Integer>[] ranges =
+                    chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+            if (ranges == null || ranges.length == 0) {
                 return;
             }
-            Camera2Interop.Extender extender = new Camera2Interop.Extender(builder);
-            for (java.util.Map.Entry<CaptureRequest.Key<?>, Object> e : options.entrySet()) {
-                extender.setCaptureRequestOption((CaptureRequest.Key) e.getKey(), e.getValue());
+            android.util.Range<Integer> slowest = ranges[0];
+            for (android.util.Range<Integer> range : ranges) {
+                if (range.getLower() < slowest.getLower()
+                        || (range.getLower().equals(slowest.getLower())
+                                && range.getUpper() > slowest.getUpper())) {
+                    slowest = range;
+                }
             }
-            Log.d(TAG, "Applied " + options.size() + " vendor capture key(s)");
+            new Camera2Interop.Extender(builder).setCaptureRequestOption(
+                    CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, slowest);
         } catch (Throwable t) {
-            Log.d(TAG, "Vendor hints unavailable", t);
+            Log.d(TAG, "Long exposure unavailable", t);
         }
+    }
+
+    // oem sessions die after the bind's already returned fine, catch won't see it
+    private void watchExtension(Camera camera) {
+        camera.getCameraInfo().getCameraState().observe(mLifecycleOwner, state -> {
+            if (state.getError() == null || camera != mCamera || !mEngineReady) {
+                return;
+            }
+            Log.w(TAG, "Extension session died (" + state.getError().getCode() + "), going plain");
+            mEngineReady = false;
+            bindCurrentMode(false);
+        });
     }
 
     /** CameraCharacteristics for the selected lens, resolved without binding. */
@@ -548,7 +605,8 @@ public class CameraController {
         mPendingZoom = ratio;
         // crossing the 1x line flips which pipeline we need, rebind for it
         boolean wantUltrawide = ratio < 0.95f;
-        if (mBound && wantUltrawide != mBoundUltrawide) {
+        // video has no extension to drop, and a rebind here would hiccup the file
+        if (mBound && wantUltrawide != mBoundUltrawide && !MODE_VIDEO.equals(mMode)) {
             Log.i(TAG, "zoom line crossed, rebinding for "
                     + (wantUltrawide ? "wide" : "main"));
             bindCurrentMode(false);
@@ -716,6 +774,12 @@ public class CameraController {
             mListener.onPhotoSaved(null, false);
             return;
         }
+        // a real vendor night pipeline does its own stacking, one shot is enough there
+        if (MODE_NIGHT.equals(mMode) && mBoundExtension == ExtensionMode.NONE) {
+            mListener.onCaptureStarted();
+            takeNightFrame(mImageCapture, new ArrayList<>());
+            return;
+        }
         mListener.onCaptureStarted();
         final String aspectRatio = mAspectRatio;
         final int jpegQuality = mPhotoQuality;
@@ -747,6 +811,49 @@ public class CameraController {
                 mExecutor.execute(() -> mListener.onPhotoSaved(null, false));
             }
         });
+    }
+
+    private void takeNightFrame(ImageCapture capture, List<byte[]> frames) {
+        capture.takePicture(mCaptureExecutor, new ImageCapture.OnImageCapturedCallback() {
+            @Override
+            public void onCaptureSuccess(@NonNull ImageProxy image) {
+                int rotation = image.getImageInfo().getRotationDegrees();
+                byte[] jpeg = MediaSaver.toJpegBytes(image);
+                if (jpeg != null) {
+                    frames.add(jpeg);
+                }
+                if (frames.size() < NIGHT_FRAMES && jpeg != null) {
+                    takeNightFrame(capture, frames);
+                } else {
+                    finishNight(frames, rotation);
+                }
+            }
+
+            @Override
+            public void onError(@NonNull ImageCaptureException exception) {
+                Log.e(TAG, "Night frame failed", exception);
+                // whatever we already got is still a photo
+                finishNight(frames, 0);
+            }
+        });
+    }
+
+    private void finishNight(List<byte[]> frames, int rotation) {
+        if (frames.isEmpty()) {
+            mExecutor.execute(() -> mListener.onPhotoSaved(null, false));
+            return;
+        }
+        final int quality = mPhotoQuality;
+        byte[] merged = NightStacker.merge(frames, quality);
+        byte[] jpeg = merged != null ? merged : frames.get(0);
+        boolean mirror = mLens == Lens.FRONT && PetalCamPrefs.mirrorFront(mContext);
+        double[] loc = PetalCamPrefs.location(mContext)
+                ? LocationProvider.lastKnown(mContext) : null;
+        MediaSaver.Result result = MediaSaver.saveJpeg(mContext, jpeg, mirror,
+                PetalCamPrefs.watermark(mContext), loc != null ? loc[0] : null,
+                loc != null ? loc[1] : null, rotation, false, NIGHT_DENOISE, mAspectRatio,
+                quality, buildCaptureMeta(), mExecutor, mListener::onPhotoProcessed);
+        mExecutor.execute(() -> mListener.onPhotoSaved(result.uri, result.ok));
     }
 
     /** Snapshot of the lens + shot details MediaSaver should stamp into Exif. */
@@ -810,7 +917,8 @@ public class CameraController {
                     ? LocationProvider.lastKnown(mContext) : null;
             PendingRecording pending = mVideoCapture.getOutput()
                     .prepareRecording(mContext, options);
-            pending = pending.withAudioEnabled();
+            // persistent so the recording outlives the rebind of a lens flip
+            pending = pending.withAudioEnabled().asPersistentRecording();
 
             mRecording = pending.start(mExecutor, event -> {
                 if (event instanceof VideoRecordEvent.Start) {
@@ -818,9 +926,11 @@ public class CameraController {
                 } else if (event instanceof VideoRecordEvent.Finalize) {
                     VideoRecordEvent.Finalize fin = (VideoRecordEvent.Finalize) event;
                     boolean ok = fin.getError() == VideoRecordEvent.Finalize.ERROR_NONE;
+                    // let go before the first frame, nothing happened, not a failure
+                    boolean empty = fin.getError() == VideoRecordEvent.Finalize.ERROR_NO_VALID_DATA;
                     Uri uri = ok ? fin.getOutputResults().getOutputUri() : null;
                     mRecording = null;
-                    mListener.onRecordingStopped(uri, ok);
+                    mListener.onRecordingStopped(uri, ok || empty);
                 }
             });
         } catch (Throwable t) {
@@ -841,6 +951,8 @@ public class CameraController {
     }
 
     public void release() {
+        mReleased = true;
+        mMain.removeCallbacks(mEngineGaveUp);
         if (mRecording != null) {
             try {
                 mRecording.close();

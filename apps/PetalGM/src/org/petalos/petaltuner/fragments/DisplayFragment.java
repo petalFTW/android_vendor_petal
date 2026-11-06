@@ -43,8 +43,7 @@ public final class DisplayFragment extends BasePreferenceFragment {
         refresh.setOnPreferenceChangeListener((preference, value) -> {
             int rate = Integer.parseInt((String) value);
             engine.prefs().putInt(Prefs.REFRESH_RATE, rate);
-            engine.prefs().putInt(Prefs.MIN_REFRESH_RATE, 60);
-            engine.display().applyRefreshRate(rate, 60);
+            engine.display().applyRefreshRate(rate, -1f);
             return true;
         });
 

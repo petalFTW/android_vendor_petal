@@ -35,7 +35,8 @@ public final class DistractionFragment extends BasePreferenceFragment {
                 R.string.focus_theme_summary);
         master.setChecked(engine.prefs().getBool(Prefs.FOCUS_ENABLED, false));
         master.setOnPreferenceChangeListener((preference, value) -> {
-            engine.setFocusEnabled((Boolean) value);
+            boolean on = (Boolean) value;
+            engine.run(() -> engine.setFocusEnabled(on));
             return true;
         });
 
@@ -55,7 +56,7 @@ public final class DistractionFragment extends BasePreferenceFragment {
         preference.setOnPreferenceChangeListener((unused, value) -> {
             engine.prefs().putBool(key, (Boolean) value);
             if (engine.prefs().getBool(Prefs.FOCUS_ENABLED, false)) {
-                engine.setFocusEnabled(true);
+                engine.run(() -> engine.setFocusEnabled(true));
             }
             return true;
         });

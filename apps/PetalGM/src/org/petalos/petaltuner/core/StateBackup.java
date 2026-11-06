@@ -51,6 +51,24 @@ public final class StateBackup {
         return Sysfs.write(path, value);
     }
 
+    /**
+     * Writes back every captured original under the given prefixes and keeps the captures, so
+     * the true stock value survives any number of profile switches.
+     */
+    public boolean restoreUnder(String... prefixes) {
+        boolean ok = true;
+        for (Map.Entry<String, ?> entry : mStore.getAll().entrySet()) {
+            if (!(entry.getValue() instanceof String)) continue;
+            for (String prefix : prefixes) {
+                if (entry.getKey().startsWith(prefix)) {
+                    ok &= Sysfs.write(entry.getKey(), (String) entry.getValue());
+                    break;
+                }
+            }
+        }
+        return ok;
+    }
+
     public boolean restoreAll() {
         boolean ok = true;
         for (Map.Entry<String, ?> entry : mStore.getAll().entrySet()) {

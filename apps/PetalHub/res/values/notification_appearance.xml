@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<resources>
+    <string name="notification_appearance_title">Notification appearance</string>
+    <string-array name="notification_appearance_entries">
+        <item>Existing appearance</item>
+        <item>Island Glass</item>
+        <item>Petal Silk</item>
+    </string-array>
+    <string-array name="notification_appearance_values" translatable="false">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+</resources>

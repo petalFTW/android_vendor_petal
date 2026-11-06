@@ -54,6 +54,10 @@ public final class Prefs {
     public static final String CHARGE_RESUME = "charge_resume";
     public static final String COOLDOWN = "cooldown";
     public static final String SLOW_CHARGE = "slow_charge";
+    // charge limit reached and holding until the resume level
+    public static final String LIMIT_HOLDING = "limit_holding";
+    // charging is off because of us, so we are the ones who must turn it back on
+    public static final String CHARGING_OFF_BY_TUNER = "charging_off_by_tuner";
     public static final String ENDURANCE = "endurance";
 
     public static final String FOCUS_ENABLED = "focus_enabled";

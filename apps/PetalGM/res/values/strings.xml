@@ -79,6 +79,10 @@
     <string name="profile_active_title">Active profile</string>
     <string name="profile_auto_title">Automatic profiles</string>
     <string name="profile_auto_summary">Apply a profile while selected games are in the foreground</string>
+    <string name="profile_game_manager_title">Android game mode</string>
+    <string name="profile_game_manager_summary">Also tell Android a selected game is running, so it can apply its own performance mode</string>
+    <string name="profile_games_title">Games</string>
+    <string name="profile_games_summary">%1$d selected</string>
     <string name="profile_boost_title">Boost now</string>
     <string name="profile_boost_summary">Apply the active profile immediately</string>
     <string name="profile_restore_title">Restore defaults</string>

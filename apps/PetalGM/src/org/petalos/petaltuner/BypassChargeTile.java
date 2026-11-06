@@ -34,7 +34,7 @@ public final class BypassChargeTile extends TileService {
         TunerEngine engine = TunerEngine.get(this);
         if (!engine.charging().isSupported()) {
             tile.setState(Tile.STATE_UNAVAILABLE);
-        } else if (engine.charging().isBypassActive()) {
+        } else if (engine.prefs().getBool(Prefs.BYPASS_ENABLED, false)) {
             tile.setState(Tile.STATE_ACTIVE);
         } else {
             tile.setState(Tile.STATE_INACTIVE);
@@ -46,9 +46,11 @@ public final class BypassChargeTile extends TileService {
     public void onClick() {
         super.onClick();
         TunerEngine engine = TunerEngine.get(this);
-        boolean next = !engine.charging().isBypassActive();
-        engine.charging().setBypass(next);
+        boolean next = !engine.prefs().getBool(Prefs.BYPASS_ENABLED, false);
         engine.prefs().putBool(Prefs.BYPASS_ENABLED, next);
+        engine.run(engine::enforceCharging);
+        // keep the service alive so the setting is re-applied when a charger is plugged in
+        if (next) OverlayService.start(this);
         onStartListening();
     }
 }

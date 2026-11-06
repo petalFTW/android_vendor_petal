@@ -7,6 +7,12 @@ public final class Settings {
     public static final class Secure {
         public static final String PETAL_SPOOFED_PACKAGES = "petal_spoofed_packages";
         public static final String PETAL_SPOOF_POWER_ERRORS = "petal_spoof_power_errors";
+        public static final String DEFAULT_INPUT_METHOD = "default_input_method";
+        public static final String ENABLED_ACCESSIBILITY_SERVICES = "enabled_accessibility_services";
+        public static final String ENABLED_NOTIFICATION_LISTENERS = "enabled_notification_listeners";
+        public static String getString(ContentResolver resolver, String name) {
+            return VALUES.get("secure:0:" + name);
+        }
         public static String getStringForUser(ContentResolver resolver, String name, int userId) {
             return VALUES.get("secure:" + userId + ':' + name);
         }
@@ -26,6 +32,7 @@ public final class Settings {
     public static final class Global {
         public static final String WIFI_SCAN_ALWAYS_AVAILABLE = "wifi_scan_always_enabled";
         public static final String BLE_SCAN_ALWAYS_AVAILABLE = "ble_scan_always_enabled";
+        public static final String BOOT_COUNT = "boot_count";
         public static int getInt(ContentResolver resolver, String name, int defaultValue) {
             String value = VALUES.get("global:" + name);
             return value == null ? defaultValue : Integer.parseInt(value);

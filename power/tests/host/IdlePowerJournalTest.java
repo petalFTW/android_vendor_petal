@@ -6,6 +6,9 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 import android.app.AppOpsManager;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Intent;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -289,13 +292,77 @@ public class IdlePowerJournalTest {
         assertTrue(prefs.getAll().isEmpty());
     }
 
-    @Test public void relayedScreenOnRestoresJournal() throws Exception {
+    private void handle(String action) throws Exception {
         Method method = IdlePowerReceiver.class.getDeclaredMethod("handle", Context.class, String.class);
         method.setAccessible(true);
-        method.invoke(null, context, "org.petalos.power.action.SCREEN_ON");
+        method.invoke(null, context, action);
+    }
+
+    @Test public void relayedScreenOnAloneKeepsJournal() throws Exception {
+        when(power.isInteractive()).thenReturn(true);
+        handle("org.petalos.power.action.SCREEN_ON");
+        assertTrue(prefs.getBoolean("transaction_active", false));
+        assertEquals(AppOpsManager.MODE_FOREGROUND, prefs.getInt("op:" + OP + ':' + NAME, -1));
+    }
+
+    @Test public void relayedUnlockRestoresJournal() throws Exception {
+        when(power.isInteractive()).thenReturn(true);
+        handle("org.petalos.power.action.USER_PRESENT");
         assertEquals(UsageStatsManager.STANDBY_BUCKET_FREQUENT, bucket);
         assertEquals(AppOpsManager.MODE_FOREGROUND, (int) modes.get(OP));
-        assertTrue(prefs.getAll().isEmpty());
+        assertFalse(prefs.contains("transaction_active"));
+    }
+
+    @Test public void screenStillOnRestoresButNotIfAlreadyOffAgain() throws Exception {
+        handle("org.petalos.power.action.SCREEN_STILL_ON");
+        assertTrue(prefs.getBoolean("transaction_active", false));
+        when(power.isInteractive()).thenReturn(true);
+        handle("org.petalos.power.action.SCREEN_STILL_ON");
+        assertEquals(UsageStatsManager.STANDBY_BUCKET_FREQUENT, bucket);
+        assertFalse(prefs.contains("transaction_active"));
+    }
+
+    @Test public void optimizedNeverLoosensAStricterBucket() throws Exception {
+        prefs.edit().clear().commit();
+        bucket = UsageStatsManager.STANDBY_BUCKET_RESTRICTED;
+        Settings.System.putString(null, IdlePowerReceiver.SETTING_PROFILE, "1");
+        call("apply");
+        assertEquals(UsageStatsManager.STANDBY_BUCKET_RESTRICTED, bucket);
+        verify(usage, never()).setAppStandbyBucket(anyString(), anyInt());
+        assertFalse(prefs.contains("bucket:" + NAME));
+    }
+
+    @Test public void deepAlsoBlocksWakeLocksAndRestoresThem() throws Exception {
+        prefs.edit().clear().commit();
+        bucket = UsageStatsManager.STANDBY_BUCKET_FREQUENT;
+        Settings.System.putString(null, IdlePowerReceiver.SETTING_PROFILE, "2");
+        call("apply");
+        assertEquals(AppOpsManager.MODE_IGNORED, (int) modes.get(AppOpsManager.OPSTR_WAKE_LOCK));
+        call("restore");
+        assertEquals(AppOpsManager.MODE_ALLOWED, (int) modes.get(AppOpsManager.OPSTR_WAKE_LOCK));
+    }
+
+    @Test public void deepFlagFollowsTheTransaction() throws Exception {
+        prefs.edit().clear().commit();
+        bucket = UsageStatsManager.STANDBY_BUCKET_FREQUENT;
+        Settings.System.putString(null, IdlePowerReceiver.SETTING_PROFILE, "2");
+        call("apply");
+        assertEquals(1, Settings.Global.getInt(null, IdlePowerReceiver.GLOBAL_DEEP_ACTIVE, 0));
+        call("restore");
+        assertEquals(0, Settings.Global.getInt(null, IdlePowerReceiver.GLOBAL_DEEP_ACTIVE, 1));
+    }
+
+    @Test public void optimizedNeverRaisesTheDeepFlag() throws Exception {
+        prefs.edit().clear().commit();
+        bucket = UsageStatsManager.STANDBY_BUCKET_ACTIVE;
+        Settings.System.putString(null, IdlePowerReceiver.SETTING_PROFILE, "1");
+        call("apply");
+        assertEquals(0, Settings.Global.getInt(null, IdlePowerReceiver.GLOBAL_DEEP_ACTIVE, 0));
+    }
+
+    @Test public void autoAddsNothingWhenKeeperLookupFails() throws Exception {
+        when(usage.getAppStandbyBuckets()).thenReturn(Map.of("com.example.stale", 40));
+        assertTrue(IdlePowerReceiver.autoPackages(context).isEmpty());
     }
 
     @Test public void unresolvedUidDoesNotGetRestricted() throws Exception {
@@ -304,6 +371,21 @@ public class IdlePowerJournalTest {
         call("apply");
         verify(usage, never()).setAppStandbyBucket(anyString(), anyInt());
         verify(ops, never()).setMode(anyString(), anyInt(), anyString(), anyInt());
+    }
+
+    @Test public void optionalIdlePolicyDoesNotScheduleAWakeupAlarm() throws Exception {
+        AlarmManager alarms = mock(AlarmManager.class);
+        PendingIntent pending = mock(PendingIntent.class);
+        when(context.getSystemService(AlarmManager.class)).thenReturn(alarms);
+        try (org.mockito.MockedStatic<PendingIntent> intents = mockStatic(PendingIntent.class)) {
+            intents.when(() -> PendingIntent.getBroadcast(eq(context), eq(0),
+                    any(Intent.class), anyInt())).thenReturn(pending);
+            // seeded journal means already applied, start clean
+            prefs.edit().clear().commit();
+            call("schedule");
+            verify(alarms).set(eq(AlarmManager.ELAPSED_REALTIME), anyLong(), eq(pending));
+            verify(alarms, never()).setAndAllowWhileIdle(anyInt(), anyLong(), any());
+        }
     }
 
     private static final class MemoryPrefs implements SharedPreferences {

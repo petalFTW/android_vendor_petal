@@ -31,6 +31,7 @@ import android.view.ViewOutlineProvider;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.preference.DialogPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceFragmentCompat;
@@ -58,6 +59,16 @@ public abstract class PetalPreferenceFragment extends PreferenceFragmentCompat {
             fragment.setTargetFragment(this, 0);
             fragment.show(getParentFragmentManager(), "dialog_preference");
             return;
+        }
+        // expressive theme nukes the OK text, so multi-selects had no button and never saved. lol
+        if (preference instanceof DialogPreference) {
+            DialogPreference dialog = (DialogPreference) preference;
+            if (dialog.getPositiveButtonText() == null) {
+                dialog.setPositiveButtonText(android.R.string.ok);
+            }
+            if (dialog.getNegativeButtonText() == null) {
+                dialog.setNegativeButtonText(android.R.string.cancel);
+            }
         }
         super.onDisplayPreferenceDialog(preference);
     }

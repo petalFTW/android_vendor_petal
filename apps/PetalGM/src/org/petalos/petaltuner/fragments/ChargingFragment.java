@@ -37,21 +37,15 @@ public final class ChargingFragment extends BasePreferenceFragment {
 
         SwitchPreferenceCompat bypass = switchPref(R.string.bypass_title, R.string.bypass_summary);
         bypass.setEnabled(supported);
-        bypass.setChecked(engine.charging().isBypassActive()
-                || engine.prefs().getBool(Prefs.BYPASS_ENABLED, false));
+        bypass.setChecked(engine.prefs().getBool(Prefs.BYPASS_ENABLED, false));
         if (!supported) {
             bypass.setSummary(R.string.bypass_unavailable);
         } else if (!engine.charging().isPlugged()) {
             bypass.setSummary(R.string.bypass_unplugged);
         }
         bypass.setOnPreferenceChangeListener((preference, value) -> {
-            boolean enabled = (Boolean) value;
-            boolean ok = engine.charging().setBypass(enabled);
-            engine.prefs().putBool(Prefs.BYPASS_ENABLED, enabled);
-            if (!ok) {
-                toast(R.string.bypass_unavailable);
-                return false;
-            }
+            engine.prefs().putBool(Prefs.BYPASS_ENABLED, (Boolean) value);
+            engine.run(engine::enforceCharging);
             return true;
         });
 
@@ -70,23 +64,35 @@ public final class ChargingFragment extends BasePreferenceFragment {
         limit.setChecked(engine.prefs().getBool(Prefs.CHARGE_LIMIT_ENABLED, false));
         limit.setOnPreferenceChangeListener((preference, value) -> {
             engine.prefs().putBool(Prefs.CHARGE_LIMIT_ENABLED, (Boolean) value);
-            engine.enforceCharging();
+            engine.run(engine::enforceCharging);
             return true;
         });
 
         SeekBarPreference limitValue = seekPref(R.string.charge_limit_value_title, 100);
         limitValue.setValue(engine.prefs().getInt(Prefs.CHARGE_LIMIT, 80));
+        SeekBarPreference resumeValue = seekPref(R.string.charge_resume_value_title, 100);
+        resumeValue.setValue(engine.prefs().getInt(Prefs.CHARGE_RESUME, 75));
+        // Resume must sit below the limit, or charging would flap on and off every poll.
+        limitValue.setMin(20);
+        resumeValue.setMin(10);
         limitValue.setOnPreferenceChangeListener((preference, value) -> {
             int limitPct = (Integer) value;
             engine.prefs().putInt(Prefs.CHARGE_LIMIT, limitPct);
-            engine.enforceCharging();
+            if (resumeValue.getValue() >= limitPct) {
+                resumeValue.setValue(limitPct - 5);
+                engine.prefs().putInt(Prefs.CHARGE_RESUME, limitPct - 5);
+            }
+            engine.run(engine::enforceCharging);
             return true;
         });
-
-        SeekBarPreference resumeValue = seekPref(R.string.charge_resume_value_title, 100);
-        resumeValue.setValue(engine.prefs().getInt(Prefs.CHARGE_RESUME, 75));
         resumeValue.setOnPreferenceChangeListener((preference, value) -> {
-            engine.prefs().putInt(Prefs.CHARGE_RESUME, (Integer) value);
+            int resume = Math.min((Integer) value, limitValue.getValue() - 1);
+            engine.prefs().putInt(Prefs.CHARGE_RESUME, resume);
+            engine.run(engine::enforceCharging);
+            if (resume != (Integer) value) {
+                resumeValue.setValue(resume);
+                return false;
+            }
             return true;
         });
 
@@ -98,7 +104,7 @@ public final class ChargingFragment extends BasePreferenceFragment {
         cooldown.setOnPreferenceChangeListener((preference, value) -> {
             int level = Integer.parseInt((String) value);
             engine.prefs().putInt(Prefs.COOLDOWN, level);
-            engine.charging().setCoolDown(level);
+            engine.run(engine::applyChargingExtras);
             return true;
         });
 
@@ -107,7 +113,7 @@ public final class ChargingFragment extends BasePreferenceFragment {
         slow.setChecked(engine.prefs().getBool(Prefs.SLOW_CHARGE, false));
         slow.setOnPreferenceChangeListener((preference, value) -> {
             engine.prefs().putBool(Prefs.SLOW_CHARGE, (Boolean) value);
-            engine.charging().setSlowCharge((Boolean) value);
+            engine.run(engine::applyChargingExtras);
             return true;
         });
 
@@ -116,11 +122,7 @@ public final class ChargingFragment extends BasePreferenceFragment {
         endurance.setChecked(engine.prefs().getBool(Prefs.ENDURANCE, false));
         endurance.setOnPreferenceChangeListener((preference, value) -> {
             engine.prefs().putBool(Prefs.ENDURANCE, (Boolean) value);
-            boolean ok = engine.charging().setEndurance((Boolean) value);
-            if (!ok) {
-                toast(R.string.bypass_unavailable);
-                return false;
-            }
+            engine.run(engine::applyChargingExtras);
             return true;
         });
 
@@ -145,7 +147,13 @@ public final class ChargingFragment extends BasePreferenceFragment {
                 : engine.charging().getHealth());
 
         Preference technology = action(R.string.battery_tech_title, 0);
-        technology.setSummary(engine.charging().getTechnology() == null
-                ? getString(R.string.value_unknown) : engine.charging().getTechnology());
+        technology.setSummary(R.string.value_unknown);
+        // getTechnology asks the charger HAL; keep that binder call off the UI thread
+        engine.run(() -> {
+            String tech = engine.charging().getTechnology();
+            if (tech != null && getActivity() != null) {
+                getActivity().runOnUiThread(() -> technology.setSummary(tech));
+            }
+        });
     }
 }

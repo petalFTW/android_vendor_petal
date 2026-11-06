@@ -28,6 +28,7 @@
         <package android:name="com.google.android.gsf" />
         <package android:name="app.grapheneos.gmscompat" />
         <package android:name="org.petalos.proton4a" />
+        <package android:name="org.petal.catback" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

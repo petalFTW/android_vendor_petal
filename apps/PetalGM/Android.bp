@@ -30,6 +30,11 @@ android_app {
     // build it but dont park it in a partition. App Center shoves it over the stub,
     // otherwise its a system app and the uninstall button just sits there pouting
     installable: false,
+    // App Center installs the bare APK. With dexpreopt on, Soong strips classes.dex out of it
+    // (expecting an odex beside it), and the install fails with "code is missing".
+    dex_preopt: { enabled: false },
+    // installable: false also stops Soong putting classes.dex in the APK unless this is set.
+    compile_dex: true,
 
     optimize: {
         enabled: true,

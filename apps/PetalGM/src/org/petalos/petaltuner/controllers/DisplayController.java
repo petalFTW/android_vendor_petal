@@ -37,9 +37,12 @@ public final class DisplayController {
         mContext = context.getApplicationContext();
     }
 
+    /** {@code min < 0} leaves the minimum alone, so LTPO can still idle down. */
     public void applyRefreshRate(float peak, float min) {
         Settings.System.putFloat(mContext.getContentResolver(), PEAK_REFRESH_RATE, peak);
-        Settings.System.putFloat(mContext.getContentResolver(), MIN_REFRESH_RATE, min);
+        if (min >= 0f) {
+            Settings.System.putFloat(mContext.getContentResolver(), MIN_REFRESH_RATE, min);
+        }
     }
 
     public float getPeakRefreshRate() {

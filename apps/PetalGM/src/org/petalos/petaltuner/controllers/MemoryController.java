@@ -99,8 +99,12 @@ public final class MemoryController {
     }
 
     public int getMemTotalKb() {
-        // Shell takes argv, not a string. run() is the one we want here
-        List<String> lines = org.petalos.petaltuner.core.Shell.sh("cat /proc/meminfo").output;
+        List<String> lines;
+        try {
+            lines = java.nio.file.Files.readAllLines(java.nio.file.Paths.get("/proc/meminfo"));
+        } catch (java.io.IOException e) {
+            return 0;
+        }
         for (String line : lines) {
             if (line.startsWith("MemTotal:")) {
                 String[] parts = line.split("\\s+");

@@ -62,7 +62,9 @@ public final class ThermalController {
         boolean ok = false;
         for (String zone : zones()) {
             if (Sysfs.exists(zone + "/mode")) {
-                ok |= setMode(zone, enabled ? 0 : 1);
+                // the node takes words; "0"/"1" was rejected by every kernel
+                mBackup.capture(zone + "/mode");
+                ok |= Sysfs.write(zone + "/mode", enabled ? "enabled" : "disabled");
             }
         }
         return ok;

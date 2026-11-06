@@ -34,16 +34,29 @@ public final class BootReceiver extends BroadcastReceiver {
             return;
         }
         TunerEngine engine = TunerEngine.get(context);
-        // boot isn't a new game session, bin the old focus state
-        engine.shutdownSession();
-        engine.setFocusEnabled(false);
         GmConfig config = new GmConfig(context);
-        config.requestGrants();
+        boolean locked = Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(action);
+        PendingResult result = goAsync();
+        engine.run(() -> {
+            try {
+                if (locked) {
+                    // Charging rules matter before the first unlock too; nothing else does yet.
+                    engine.enforceCharging();
+                } else {
+                    // boot isn't a new game session, bin the old focus state
+                    engine.shutdownSession();
+                    engine.setFocusEnabled(false);
+                    config.requestGrants();
+                    engine.applyDisplayState();
+                    engine.applyNetworkState();
+                    engine.applyMemoryState();
+                }
+            } finally {
+                result.finish();
+            }
+        });
         if (config.hasWork()) {
             OverlayService.start(context);
         }
-        engine.applyDisplayState();
-        engine.applyNetworkState();
-        engine.applyMemoryState();
     }
 }

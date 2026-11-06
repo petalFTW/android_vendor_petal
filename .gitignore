@@ -16,3 +16,6 @@ docs/
 **/macanc.json
 
 *.md
+
+# own repo (manifest project), not ours to track here
+/apps/PetalAssistant/

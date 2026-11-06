@@ -40,9 +40,10 @@ public abstract class BasePreferenceFragment extends PreferenceFragmentCompat {
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+        // super.onCreate() runs onCreatePreferences(), which already needs these.
         engine = TunerEngine.get(requireContext());
         ctx = requireContext();
+        super.onCreate(savedInstanceState);
     }
 
     protected PreferenceScreen createScreen() {

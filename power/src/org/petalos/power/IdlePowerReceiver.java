@@ -28,9 +28,16 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
     private static final String ACTION_SCREEN_OFF = "org.petalos.power.action.SCREEN_OFF";
     private static final String ACTION_SCREEN_ON = "org.petalos.power.action.SCREEN_ON";
     private static final String ACTION_RECONCILE = "org.petalos.power.action.RECONCILE_IDLE_POLICY";
+    private static final String ACTION_USER_PRESENT = "org.petalos.power.action.USER_PRESENT";
+    private static final String ACTION_IDLE_ENTERED = "org.petalos.power.action.IDLE_ENTERED";
+    private static final String ACTION_STILL_ON = "org.petalos.power.action.SCREEN_STILL_ON";
     private static final java.util.concurrent.ExecutorService WORKER =
             java.util.concurrent.Executors.newSingleThreadExecutor();
     private static final String PREFS = "idle_power_state";
+    private static final String TIMING_PREFS = "idle_power_timing";
+    private static final String KEY_SCREEN_OFF_AT = "screen_off_at";
+    // glances shorter than this don't count as using the phone
+    private static final long SCREEN_USE_MS = 8_000L;
     private static final String KEY_TRANSACTION = "transaction_active";
     private static final String KEY_BUCKET = "bucket:";
     private static final String KEY_APPLIED_BUCKET = "applied_bucket:";
@@ -40,16 +47,24 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
     private static final String KEY_PROFILE = "applied_profile";
     private static final String KEY_RESTORING = "restoring";
     private static final String KEY_RESTORE_ERROR = "restore_error:";
+    // wake_lock is the one that actually stops the beacon-scanner type crap
     private static final String[] DEEP_OPS = {AppOpsManager.OPSTR_FINE_LOCATION,
             AppOpsManager.OPSTR_COARSE_LOCATION, AppOpsManager.OPSTR_BLUETOOTH_SCAN,
-            AppOpsManager.OPSTR_RUN_ANY_IN_BACKGROUND};
+            AppOpsManager.OPSTR_RUN_ANY_IN_BACKGROUND, AppOpsManager.OPSTR_RUN_IN_BACKGROUND,
+            AppOpsManager.OPSTR_WAKE_LOCK};
 
     public static final String SETTING_ENABLED = "petal_idle_power_enabled";
     public static final String SETTING_PROFILE = "petal_idle_power_profile";
     public static final String SETTING_PACKAGES = "petal_idle_power_packages";
+    public static final String SETTING_AUTO = "petal_idle_power_auto";
     public static final String SETTING_GRACE_MINUTES = "petal_idle_power_grace_minutes";
     public static final String SETTING_DISABLE_WIFI_SCAN = "petal_idle_disable_wifi_scan";
     public static final String SETTING_DISABLE_BLE_SCAN = "petal_idle_disable_ble_scan";
+    // hub reads these two for the audit card
+    public static final String SETTING_STATUS = "petal_idle_power_status";
+    public static final String SETTING_APPLIED = "petal_idle_power_applied";
+    // DeviceIdleController watches this: quick doze + cpu cap while deep restricted is live
+    public static final String GLOBAL_DEEP_ACTIVE = "petal_idle_deep_active";
 
     private static final int PROFILE_OPTIMIZED = 1;
     private static final int PROFILE_DEEP = 2;
@@ -69,24 +84,53 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
     }
 
     private static void handle(Context context, String action) {
+        final PowerManager pm = context.getSystemService(PowerManager.class);
+        final boolean interactive = pm != null && pm.isInteractive();
         if (Intent.ACTION_SCREEN_OFF.equals(action) || ACTION_SCREEN_OFF.equals(action)) {
+            cancelStillOn(context);
+            // a quick glance keeps the old timestamp, so the grace doesn't start over
+            final SharedPreferences timing = timing(context);
+            if (!timing.contains(KEY_SCREEN_OFF_AT)) {
+                timing.edit().putLong(KEY_SCREEN_OFF_AT, SystemClock.elapsedRealtime()).commit();
+            }
             schedule(context);
-        } else if (Intent.ACTION_SCREEN_ON.equals(action)
-                || ACTION_SCREEN_ON.equals(action)
-                || Intent.ACTION_USER_PRESENT.equals(action)) {
+        } else if (Intent.ACTION_SCREEN_ON.equals(action) || ACTION_SCREEN_ON.equals(action)) {
+            // aod popups, pickup, glancing at the clock. don't undo everything for that shit
             cancel(context);
-            restore(context);
+            scheduleStillOn(context);
+        } else if (Intent.ACTION_USER_PRESENT.equals(action) || ACTION_USER_PRESENT.equals(action)) {
+            usedPhone(context);
+        } else if (ACTION_STILL_ON.equals(action)) {
+            if (interactive) usedPhone(context);
         } else if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
+            timing(context).edit().clear().commit();
             restore(context);
-            final PowerManager pm = context.getSystemService(PowerManager.class);
-            if (pm != null && !pm.isInteractive()) schedule(context);
+            if (pm != null && !interactive) {
+                timing(context).edit().putLong(KEY_SCREEN_OFF_AT, SystemClock.elapsedRealtime())
+                        .commit();
+                schedule(context);
+            }
         } else if (ACTION_APPLY.equals(action)) {
-            final PowerManager pm = context.getSystemService(PowerManager.class);
-            if (pm != null && !pm.isInteractive()) apply(context);
+            if (pm != null && !interactive) apply(context);
             else restore(context);
+        } else if (ACTION_IDLE_ENTERED.equals(action)) {
+            // phone's awake for the doze transition anyway, free ride
+            if (pm != null && !interactive && graceElapsed(context)
+                    && !prefs(context).getBoolean(KEY_TRANSACTION, false)) {
+                cancel(context);
+                apply(context);
+            }
         } else if (ACTION_RECONCILE.equals(action)) {
             reconcileExemptions(context);
         }
+    }
+
+    // unlocked or screen stayed on, user actually wants their apps back
+    private static void usedPhone(Context context) {
+        cancel(context);
+        cancelStillOn(context);
+        timing(context).edit().remove(KEY_SCREEN_OFF_AT).commit();
+        restore(context);
     }
 
     private static void schedule(Context context) {
@@ -94,21 +138,45 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
         if (getInt(context, SETTING_ENABLED, 1) == 0 || power == null || power.isInteractive()) {
             cancel(context);
             restore(context);
+            if (getInt(context, SETTING_ENABLED, 1) == 0) publishStatus(context, "off", 0, 0);
+            return;
+        }
+        if (prefs(context).getBoolean(KEY_TRANSACTION, false)
+                && !prefs(context).getBoolean(KEY_RESTORING, false)) {
+            // still applied from before the glance, nothing to do
             return;
         }
         if (effectivePackages(context).isEmpty() && getInt(context, SETTING_DISABLE_WIFI_SCAN, 0) == 0
                 && getInt(context, SETTING_DISABLE_BLE_SCAN, 0) == 0) {
             cancel(context);
             restore(context);
+            publishStatus(context, "empty", 0, 0);
             return;
         }
-        final int minutes = Math.max(0, Math.min(120,
-                getInt(context, SETTING_GRACE_MINUTES, 10)));
         final AlarmManager alarms = context.getSystemService(AlarmManager.class);
         if (alarms == null) return;
-        alarms.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + minutes * 60_000L, pendingApply(context));
-        Log.i(TAG, "Idle policy scheduled in " + minutes + " minutes");
+        final long due = screenOffAt(context) + graceMillis(context);
+        final long now = SystemClock.elapsedRealtime();
+        // non-wakeup on purpose. doze entry usually beats it anyway (IDLE_ENTERED)
+        alarms.set(AlarmManager.ELAPSED_REALTIME, Math.max(now, due), pendingApply(context));
+        publishStatus(context, "waiting", 0, 0);
+        Log.i(TAG, "Idle policy due in " + Math.max(0, due - now) / 1000 + "s");
+    }
+
+    private static long graceMillis(Context context) {
+        return Math.max(0, Math.min(120, getInt(context, SETTING_GRACE_MINUTES, 10))) * 60_000L;
+    }
+
+    private static long screenOffAt(Context context) {
+        final SharedPreferences timing = timing(context);
+        if (!timing.contains(KEY_SCREEN_OFF_AT)) {
+            timing.edit().putLong(KEY_SCREEN_OFF_AT, SystemClock.elapsedRealtime()).commit();
+        }
+        return timing.getLong(KEY_SCREEN_OFF_AT, SystemClock.elapsedRealtime());
+    }
+
+    private static boolean graceElapsed(Context context) {
+        return SystemClock.elapsedRealtime() >= screenOffAt(context) + graceMillis(context);
     }
 
     private static void cancel(Context context) {
@@ -116,9 +184,28 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
         if (alarms != null) alarms.cancel(pendingApply(context));
     }
 
+    private static void scheduleStillOn(Context context) {
+        final AlarmManager alarms = context.getSystemService(AlarmManager.class);
+        if (alarms == null) return;
+        // screen's on so the cpu is up, non-wakeup is fine
+        alarms.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + SCREEN_USE_MS,
+                pendingStillOn(context));
+    }
+
+    private static void cancelStillOn(Context context) {
+        final AlarmManager alarms = context.getSystemService(AlarmManager.class);
+        if (alarms != null) alarms.cancel(pendingStillOn(context));
+    }
+
     private static PendingIntent pendingApply(Context context) {
         final Intent intent = new Intent(context, IdlePowerReceiver.class).setAction(ACTION_APPLY);
         return PendingIntent.getBroadcast(context, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private static PendingIntent pendingStillOn(Context context) {
+        final Intent intent = new Intent(context, IdlePowerReceiver.class).setAction(ACTION_STILL_ON);
+        return PendingIntent.getBroadcast(context, 1, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
@@ -141,10 +228,7 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
         final int profile = getInt(context, SETTING_PROFILE, PROFILE_OPTIMIZED) == PROFILE_DEEP
                 ? PROFILE_DEEP : PROFILE_OPTIMIZED;
 
-        // Write-ahead: record the pre-idle state and mark the transaction durably
-        // BEFORE mutating anything. If this process dies partway through the
-        // restriction pass, restore() still holds everything needed to undo, so a
-        // package can never be left wedged in RESTRICTED with no way back.
+        // journal first, touch shit after. if we die midway restore can still undo it
         recordScan(context, state, SETTING_DISABLE_WIFI_SCAN,
                 Settings.Global.WIFI_SCAN_ALWAYS_AVAILABLE);
         recordScan(context, state, SETTING_DISABLE_BLE_SCAN,
@@ -155,6 +239,11 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
         }
 
         for (String packageName : packages) restrictPackage(context, prefs, packageName, profile);
+        final Set<String> touched = recordedPackages(prefs);
+        Settings.System.putString(context.getContentResolver(), SETTING_APPLIED,
+                TextUtils.join(",", touched));
+        publishStatus(context, "active", touched.size(), profile);
+        setDeepActive(context, profile == PROFILE_DEEP);
         if (getInt(context, SETTING_DISABLE_WIFI_SCAN, 0) != 0) {
             Settings.Global.putInt(context.getContentResolver(),
                     Settings.Global.WIFI_SCAN_ALWAYS_AVAILABLE, 0);
@@ -169,6 +258,8 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
     }
 
     private static synchronized void restore(Context context) {
+        // drop the cpu cap first, even if the journal's already gone
+        setDeepActive(context, false);
         final SharedPreferences prefs = prefs(context);
         if (!prefs.getBoolean(KEY_TRANSACTION, false)) return;
         if (!prefs.edit().putBoolean(KEY_RESTORING, true).commit()) return;
@@ -193,6 +284,7 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
             prefs.edit().clear().commit();
         }
         publishRestoreErrors(context, prefs);
+        if (getInt(context, SETTING_ENABLED, 1) != 0) publishStatus(context, "ready", 0, 0);
         Log.i(TAG, "Restored pre-idle policy state");
         // Idle list no longer applies, so re-run the shared network enforcement.
         NetworkPolicyReceiver.requestApply(context);
@@ -214,9 +306,14 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
             }
             final int appliedBucket = profile == PROFILE_DEEP
                     ? UsageStatsManager.STANDBY_BUCKET_RESTRICTED : UsageStatsManager.STANDBY_BUCKET_RARE;
-            final SharedPreferences.Editor journal = prefs.edit().putInt(KEY_BUCKET + pkg, bucket)
-                    .putInt(KEY_APPLIED_BUCKET + pkg, appliedBucket)
+            // never loosen a bucket. optimized was bumping restricted apps UP to rare, lol
+            final boolean moveBucket = bucket < appliedBucket;
+            if (!moveBucket && profile != PROFILE_DEEP) return;
+            final SharedPreferences.Editor journal = prefs.edit()
                     .putInt(KEY_UID + pkg, uid).putLong(KEY_INSTALLED + pkg, info.firstInstallTime);
+            if (moveBucket) {
+                journal.putInt(KEY_BUCKET + pkg, bucket).putInt(KEY_APPLIED_BUCKET + pkg, appliedBucket);
+            }
             if (profile == PROFILE_DEEP) {
                 for (int i = 0; i < DEEP_OPS.length; i++) {
                     journal.putInt(KEY_OP + DEEP_OPS[i] + ':' + pkg, modes[i]);
@@ -228,7 +325,7 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
                 restorePackage(context, prefs, pkg);
                 return;
             }
-            usage.setAppStandbyBucket(pkg, appliedBucket);
+            if (moveBucket) usage.setAppStandbyBucket(pkg, appliedBucket);
             if (profile == PROFILE_DEEP) {
                 for (String op : DEEP_OPS) appOps.setMode(op, uid, pkg, AppOpsManager.MODE_IGNORED);
             }
@@ -346,9 +443,107 @@ public final class IdlePowerReceiver extends BroadcastReceiver {
 
     private static Set<String> effectivePackages(Context context) {
         final Set<String> packages = configuredPackages(context);
+        packages.addAll(autoPackages(context));
         final PetalSpoofConfig config = PetalSpoofConfig.read(context);
         packages.removeIf(pkg -> isExempt(context, config, pkg));
         return packages;
+    }
+
+    /** Apps the user hasn't touched lately. Fails closed: any lookup dies, auto adds nothing. */
+    static Set<String> autoPackages(Context context) {
+        final Set<String> result = new LinkedHashSet<>();
+        if (getInt(context, SETTING_AUTO, 1) == 0) return result;
+        try {
+            final UsageStatsManager usage = context.getSystemService(UsageStatsManager.class);
+            if (usage == null) return result;
+            final java.util.Map<String, Integer> buckets = usage.getAppStandbyBuckets();
+            if (buckets == null || buckets.isEmpty()) return result;
+            final Set<String> keep = autoKeepers(context);
+            if (keep == null) return result;
+            for (java.util.Map.Entry<String, Integer> e : buckets.entrySet()) {
+                final int b = e.getValue() == null ? 0 : e.getValue();
+                // frequent..restricted. never-launched stays put, rare would bump it up
+                if (b < UsageStatsManager.STANDBY_BUCKET_FREQUENT
+                        || b > UsageStatsManager.STANDBY_BUCKET_RESTRICTED) continue;
+                if (keep.contains(e.getKey())) continue;
+                result.add(e.getKey());
+            }
+        } catch (RuntimeException e) {
+            Log.w(TAG, "auto pick shat itself, skipping auto this round", e);
+            result.clear();
+        }
+        return result;
+    }
+
+    // stuff that breaks the phone if it naps: sms, dialer, home, keyboard, alarms, music, vpn, a11y
+    private static Set<String> autoKeepers(Context context) {
+        final Set<String> keep = new LinkedHashSet<>();
+        final android.app.role.RoleManager roles =
+                context.getSystemService(android.app.role.RoleManager.class);
+        if (roles == null) return null;
+        for (String role : new String[]{android.app.role.RoleManager.ROLE_SMS,
+                android.app.role.RoleManager.ROLE_DIALER, android.app.role.RoleManager.ROLE_HOME,
+                android.app.role.RoleManager.ROLE_ASSISTANT,
+                android.app.role.RoleManager.ROLE_CALL_SCREENING}) {
+            keep.addAll(roles.getRoleHolders(role));
+        }
+        final android.content.ContentResolver cr = context.getContentResolver();
+        final String ime = Settings.Secure.getString(cr, Settings.Secure.DEFAULT_INPUT_METHOD);
+        if (!TextUtils.isEmpty(ime)) keep.add(ime.split("/")[0]);
+        addComponentPackages(keep, Settings.Secure.getString(cr,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES));
+        addComponentPackages(keep, Settings.Secure.getString(cr,
+                Settings.Secure.ENABLED_NOTIFICATION_LISTENERS));
+        final AlarmManager alarms = context.getSystemService(AlarmManager.class);
+        final AlarmManager.AlarmClockInfo clock = alarms == null ? null : alarms.getNextAlarmClock();
+        if (clock != null && clock.getShowIntent() != null) {
+            keep.add(clock.getShowIntent().getCreatorPackage());
+        }
+        final android.media.session.MediaSessionManager media =
+                context.getSystemService(android.media.session.MediaSessionManager.class);
+        if (media != null) {
+            for (android.media.session.MediaController c : media.getActiveSessions(null)) {
+                keep.add(c.getPackageName());
+            }
+        }
+        final android.net.VpnManager vpns = context.getSystemService(android.net.VpnManager.class);
+        final String vpn = vpns == null ? null : vpns.getAlwaysOnVpnPackageForUser(context.getUserId());
+        if (vpn != null) keep.add(vpn);
+        return keep;
+    }
+
+    private static void addComponentPackages(Set<String> into, String raw) {
+        if (TextUtils.isEmpty(raw)) return;
+        for (String part : raw.split(":")) {
+            final int slash = part.indexOf('/');
+            if (slash > 0) into.add(part.substring(0, slash));
+        }
+    }
+
+    // state;wallclock;count;profile, hub parses it, keep it dumb
+    private static void publishStatus(Context context, String state, int count, int profile) {
+        try {
+            Settings.System.putString(context.getContentResolver(), SETTING_STATUS,
+                    state + ";" + System.currentTimeMillis() + ";" + count + ";" + profile);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "status write failed", e);
+        }
+    }
+
+    private static void setDeepActive(Context context, boolean on) {
+        try {
+            if (Settings.Global.getInt(context.getContentResolver(), GLOBAL_DEEP_ACTIVE, 0)
+                    != (on ? 1 : 0)) {
+                Settings.Global.putInt(context.getContentResolver(), GLOBAL_DEEP_ACTIVE, on ? 1 : 0);
+            }
+        } catch (RuntimeException e) {
+            Log.w(TAG, "couldn't flip deep flag", e);
+        }
+    }
+
+    private static SharedPreferences timing(Context context) {
+        return context.createDeviceProtectedStorageContext()
+                .getSharedPreferences(TIMING_PREFS, Context.MODE_PRIVATE);
     }
 
     /** Network targets are the actual transaction, excluding newly exempted packages. */

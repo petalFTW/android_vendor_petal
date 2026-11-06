@@ -20,6 +20,7 @@ import android.content.Context;
 
 import org.petalos.petaltuner.core.Prefs;
 import org.petalos.petaltuner.core.Profile;
+import org.petalos.petaltuner.core.StateBackup;
 import org.petalos.petaltuner.core.Sysfs;
 
 public final class PerformanceController {
@@ -30,8 +31,10 @@ public final class PerformanceController {
     private final MemoryController mMemory;
     private final ThermalController mThermal;
     private final Prefs mPrefs;
+    private final StateBackup mBackup;
 
     public PerformanceController(Context context) {
+        mBackup = new StateBackup(context);
         mCpu = new CpuController(context);
         mGpu = new GpuController(context);
         mIo = new IoController(context);
@@ -60,57 +63,95 @@ public final class PerformanceController {
         return mThermal;
     }
 
+    // Everything a profile may touch; restored before each profile so they never stack.
+    private static final String[] PROFILE_NODES = {
+            "/sys/devices/system/cpu/", "/proc/sys/kernel/", "/sys/kernel/msm_performance/",
+            "/sys/class/kgsl/", "/sys/class/devfreq/", "/sys/block/", "/sys/class/thermal/",
+            "/proc/sys/vm/",
+    };
+
+    /**
+     * Back to the device's captured stock values, then only this profile's changes on top.
+     * Balanced is therefore "stock", not a set of guessed default tunables.
+     */
     public boolean apply(Profile profile) {
-        boolean ok = false;
-        String cpuGovernor = profile.cpuGovernor;
-        if ("custom".equals(profile.key)) {
-            cpuGovernor = mPrefs.getString(Prefs.CUSTOM_CPU_GOVERNOR, "schedutil");
-        }
-        if (cpuGovernor != null) {
-            mCpu.setAllGovernors(cpuGovernor);
-            ok = true;
-        }
-        if (profile.cpuMaxLock) {
-            for (String policy : mCpu.policies()) {
-                mCpu.setMinFreq(policy, mCpu.getCpuInfoMin(policy));
-                mCpu.setMaxFreq(policy, mCpu.getCpuInfoMax(policy));
+        Sysfs.beginBatch();
+        try {
+            mBackup.restoreUnder(PROFILE_NODES);
+            // the user's own memory and thermal choices outlive profile switches
+            if (mPrefs.getBool(Prefs.THERMAL_DISABLE, false)) mThermal.setThrottlingEnabled(false);
+            if ("custom".equals(profile.key)) {
+                applyCustomValues();
+            } else {
+                if (profile.cpuGovernor != null) setCpuGovernorIfAvailable(profile.cpuGovernor);
+                if (profile.cpuMaxLock) {
+                    for (String policy : mCpu.policies()) {
+                        mCpu.setMaxFreq(policy, mCpu.getCpuInfoMax(policy));
+                    }
+                }
+                if (profile.gpuGovernor != null) setGpuGovernorIfAvailable(profile.gpuGovernor);
+                if (profile.gpuMaxLock) {
+                    int max = maxOf(mGpu.getAvailableFreqs());
+                    if (max > 0) mGpu.setMaxFreq(max);
+                }
+                if (profile.schedulerBoost) mCpu.applyScheduler(true);
+                if (profile.ioBurst) {
+                    mIo.applyScheduler("none");
+                    mIo.applyReadAhead(2048);
+                }
+                if (profile.reduceMemoryPressure) mMemory.applyGamingProfile();
+                if (profile.thermalOverride) mThermal.setThrottlingEnabled(false);
             }
-            ok = true;
+        } catch (RuntimeException e) {
+            android.util.Log.w(Sysfs.TAG, "profile " + profile.key + " partly applied", e);
         }
-        if (profile.gpuGovernor != null && mGpu.isAvailable()) {
-            mGpu.setGovernor(profile.gpuGovernor);
-            ok = true;
+        return Sysfs.endBatch();
+    }
+
+    private void applyCustomValues() {
+        String cpuGovernor = mPrefs.getString(Prefs.CUSTOM_CPU_GOVERNOR, null);
+        if (cpuGovernor != null) setCpuGovernorIfAvailable(cpuGovernor);
+        for (String policy : mCpu.policies()) {
+            int min = mPrefs.getInt(customKey(Prefs.CUSTOM_CPU_MIN, policy), 0);
+            int max = mPrefs.getInt(customKey(Prefs.CUSTOM_CPU_MAX, policy), 0);
+            if (max > 0) mCpu.setMaxFreq(policy, max);
+            if (min > 0) mCpu.setMinFreq(policy, min);
         }
-        if (profile.gpuMaxLock && mGpu.devfreqBase() != null) {
-            int[] freqs = mGpu.getAvailableFreqs();
-            if (freqs.length > 0) {
-                mGpu.setMaxFreq(freqs[freqs.length - 1]);
+        String gpuGovernor = mPrefs.getString(Prefs.CUSTOM_GPU_GOVERNOR, null);
+        if (gpuGovernor != null) setGpuGovernorIfAvailable(gpuGovernor);
+        int gpuMax = mPrefs.getInt(Prefs.CUSTOM_GPU_MAX, 0);
+        if (gpuMax > 0) mGpu.setMaxFreq(gpuMax);
+        int gpuMin = mPrefs.getInt(Prefs.CUSTOM_GPU_MIN, 0);
+        if (gpuMin > 0) mGpu.setMinFreq(gpuMin);
+        String io = mPrefs.getString(Prefs.CUSTOM_IO_SCHEDULER, null);
+        if (io != null) mIo.applyScheduler(io);
+        int readAhead = mPrefs.getInt(Prefs.CUSTOM_IO_READAHEAD, 0);
+        if (readAhead > 0) mIo.applyReadAhead(readAhead);
+    }
+
+    /** Per-cluster key: a little-core frequency must never cap the big cores. */
+    public static String customKey(String base, String policy) {
+        return base + "_" + policy.substring(policy.lastIndexOf('/') + 1);
+    }
+
+    private void setCpuGovernorIfAvailable(String governor) {
+        for (String policy : mCpu.policies()) {
+            if (java.util.Arrays.asList(mCpu.getAvailableGovernors(policy)).contains(governor)) {
+                mCpu.setGovernor(policy, governor);
             }
-            ok = true;
         }
-        if (profile.schedulerBoost) {
-            mCpu.applyScheduler(true);
-            ok = true;
-        } else {
-            mCpu.applyScheduler(false);
+    }
+
+    private void setGpuGovernorIfAvailable(String governor) {
+        if (java.util.Arrays.asList(mGpu.getAvailableGovernors()).contains(governor)) {
+            mGpu.setGovernor(governor);
         }
-        if (profile.ioBurst) {
-            mIo.applyScheduler("none");
-            mIo.applyReadAhead(2048);
-            ok = true;
-        } else {
-            mIo.applyScheduler("mq-deadline");
-            mIo.applyReadAhead(512);
-        }
-        if (profile.reduceMemoryPressure) {
-            mMemory.applyGamingProfile();
-            ok = true;
-        }
-        if (profile.thermalOverride) {
-            mThermal.setThrottlingEnabled(false);
-            ok = true;
-        }
-        return ok;
+    }
+
+    private static int maxOf(int[] values) {
+        int max = 0;
+        for (int value : values) max = Math.max(max, value);
+        return max;
     }
 
     public boolean applyCustom() {
@@ -119,26 +160,24 @@ public final class PerformanceController {
 
     public void setCpuGovernor(String governor) {
         mPrefs.putString(Prefs.CUSTOM_CPU_GOVERNOR, governor);
-        mCpu.setAllGovernors(governor);
+        Sysfs.beginBatch();
+        setCpuGovernorIfAvailable(governor);
+        Sysfs.endBatch();
     }
 
-    public void setCpuMaxFreq(int khz) {
-        mPrefs.putInt(Prefs.CUSTOM_CPU_MAX, khz);
-        for (String policy : mCpu.policies()) {
-            mCpu.setMaxFreq(policy, khz);
-        }
+    public void setCpuMaxFreq(String policy, int khz) {
+        mPrefs.putInt(customKey(Prefs.CUSTOM_CPU_MAX, policy), khz);
+        mCpu.setMaxFreq(policy, khz);
     }
 
-    public void setCpuMinFreq(int khz) {
-        mPrefs.putInt(Prefs.CUSTOM_CPU_MIN, khz);
-        for (String policy : mCpu.policies()) {
-            mCpu.setMinFreq(policy, khz);
-        }
+    public void setCpuMinFreq(String policy, int khz) {
+        mPrefs.putInt(customKey(Prefs.CUSTOM_CPU_MIN, policy), khz);
+        mCpu.setMinFreq(policy, khz);
     }
 
     public void setGpuGovernor(String governor) {
         mPrefs.putString(Prefs.CUSTOM_GPU_GOVERNOR, governor);
-        mGpu.setGovernor(governor);
+        setGpuGovernorIfAvailable(governor);
     }
 
     public void setGpuMaxFreq(int hz) {

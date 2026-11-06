@@ -38,6 +38,9 @@ public final class ChargingController {
 
     private final Context mContext;
     private long mChargingControlFailedAt;
+    private IChargingControl mChargingControl;
+    private ICharger mCharger;
+    private long mChargerFailedAt;
 
     public ChargingController(Context context) {
         mContext = context.getApplicationContext();
@@ -47,36 +50,43 @@ public final class ChargingController {
         return DeviceSupport.supportsBypass() || getChargingControl() != null;
     }
 
-    private IChargingControl getChargingControl() {
+    // Handles are cached while alive; a missing or refused HAL is not asked again for a while,
+    // since the overlay poll would otherwise look it up every two seconds.
+    private synchronized IChargingControl getChargingControl() {
+        if (mChargingControl != null && mChargingControl.asBinder().isBinderAlive()) {
+            return mChargingControl;
+        }
+        mChargingControl = null;
         if (mChargingControlFailedAt != 0
                 && System.currentTimeMillis() - mChargingControlFailedAt < HAL_RETRY_MS) {
             return null;
         }
+        String name = IChargingControl.DESCRIPTOR + "/default";
         try {
-            IBinder binder = ServiceManager.waitForDeclaredService(
-                    IChargingControl.DESCRIPTOR + "/default");
-            if (binder == null) {
-                return null;
-            }
-            return IChargingControl.Stub.asInterface(binder);
+            IBinder binder = ServiceManager.isDeclared(name)
+                    ? ServiceManager.waitForDeclaredService(name) : null;
+            if (binder != null) mChargingControl = IChargingControl.Stub.asInterface(binder);
         } catch (Exception e) {
             Log.w(TAG, "Lineage health HAL unavailable: " + e.getMessage());
-            mChargingControlFailedAt = System.currentTimeMillis();
-            return null;
         }
+        if (mChargingControl == null) mChargingControlFailedAt = System.currentTimeMillis();
+        return mChargingControl;
     }
 
-    private ICharger getCharger() {
-        try {
-            IBinder binder = ServiceManager.getService(ICharger.DESCRIPTOR + "/default");
-            if (binder == null) {
-                return null;
-            }
-            return ICharger.Stub.asInterface(binder);
-        } catch (Exception e) {
-            Log.w(TAG, "Oplus charger HAL unavailable", e);
+    private synchronized ICharger getCharger() {
+        if (mCharger != null && mCharger.asBinder().isBinderAlive()) return mCharger;
+        mCharger = null;
+        if (mChargerFailedAt != 0 && System.currentTimeMillis() - mChargerFailedAt < HAL_RETRY_MS) {
             return null;
         }
+        try {
+            IBinder binder = ServiceManager.getService(ICharger.DESCRIPTOR + "/default");
+            if (binder != null) mCharger = ICharger.Stub.asInterface(binder);
+        } catch (Exception e) {
+            Log.w(TAG, "Oplus charger HAL unavailable: " + e.getMessage());
+        }
+        if (mCharger == null) mChargerFailedAt = System.currentTimeMillis();
+        return mCharger;
     }
 
     public boolean isPlugged() {
@@ -267,21 +277,25 @@ public final class ChargingController {
         }
     }
 
-    public boolean enforceChargeLimit(boolean enabled, int limit, int resume) {
-        if (!enabled || !isPlugged()) {
-            return false;
-        }
-        int level = getLevel();
-        if (level < 0) {
-            return false;
-        }
-        if (level >= limit && isBatteryChargingEnabled()) {
-            return setBatteryChargingEnabled(false);
-        }
-        if (level <= resume && !isBatteryChargingEnabled()) {
-            return setBatteryChargingEnabled(true);
-        }
-        return false;
+    /** One sticky-broadcast read for callers that need several battery fields at once. */
+    public Intent batterySnapshot() {
+        return batteryIntent();
+    }
+
+    public static boolean isPlugged(Intent battery) {
+        if (battery == null) return false;
+        if (battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0) return true;
+        int status = battery.getIntExtra(BatteryManager.EXTRA_STATUS,
+                BatteryManager.BATTERY_STATUS_UNKNOWN);
+        return status == BatteryManager.BATTERY_STATUS_CHARGING
+                || status == BatteryManager.BATTERY_STATUS_FULL;
+    }
+
+    public static int level(Intent battery) {
+        if (battery == null) return -1;
+        int scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+        int level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        return level < 0 || scale <= 0 ? -1 : Math.round(level * 100f / scale);
     }
 
     private Intent batteryIntent() {

@@ -42,7 +42,7 @@ public final class NetworkFragment extends BasePreferenceFragment {
             congestion.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
             congestion.setOnPreferenceChangeListener((preference, value) -> {
                 engine.prefs().putString(Prefs.NETWORK_CONGESTION, (String) value);
-                engine.network().setCongestion((String) value);
+                engine.run(() -> engine.network().setCongestion((String) value));
                 return true;
             });
         }
@@ -52,9 +52,11 @@ public final class NetworkFragment extends BasePreferenceFragment {
         buffers.setChecked(engine.prefs().getBool(Prefs.NETWORK_BUFFERS, false));
         buffers.setOnPreferenceChangeListener((preference, value) -> {
             engine.prefs().putBool(Prefs.NETWORK_BUFFERS, (Boolean) value);
-            if ((Boolean) value) {
-                engine.network().applyLowLatency();
-            }
+            boolean on = (Boolean) value;
+            engine.run(() -> {
+                if (on) engine.network().applyLowLatency();
+                else engine.network().restoreLowLatency();
+            });
             return true;
         });
 
@@ -62,8 +64,10 @@ public final class NetworkFragment extends BasePreferenceFragment {
                 R.string.network_disable_scans_summary);
         scans.setChecked(engine.prefs().getBool(Prefs.NETWORK_SUPPRESS_SCANS, false));
         scans.setOnPreferenceChangeListener((preference, value) -> {
-            engine.prefs().putBool(Prefs.NETWORK_SUPPRESS_SCANS, (Boolean) value);
-            engine.applyNetworkState();
+            boolean suppress = (Boolean) value;
+            engine.prefs().putBool(Prefs.NETWORK_SUPPRESS_SCANS, suppress);
+            engine.network().setWifiScanEnabled(!suppress);
+            engine.network().setBleScanEnabled(!suppress);
             return true;
         });
     }
