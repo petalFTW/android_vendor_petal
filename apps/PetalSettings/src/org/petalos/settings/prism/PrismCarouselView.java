@@ -150,9 +150,10 @@ final class PrismCarouselView extends ViewGroup {
         int available = MeasureSpec.getMode(heightSpec) == MeasureSpec.UNSPECIFIED
                 ? dp(300) : MeasureSpec.getSize(heightSpec);
         // Cartridges keep their silhouette; normal settings don't need a giant square.
-        cardHeight = Math.min(Math.round(cardWidth * (nxe ? .82f : cartridges ? 1.04f : .78f)),
+        // plain cards go wide + short, the tall ones were mostly empty air
+        cardHeight = Math.min(Math.round(cardWidth * (nxe ? .82f : cartridges ? 1.04f : .5f)),
                 available - dp(18));
-        cardHeight = Math.max(dp(150), cardHeight);
+        cardHeight = Math.max(dp(140), cardHeight);
         spacing = scene * (expressive ? .46f : .62f);
         dragUnit = spacing;
         for (PanelCard card : cards) {

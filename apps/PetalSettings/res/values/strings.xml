@@ -49,4 +49,14 @@
 
     <string name="view_all_settings">View all settings</string>
     <string name="go_to_aosp_settings">Go to AOSP Settings</string>
+    <string name="glance_wifi">Wi-Fi</string>
+    <string name="glance_bluetooth">Bluetooth</string>
+    <string name="glance_line">%1$d%% battery. %2$s</string>
+    <string name="glance_both_on">Wi-Fi and Bluetooth are on.</string>
+    <string name="glance_both_off">Wi-Fi and Bluetooth are off.</string>
+    <string name="glance_split">%1$s is on, %2$s is off.</string>
+    <string name="group_connect">Connect</string>
+    <string name="group_look">Look and sound</string>
+    <string name="group_safety">Privacy and safety</string>
+    <string name="group_device">Phone and apps</string>
 </resources>

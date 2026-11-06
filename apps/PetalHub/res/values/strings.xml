@@ -176,10 +176,6 @@
     <string name="qs_alpha_summary">%1$d%%</string>
     <string name="qs_blur_title">Shade blur</string>
     <string name="qs_blur_summary">%1$d%%</string>
-    <string name="qs_media_art_blur_title">Media player blur</string>
-    <string name="qs_media_art_blur_summary">%1$d%%</string>
-    <string name="qs_media_refraction_title">Media player refraction</string>
-    <string name="qs_media_refraction_summary">%1$d%% glass edge distortion</string>
 
     <!-- App drawer -->
     <string name="apps_custom_enabled_title">Custom drawer colour</string>

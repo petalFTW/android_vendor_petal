@@ -6,8 +6,7 @@ import android.provider.Settings;
 import java.util.ArrayList;
 import java.util.List;
 
-// the carousel panels, in order. `actions` drives the compact peek and the full
-// page for the generic AOSP categories; null means the panel has custom content.
+// carousel order. empty actions = panel does its own thing
 final class Panels {
     static final class Action {
         final int icon;
@@ -46,7 +45,7 @@ final class Panels {
         }
     }
 
-    /** Explicit AOSP component, because some dashboards have no public action. */
+    // some aosp dashboards have no public action, so poke the component directly
     private static Action component(int icon, String label, String help, String className) {
         return new Action(icon, label, help, "com.android.settings/" + className);
     }

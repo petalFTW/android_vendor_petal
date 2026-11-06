@@ -92,6 +92,9 @@ public final class PrismSettingsActivity extends Activity {
     private ScrollView detailScroll;
     private LinearLayout searchBar;
     private TextView searchLabel;
+    private LinearLayout glanceHost;
+    private LinearLayout quickHost;
+    private LinearLayout homeDock;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -141,38 +144,28 @@ public final class PrismSettingsActivity extends Activity {
         column.setOrientation(LinearLayout.VERTICAL);
         column.setClipChildren(false);
         column.setClipToPadding(false);
-        column.setPadding(dp(20), dp(16), dp(20), dp(10));
+        column.setPadding(dp(20), dp(16), dp(20), dp(12));
         scroll.addView(column);
         root.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
-        root.setOnApplyWindowInsetsListener((view, insets) -> {
-            android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars()
-                    | WindowInsets.Type.displayCutout());
-            scroll.setPadding(bars.left, bars.top + dp(4), bars.right, bars.bottom + dp(8));
-            return insets;
-        });
 
-        // Keep the search bar easy to find, without a bloody billboard above it.
-        LinearLayout search = new LinearLayout(this);
-        searchBar = search;
-        search.setGravity(Gravity.CENTER_VERTICAL);
-        search.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), normalRadius(28, 14)));
-        search.setPadding(dp(12), 0, dp(12), 0);
-        search.setClickable(true);
-        search.setFocusable(true);
-        search.setMinimumHeight(dp(48));
-        feedback(search);
-        ImageView lens = new ImageView(this);
-        lens.setImageResource(R.drawable.ic_search);
-        lens.setImageTintList(ColorStateList.valueOf(getColor(R.color.muted)));
-        search.addView(lens, new LinearLayout.LayoutParams(dp(20), dp(20)));
-        TextView full = text(getString(R.string.search_settings), 16, getColor(R.color.muted), false);
-        searchLabel = full;
-        full.setPadding(dp(8), 0, 0, 0);
-        search.addView(full, new LinearLayout.LayoutParams(0, -2, 1f));
-        bindTap(search, v -> openSearch());
-        LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(-1, -2);
-        searchParams.bottomMargin = dp(14);
-        column.addView(search, searchParams);
+        // eyes land up here, so it's read-only stuff. nothing you need to stretch for
+        TextView title = text(getString(R.string.title), 30, getColor(R.color.ink), false);
+        title.setTypeface(titleTypeface());
+        title.setAccessibilityHeading(true);
+        title.setPadding(dp(4), dp(8), 0, dp(4));
+        column.addView(title);
+
+        glanceHost = new LinearLayout(this);
+        column.addView(glanceHost, new LinearLayout.LayoutParams(-1, -2));
+        buildGlance();
+
+        // the two things everyone actually fiddles with, always in reach now
+        quickHost = new LinearLayout(this);
+        quickHost.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams quickParams = new LinearLayout.LayoutParams(-1, -2);
+        quickParams.topMargin = dp(8);
+        column.addView(quickHost, quickParams);
+        buildQuick();
 
         carousel = new PrismCarouselView(this, new PrismCarouselView.Listener() {
             @Override public void onFocus(Panels.Panel panel) {
@@ -191,23 +184,103 @@ public final class PrismSettingsActivity extends Activity {
         LinearLayout.LayoutParams carouselParams = new LinearLayout.LayoutParams(-1, carouselStageHeight());
         carouselParams.setMarginStart(-dp(20));
         carouselParams.setMarginEnd(-dp(20));
+        carouselParams.topMargin = dp(8);
         column.addView(carousel, carouselParams);
 
         rail = new IndexRailView(this);
         rail.setExpressive(egg || nxe);
         rail.setCount(Panels.ALL.size());
         LinearLayout.LayoutParams railParams = new LinearLayout.LayoutParams(-1, dp(26));
-        railParams.topMargin = 0;
-        railParams.bottomMargin = dp(12);
+        railParams.bottomMargin = dp(8);
         column.addView(rail, railParams);
 
         peekHost = new LinearLayout(this);
         peekHost.setOrientation(LinearLayout.VERTICAL);
         column.addView(peekHost);
 
+        // search lives down by the thumb, not up in the notch where nobody can reach it
+        homeDock = new LinearLayout(this);
+        homeDock.setGravity(Gravity.CENTER_VERTICAL);
+        homeDock.setClipChildren(false);
+        // rows were ghosting through the pills, fade em out under the dock instead
+        int paper = getColor(R.color.paper);
+        homeDock.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {paper & 0x00FFFFFF, paper, paper}));
+        LinearLayout search = new LinearLayout(this);
+        searchBar = search;
+        search.setGravity(Gravity.CENTER_VERTICAL);
+        search.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), 28));
+        search.setElevation(dp(6));
+        search.setPadding(dp(18), 0, dp(18), 0);
+        search.setClickable(true);
+        search.setFocusable(true);
+        search.setContentDescription(getString(R.string.search_settings));
+        feedback(search, 28);
+        ImageView lens = new ImageView(this);
+        lens.setImageResource(R.drawable.ic_search);
+        lens.setImageTintList(ColorStateList.valueOf(getColor(R.color.muted)));
+        lens.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        search.addView(lens, new LinearLayout.LayoutParams(dp(22), dp(22)));
+        TextView full = text(getString(R.string.search_settings), 16, getColor(R.color.muted), false);
+        searchLabel = full;
+        full.setPadding(dp(10), 0, 0, 0);
+        full.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        search.addView(full, new LinearLayout.LayoutParams(0, -2, 1f));
+        bindTap(search, v -> openSearch());
+        homeDock.addView(search, new LinearLayout.LayoutParams(0, dp(56), 1f));
+        ImageView browse = roundIcon(R.drawable.ic_grid, getString(R.string.browse_settings));
+        browse.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), 28));
+        browse.setElevation(dp(6));
+        browse.setPadding(dp(16), dp(16), dp(16), dp(16));
+        bindTap(browse, v -> openAllSettings());
+        LinearLayout.LayoutParams browseParams = new LinearLayout.LayoutParams(dp(56), dp(56));
+        browseParams.setMarginStart(dp(10));
+        homeDock.addView(browse, browseParams);
+        root.addView(homeDock, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars()
+                    | WindowInsets.Type.displayCutout());
+            homeDock.setPadding(dp(20) + bars.left, dp(28), dp(20) + bars.right,
+                    dp(12) + bars.bottom);
+            // scroll clears the dock so the last peek row isnt hiding under it
+            scroll.setPadding(bars.left, bars.top + dp(4), bars.right,
+                    bars.bottom + dp(12 + 56 + 16));
+            return insets;
+        });
+
         if (egg) carousel.setCartridges(true);
         if (nxe) carousel.setNxe(true);
         getOnBackInvokedDispatcher().registerOnBackInvokedCallback(0, this::onBack);
+    }
+
+    // one quiet line instead of three shouty tiles. still real numbers only
+    private void buildGlance() {
+        if (glanceHost == null) return;
+        glanceHost.removeAllViews();
+        BatteryManager battery = getSystemService(BatteryManager.class);
+        int level = battery == null ? -1
+                : battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+        boolean wifi = Settings.Global.getInt(getContentResolver(), Settings.Global.WIFI_ON, 0) != 0;
+        boolean bt = Settings.Global.getInt(getContentResolver(),
+                Settings.Global.BLUETOOTH_ON, 0) != 0;
+        String radios = wifi == bt
+                ? getString(wifi ? R.string.glance_both_on : R.string.glance_both_off)
+                : getString(R.string.glance_split, getString(wifi ? R.string.glance_wifi
+                        : R.string.glance_bluetooth), getString(wifi ? R.string.glance_bluetooth
+                        : R.string.glance_wifi));
+        String line = level >= 0 && level <= 100
+                ? getString(R.string.glance_line, level, radios) : radios;
+        TextView status = text(line, 15, getColor(R.color.muted), false);
+        status.setPadding(dp(4), 0, 0, 0);
+        glanceHost.addView(status);
+    }
+
+    private void buildQuick() {
+        if (quickHost == null) return;
+        quickHost.removeAllViews();
+        quickHost.addView(group(java.util.Arrays.asList(brightnessSlider(true),
+                volumeSlider(true))));
     }
 
     private void toggleCartridges() {
@@ -258,7 +331,7 @@ public final class PrismSettingsActivity extends Activity {
         int screenDp = Math.round(getResources().getDisplayMetrics().heightPixels
                 / getResources().getDisplayMetrics().density);
         return egg || nxe ? dp(Math.max(240, Math.min(350, Math.round(screenDp * .40f))))
-                : dp(Math.max(210, Math.min(280, Math.round(screenDp * .32f)))
+                : dp(Math.max(172, Math.min(196, Math.round(screenDp * .21f)))
                 + Math.max(0f, getResources().getConfiguration().fontScale - 1f) * 80);
     }
 
@@ -267,10 +340,11 @@ public final class PrismSettingsActivity extends Activity {
         carousel.requestLayout();
         rail.setExpressive(egg || nxe);
         updateDots();
-        searchBar.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), normalRadius(28, 14)));
         searchLabel.setTypeface(uiTypeface(false));
+        buildGlance();
+        buildQuick();
         if (peekCard != null) {
-            peekCard.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), normalRadius(28, 16)));
+            peekCard.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), normalRadius(28, 24)));
             buildPeek(carousel.current());
         }
     }
@@ -287,8 +361,8 @@ public final class PrismSettingsActivity extends Activity {
         if (peekCard == null) {
             peekCard = new LinearLayout(this);
             peekCard.setOrientation(LinearLayout.VERTICAL);
-            peekCard.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), normalRadius(28, 16)));
-            peekCard.setPadding(dp(18), dp(8), dp(18), dp(8));
+            peekCard.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), normalRadius(28, 24)));
+            peekCard.setPadding(dp(16), dp(6), dp(16), dp(6));
             peekHost.addView(peekCard);
         } else if (changed && ValueAnimator.areAnimatorsEnabled() && peekCard.isLaidOut()) {
             // Reuse the shell instead of making the controls flash.
@@ -305,18 +379,6 @@ public final class PrismSettingsActivity extends Activity {
         peekPanelId = panel.id;
         animatePeekTint(panel, changed);
 
-        LinearLayout header = new LinearLayout(this);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setMinimumHeight(dp(44));
-        TextView heading = text(panel.title, 18, getColor(R.color.ink), false);
-        heading.setAccessibilityHeading(true);
-        header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1f));
-        header.setClickable(true);
-        header.setFocusable(true);
-        header.setContentDescription(getString(R.string.section_settings, panel.title));
-        bindTap(header, v -> openDetail(panel));
-        feedback(header);
-        card.addView(header);
 
         switch (panel.id) {
             case "connect" -> {
@@ -328,7 +390,6 @@ public final class PrismSettingsActivity extends Activity {
                         Settings.ACTION_DATA_USAGE_SETTINGS, true));
             }
             case "display" -> {
-                card.addView(brightnessSlider(true));
                 card.addView(depthSwitch(true));
                 card.addView(actionRow(R.drawable.ic_display, "Text size & display",
                         "Full display settings", Settings.ACTION_DISPLAY_SETTINGS, true));
@@ -341,7 +402,6 @@ public final class PrismSettingsActivity extends Activity {
                         "Recently dismissed", "android.settings.NOTIFICATION_HISTORY", true));
             }
             case "sound" -> {
-                card.addView(volumeSlider(true));
                 card.addView(actionRow(R.drawable.ic_sound, "Do Not Disturb",
                         "Quiet time", "android.settings.ZEN_MODE_SETTINGS", true));
                 card.addView(actionRow(R.drawable.ic_sound, "Sound & vibration",
@@ -409,9 +469,12 @@ public final class PrismSettingsActivity extends Activity {
             }
         }
 
-        for (int i = 1; i < card.getChildCount(); i++) {
-            View row = card.getChildAt(i);
-            row.setLayoutParams(new LinearLayout.LayoutParams(-1, -2, 1f));
+        java.util.List<View> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < card.getChildCount(); i++) rows.add(card.getChildAt(i));
+        card.removeAllViews();
+        for (int i = 0; i < rows.size(); i++) {
+            if (i > 0) card.addView(divider(rows.get(i)));
+            card.addView(rows.get(i), new LinearLayout.LayoutParams(-1, -2, 1f));
         }
         peekHost.post(this::fitPeekToViewport);
         nameMorphTargets(card, "compact");
@@ -630,29 +693,50 @@ public final class PrismSettingsActivity extends Activity {
         column.setOrientation(LinearLayout.VERTICAL);
         column.setPadding(dp(20), dp(12), dp(20), dp(20));
         overlay.addView(column, new FrameLayout.LayoutParams(-1, -1));
+        // results stack down onto the field, field sits on the keyboard. thumbs say thanks
+        ScrollView scroll = new HapticScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setVerticalScrollBarEnabled(false);
+        LinearLayout results = new LinearLayout(this);
+        results.setOrientation(LinearLayout.VERTICAL);
+        results.setGravity(Gravity.BOTTOM);
+        scroll.addView(results);
+        column.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         LinearLayout head = new LinearLayout(this);
         head.setGravity(Gravity.CENTER_VERTICAL);
         ImageView back = roundIcon(R.drawable.ic_back, getString(R.string.back));
+        back.setBackground(rounded(getColor(R.color.floating), getColor(R.color.line), 28));
+        back.setPadding(dp(16), dp(16), dp(16), dp(16));
         bindTap(back, v -> closeDetail());
-        head.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        head.addView(back, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        LinearLayout field = new LinearLayout(this);
+        field.setGravity(Gravity.CENTER_VERTICAL);
+        field.setBackground(rounded(getColor(R.color.floating), getColor(R.color.line), 28));
+        field.setPadding(dp(16), 0, dp(16), 0);
+        ImageView lens = new ImageView(this);
+        lens.setImageResource(R.drawable.ic_search);
+        lens.setImageTintList(ColorStateList.valueOf(getColor(R.color.muted)));
+        lens.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        field.addView(lens, new LinearLayout.LayoutParams(dp(22), dp(22)));
         searchInput = new EditText(this);
         searchInput.setTypeface(uiTypeface(false));
-        searchInput.setTextSize(18);
+        searchInput.setTextSize(17);
         searchInput.setSingleLine(true);
         searchInput.setHint(R.string.search_settings);
         searchInput.setContentDescription(getString(R.string.search_settings));
         searchInput.setTextColor(getColor(R.color.ink));
         searchInput.setHintTextColor(getColor(R.color.muted));
-        searchInput.setBackgroundTintList(ColorStateList.valueOf(getColor(R.color.accent)));
+        searchInput.setBackground(null);
+        searchInput.setPadding(dp(10), 0, 0, 0);
         searchInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
         searchInput.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
-        head.addView(searchInput, new LinearLayout.LayoutParams(0, -2, 1));
-        column.addView(head);
-        ScrollView scroll = new HapticScrollView(this);
-        LinearLayout results = new LinearLayout(this);
-        results.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(results);
-        column.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        field.addView(searchInput, new LinearLayout.LayoutParams(0, -1, 1));
+        LinearLayout.LayoutParams fieldParams = new LinearLayout.LayoutParams(0, dp(56), 1);
+        fieldParams.setMarginStart(dp(10));
+        head.addView(field, fieldParams);
+        LinearLayout.LayoutParams headParams = new LinearLayout.LayoutParams(-1, -2);
+        headParams.topMargin = dp(10);
+        column.addView(head, headParams);
         searchInput.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -666,6 +750,7 @@ public final class PrismSettingsActivity extends Activity {
         });
         showSearchResults(results, "");
         root.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
+        setHomeChromeVisible(false);
         homeScroll.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         if (ValueAnimator.areAnimatorsEnabled()) {
             overlay.setAlpha(0f);
@@ -699,9 +784,8 @@ public final class PrismSettingsActivity extends Activity {
             TextView hint = text(getString(R.string.search_hint), 14, getColor(R.color.muted), false);
             hint.setPadding(0, dp(16), 0, dp(8));
             results.addView(hint);
-            TextView quick = text(getString(R.string.quick_search), 13,
-                    getColor(R.color.accent), true);
-            quick.setPadding(0, dp(8), 0, dp(6));
+            TextView quick = groupLabel(getString(R.string.quick_search));
+            quick.setPadding(dp(4), dp(8), 0, dp(8));
             results.addView(quick);
             String[][] suggestions = {
                     {"Wi-Fi", "Wi-Fi"}, {"Bluetooth", "Bluetooth"},
@@ -718,15 +802,18 @@ public final class PrismSettingsActivity extends Activity {
                         searchInput.setText(key);
                         searchInput.setSelection(key.length());
                     });
-                    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1f);
+                    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(52), 1f);
                     params.setMarginEnd(j == i ? dp(8) : 0);
                     row.addView(choice, params);
                 }
-                results.addView(row);
+                LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
+                rowParams.topMargin = dp(8);
+                results.addView(row, rowParams);
             }
             return;
         }
         int count = 0;
+        java.util.List<View> hits = new java.util.ArrayList<>();
         for (SettingsSearch.Entry entry : SettingsSearch.ENTRIES) {
             if (!entry.matches(query)) continue;
             count++;
@@ -737,8 +824,9 @@ public final class PrismSettingsActivity extends Activity {
                 row.setContentDescription(entry.title + ", " + panel.title);
                 bindTap(row, v -> openDetail(panel));
             }
-            results.addView(row);
+            hits.add(row);
         }
+        if (!hits.isEmpty()) results.addView(group(hits));
 
         appResults = results;
         appQuery = query;
@@ -749,11 +837,12 @@ public final class PrismSettingsActivity extends Activity {
             empty.setPadding(0, dp(24), 0, dp(16));
             results.addView(empty);
         }
-        results.addView(actionRow(R.drawable.ic_search, getString(R.string.open_settings),
-                "Every option on your device", Settings.ACTION_SETTINGS));
+        results.addView(group(java.util.List.of(actionRow(R.drawable.ic_search,
+                getString(R.string.open_settings), "Every option on your device",
+                Settings.ACTION_SETTINGS))));
     }
 
-    /** Installed apps matching the query, each opening its system App info page. */
+    // app hits, tap = system App info
     private int addAppResults(LinearLayout results, String query) {
         if (appIndex == null) {
             loadAppIndex();
@@ -761,21 +850,18 @@ public final class PrismSettingsActivity extends Activity {
         }
         String needle = query.trim().toLowerCase(java.util.Locale.ROOT);
         int shown = 0;
-        boolean header = false;
+        java.util.List<View> rows = new java.util.ArrayList<>();
         for (AppResult app : appIndex) {
             if (!app.label.toLowerCase(java.util.Locale.ROOT).contains(needle)
                     && !app.packageName.toLowerCase(java.util.Locale.ROOT).contains(needle)) {
                 continue;
             }
-            if (!header) {
-                TextView title = text("Apps", 13, getColor(R.color.accent), true);
-                title.setAccessibilityHeading(true);
-                title.setPadding(0, dp(18), 0, dp(6));
-                results.addView(title);
-                header = true;
-            }
-            results.addView(appRow(app));
+            rows.add(appRow(app));
             if (++shown == 15) break;
+        }
+        if (!rows.isEmpty()) {
+            results.addView(groupLabel("Apps"));
+            results.addView(group(rows));
         }
         return shown;
     }
@@ -795,11 +881,13 @@ public final class PrismSettingsActivity extends Activity {
         labels.setOrientation(LinearLayout.VERTICAL);
         labels.setPadding(dp(12), 0, dp(8), 0);
         labels.addView(text(app.label, 16, getColor(R.color.ink), false));
-        TextView sub = text(app.launchable ? "App info" : "App info · system",
+        TextView sub = text(app.launchable ? "App info" : "System app info",
                 13, getColor(R.color.muted), false);
         sub.setPadding(0, dp(3), 0, 0);
         labels.addView(sub);
         row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
+        row.addView(chevron());
+        row.setTag("link");
         bindTap(row, v -> openAppInfo(app.packageName));
         row.setContentDescription(app.label + ", App info");
         return row;
@@ -879,88 +967,71 @@ public final class PrismSettingsActivity extends Activity {
 
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
-        column.setPadding(dp(20), dp(12), dp(20), dp(20));
         overlay.addView(column, new FrameLayout.LayoutParams(-1, -1));
-
-        LinearLayout head = new LinearLayout(this);
-        head.setGravity(Gravity.CENTER_VERTICAL);
-        ImageView back = roundIcon(R.drawable.ic_back, getString(R.string.back));
-        bindTap(back, v -> closeDetail());
-        head.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        TextView label = text(getString(R.string.title), 14, getColor(R.color.muted), false);
-        label.setPadding(dp(11), 0, 0, 0);
-        head.addView(label, new LinearLayout.LayoutParams(0, -2, 1f));
-        TextView full = chip(getString(R.string.full_settings));
-        full.setBackground(null);
-        full.setContentDescription(getString(R.string.open_settings));
-        bindTap(full, v -> openSystem(Settings.ACTION_SETTINGS));
-        head.addView(full);
-        column.addView(head);
 
         ScrollView scroll = new HapticScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
+        scroll.setClipToPadding(false);
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(0, dp(4), 0, dp(8));
+        body.setPadding(dp(20), 0, dp(20), dp(16));
         scroll.addView(body);
         column.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
 
-        TextView title = text(getString(R.string.all_settings), 32, getColor(R.color.ink), false);
+        body.addView(reachSpacer());
+        TextView title = text(getString(R.string.all_settings), 30, getColor(R.color.ink), false);
+        title.setTypeface(titleTypeface());
         title.setAccessibilityHeading(true);
-        title.setLetterSpacing(-0.02f);
-        title.setPadding(0, dp(8), 0, dp(4));
+        title.setPadding(dp(4), 0, 0, dp(4));
         body.addView(title);
         TextView sub = text(getString(R.string.all_settings_subtitle), 15,
                 getColor(R.color.muted), false);
-        sub.setPadding(0, 0, 0, dp(14));
+        sub.setPadding(dp(4), 0, 0, 0);
         body.addView(sub);
 
-        // Leave enough width for category names to wrap between words.
-        int cols = 2;
-        float fontScale = getResources().getConfiguration().fontScale;
-        int tileHeight = dp(92) + dp(Math.max(0, fontScale - 1f) * 70);
-        java.util.ArrayList<Panels.Panel> gridPanels = new java.util.ArrayList<>();
-        for (Panels.Panel candidate : Panels.ALL) {
-            if (!"hub".equals(candidate.id)) gridPanels.add(candidate);
-        }
-        for (int rowStart = 0; rowStart < gridPanels.size(); rowStart += cols) {
-            LinearLayout row = new LinearLayout(this);
-            for (int col = 0; col < cols; col++) {
-                int position = rowStart + col;
-                Panels.Panel panel = gridPanels.get(position);
-                View tile = settingsTile(panel.title, panel.icon, v -> openDetail(panel));
-                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, tileHeight, 1f);
-                if (col > 0) params.setMarginStart(dp(8));
-                row.addView(tile, params);
+        // 20 tiles in a 2-wide grid was a wall. four named piles you can actually scan
+        String[][] piles = {
+                {"connect", "network", "connected"},
+                {"display", "wallpaper", "notifications", "sound"},
+                {"privacy", "security", "location", "safety", "emergency"},
+                {"battery", "storage", "apps", "accounts", "accessibility", "system",
+                        "supervision", "about"}};
+        int[] names = {R.string.group_connect, R.string.group_look, R.string.group_safety,
+                R.string.group_device};
+        java.util.Set<String> placed = new java.util.HashSet<>();
+        for (String[] pile : piles) java.util.Collections.addAll(placed, pile);
+        for (int g = 0; g < piles.length; g++) {
+            java.util.List<View> rows = new java.util.ArrayList<>();
+            for (String id : piles[g]) {
+                for (Panels.Panel panel : Panels.ALL) {
+                    if (panel.id.equals(id)) rows.add(panelRow(panel));
+                }
             }
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
-            if (rowStart > 0) rowParams.topMargin = dp(8);
-            body.addView(row, rowParams);
+            // anything new in Panels that nobody filed lands in the last pile
+            if (g == piles.length - 1) {
+                for (Panels.Panel panel : Panels.ALL) {
+                    if (!placed.contains(panel.id) && !"hub".equals(panel.id)) {
+                        rows.add(panelRow(panel));
+                    }
+                }
+            }
+            if (rows.isEmpty()) continue;
+            body.addView(groupLabel(getString(names[g])));
+            body.addView(group(rows));
         }
 
-        TextView more = text(getString(R.string.more_settings), 13, getColor(R.color.accent), true);
-        more.setAccessibilityHeading(true);
-        more.setPadding(0, dp(18), 0, dp(8));
-        body.addView(more);
-        LinearLayout group = new LinearLayout(this);
-        group.setOrientation(LinearLayout.VERTICAL);
-        group.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), normalRadius(20, 14)));
-        group.setPadding(dp(14), dp(2), dp(14), dp(2));
-        group.addView(actionRow(R.drawable.ic_display, "Accessibility",
-                "Screen reader, magnification, hearing",
-                Settings.ACTION_ACCESSIBILITY_SETTINGS, true));
-        group.addView(actionRow(R.drawable.ic_apps, "System",
-                "Languages, date & time, backup, reset",
-                "android.settings.SYSTEM_SETTINGS", true));
-        body.addView(group);
+        LinearLayout bar = pageBar(getString(R.string.full_settings),
+                getString(R.string.open_settings), v -> openSystem(Settings.ACTION_SETTINGS));
+        column.addView(bar, new LinearLayout.LayoutParams(-1, -2));
 
         root.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
+        setHomeChromeVisible(false);
         homeScroll.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         overlay.setOnApplyWindowInsetsListener((view, insets) -> {
             android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars()
                     | WindowInsets.Type.displayCutout());
-            column.setPadding(dp(20) + bars.left, dp(12) + bars.top,
-                    dp(20) + bars.right, dp(20) + bars.bottom);
+            scroll.setPadding(bars.left, bars.top + dp(8), bars.right, 0);
+            bar.setPadding(dp(20) + bars.left, dp(8), dp(20) + bars.right, dp(12) + bars.bottom);
             return insets;
         });
         overlay.requestApplyInsets();
@@ -971,26 +1042,10 @@ public final class PrismSettingsActivity extends Activity {
         }
     }
 
-    private LinearLayout settingsTile(String label, int iconRes, View.OnClickListener listener) {
-        LinearLayout tile = new LinearLayout(this);
-        tile.setOrientation(LinearLayout.VERTICAL);
-        tile.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), normalRadius(20, 14)));
-        tile.setPadding(dp(10), dp(10), dp(10), dp(10));
-        tile.setClickable(true);
-        tile.setFocusable(true);
-        feedback(tile);
-        ImageView icon = new ImageView(this);
-        icon.setImageResource(iconRes);
-        icon.setImageTintList(ColorStateList.valueOf(controlIconColor()));
-        tile.addView(icon, new LinearLayout.LayoutParams(dp(26), dp(26)));
-        TextView title = text(label, 16, getColor(R.color.ink), false);
-        title.setMaxLines(2);
-        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        title.setPadding(0, dp(7), 0, 0);
-        tile.addView(title);
-        bindTap(tile, listener);
-        tile.setContentDescription(label);
-        return tile;
+    private LinearLayout panelRow(Panels.Panel panel) {
+        LinearLayout row = runRow(panel.icon, panel.title, panel.sub, () -> openDetail(panel));
+        row.setMinimumHeight(dp(68));
+        return row;
     }
 
     private void openDetail(Panels.Panel panel) {
@@ -1013,139 +1068,128 @@ public final class PrismSettingsActivity extends Activity {
 
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
-        column.setPadding(dp(20), dp(16), dp(20), dp(24));
         overlay.addView(column, new FrameLayout.LayoutParams(-1, -1));
-        View top = new View(this) {
-            @Override protected void onDraw(Canvas canvas) {
-                // nothing
-            }
-        };
-        column.addView(top, new LinearLayout.LayoutParams(-1, dp(4)));
-
-        LinearLayout head = new LinearLayout(this);
-        head.setGravity(Gravity.CENTER_VERTICAL);
-        ImageView back = roundIcon(R.drawable.ic_back, getString(R.string.back));
-        bindTap(back, v -> closeDetail());
-        head.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        TextView label = text(getString(R.string.title), 14, getColor(R.color.muted), false);
-        label.setPadding(dp(11), 0, 0, 0);
-        head.addView(label);
-        column.addView(head);
 
         ScrollView scroll = new HapticScrollView(this);
         detailScroll = scroll;
         scroll.setVerticalScrollBarEnabled(false);
+        scroll.setClipToPadding(false);
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(0, dp(6), 0, 0);
+        body.setPadding(dp(20), 0, dp(20), dp(16));
         scroll.addView(body);
         column.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
 
-        TextView title = text(panel.title, 32, getColor(R.color.ink), false);
+        body.addView(reachSpacer());
+        TextView title = text(panel.title, 30, getColor(R.color.ink), false);
+        title.setTypeface(titleTypeface());
         title.setAccessibilityHeading(true);
-        title.setLetterSpacing(-0.02f);
-        title.setPadding(0, dp(10), 0, dp(4));
+        title.setPadding(dp(4), 0, 0, dp(4));
         body.addView(title);
         TextView sub = text(panel.sub, 15, getColor(R.color.muted), false);
-        sub.setPadding(0, 0, 0, dp(14));
+        sub.setPadding(dp(4), 0, 0, dp(8));
         body.addView(sub);
+
+        LinearLayout items = new LinearLayout(this);
+        items.setOrientation(LinearLayout.VERTICAL);
 
         switch (panel.id) {
             case "connect" -> {
-                body.addView(actionRow(R.drawable.ic_wifi, "Wi-Fi", "Networks and internet",
+                items.addView(actionRow(R.drawable.ic_wifi, "Wi-Fi", "Networks and internet",
                         Settings.ACTION_WIFI_SETTINGS));
-                body.addView(actionRow(R.drawable.ic_bluetooth, "Bluetooth", "Paired devices",
+                items.addView(actionRow(R.drawable.ic_bluetooth, "Bluetooth", "Paired devices",
                         Settings.ACTION_BLUETOOTH_SETTINGS));
-                body.addView(actionRow(R.drawable.ic_wifi, "Mobile data", "Data usage",
+                items.addView(actionRow(R.drawable.ic_wifi, "Mobile data", "Data usage",
                         Settings.ACTION_DATA_USAGE_SETTINGS));
-                body.addView(actionRow(R.drawable.ic_wifi, "Airplane mode", "Radio controls",
+                items.addView(actionRow(R.drawable.ic_wifi, "Airplane mode", "Radio controls",
                         Settings.ACTION_AIRPLANE_MODE_SETTINGS));
             }
             case "display" -> {
-                body.addView(card(brightnessSlider()));
-                body.addView(card(depthSwitch()));
-                body.addView(actionRow(R.drawable.ic_display, "Text size & display",
+                items.addView(brightnessSlider());
+                items.addView(depthSwitch());
+                items.addView(actionRow(R.drawable.ic_display, "Text size & display",
                         "Full display settings", Settings.ACTION_DISPLAY_SETTINGS));
             }
             case "notifications" -> {
-                body.addView(actionRow(R.drawable.ic_bell, "Notification settings",
+                items.addView(actionRow(R.drawable.ic_bell, "Notification settings",
                         "Alerts, importance, lock screen", "android.settings.NOTIFICATION_SETTINGS"));
-                body.addView(actionRow(R.drawable.ic_bell, "Notification history",
+                items.addView(actionRow(R.drawable.ic_bell, "Notification history",
                         "Recently dismissed", "android.settings.NOTIFICATION_HISTORY"));
-                body.addView(card(notificationStartControl()));
+                items.addView(notificationStartControl());
             }
             case "sound" -> {
-                body.addView(card(volumeSlider()));
-                body.addView(actionRow(R.drawable.ic_sound, "Do Not Disturb",
+                items.addView(volumeSlider());
+                items.addView(actionRow(R.drawable.ic_sound, "Do Not Disturb",
                         "Quiet time and exceptions", "android.settings.ZEN_MODE_SETTINGS"));
-                body.addView(actionRow(R.drawable.ic_sound, "Sound & vibration",
+                items.addView(actionRow(R.drawable.ic_sound, "Sound & vibration",
                         "Ringtones, touch feedback", Settings.ACTION_SOUND_SETTINGS));
             }
             case "privacy" -> {
-                body.addView(actionRow(R.drawable.ic_shield, "Privacy controls",
+                items.addView(actionRow(R.drawable.ic_shield, "Privacy controls",
                         "Camera, microphone, location", "android.settings.PRIVACY_SETTINGS"));
-                body.addView(actionRow(R.drawable.ic_shield, "Location access",
+                items.addView(actionRow(R.drawable.ic_shield, "Location access",
                         "Recent requests and toggles", Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-                body.addView(actionRow(R.drawable.ic_shield, "Security",
+                items.addView(actionRow(R.drawable.ic_shield, "Security",
                         "Screen lock and accounts", Settings.ACTION_SECURITY_SETTINGS));
             }
             case "battery" -> {
                 BatteryManager battery = getSystemService(BatteryManager.class);
                 int level = battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-                body.addView(infoRow("Battery level", level >= 0 && level <= 100
+                items.addView(infoRow("Battery level", level >= 0 && level <= 100
                         ? level + "%" : "Unavailable"));
-                body.addView(actionRow(R.drawable.ic_battery, "Battery saver",
+                items.addView(actionRow(R.drawable.ic_battery, "Battery saver",
                         "Extend the last few percent", Settings.ACTION_BATTERY_SAVER_SETTINGS));
-                body.addView(actionRow(R.drawable.ic_battery, "Battery usage",
+                items.addView(actionRow(R.drawable.ic_battery, "Battery usage",
                         "App and system drain", Intent.ACTION_POWER_USAGE_SUMMARY));
             }
             case "apps" -> {
-                body.addView(actionRow(R.drawable.ic_apps, "All apps",
+                items.addView(actionRow(R.drawable.ic_apps, "All apps",
                         "Manage installed applications", Settings.ACTION_APPLICATION_SETTINGS));
-                body.addView(actionRow(R.drawable.ic_apps, "Storage",
+                items.addView(actionRow(R.drawable.ic_apps, "Storage",
                         "Free space and cleanup", Settings.ACTION_INTERNAL_STORAGE_SETTINGS));
-                body.addView(actionRow(R.drawable.ic_apps, "Default apps",
+                items.addView(actionRow(R.drawable.ic_apps, "Default apps",
                         "Browsers, phone, home", Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS));
             }
             case "about" -> {
-                body.addView(infoRow(getString(R.string.device_name), deviceName()));
-                body.addView(infoRow(getString(R.string.petal_version), petalVersion()));
-                body.addView(infoRow(getString(R.string.android_version), Build.VERSION.RELEASE
-                        + " · API " + Build.VERSION.SDK_INT));
-                body.addView(infoRow(getString(R.string.build_number), petalBuild));
-                body.addView(actionRow(R.drawable.ic_info, "Device info",
+                items.addView(infoRow(getString(R.string.device_name), deviceName()));
+                items.addView(infoRow(getString(R.string.petal_version), petalVersion()));
+                items.addView(infoRow(getString(R.string.android_version), Build.VERSION.RELEASE
+                        + " (API " + Build.VERSION.SDK_INT + ")"));
+                items.addView(infoRow(getString(R.string.build_number), petalBuild));
+                items.addView(actionRow(R.drawable.ic_info, "Device info",
                         "Full system information", Settings.ACTION_DEVICE_INFO_SETTINGS));
-                body.addView(runRow(R.drawable.ic_apps, getString(R.string.go_to_aosp_settings),
+                items.addView(runRow(R.drawable.ic_apps, getString(R.string.go_to_aosp_settings),
                         null, this::openAospSettings));
             }
             default -> {
                 for (Panels.Action action : panel.actions) {
-                    body.addView(actionRow(action.icon, action.label, action.help,
+                    items.addView(actionRow(action.icon, action.label, action.help,
                             action.action));
                 }
             }
             case "hub" -> {
-                body.addView(runRow(R.drawable.ic_petal, "Open petalOS Hub",
+                items.addView(runRow(R.drawable.ic_petal, "Open petalOS Hub",
                         "Themes, island, launcher, updates", this::openHub));
-                body.addView(runRow(R.drawable.ic_info, "petalOS version",
+                items.addView(runRow(R.drawable.ic_info, "petalOS version",
                         "Version and credits", this::openHubVersion));
-                body.addView(infoRow(getString(R.string.petal_version), petalBuild));
+                items.addView(infoRow(getString(R.string.petal_version), petalBuild));
             }
         }
 
-        TextView all = chip(getString(R.string.view_all_settings));
-        all.setGravity(Gravity.CENTER);
-        bindTap(all, v -> openAllSettings());
-        LinearLayout.LayoutParams allParams = new LinearLayout.LayoutParams(-1, -2);
-        allParams.topMargin = dp(16);
-        body.addView(all, allParams);
+        addGrouped(body, items);
+
+        LinearLayout bar = pageBar(getString(R.string.view_all_settings), null,
+                v -> openAllSettings());
+        column.addView(bar, new LinearLayout.LayoutParams(-1, -2));
 
         root.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
+        setHomeChromeVisible(false);
         homeScroll.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         overlay.setOnApplyWindowInsetsListener((view, insets) -> {
             android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars()
                     | WindowInsets.Type.displayCutout());
-            column.setPadding(dp(20), dp(16) + bars.top, dp(20), dp(24) + bars.bottom);
+            scroll.setPadding(bars.left, bars.top + dp(8), bars.right, 0);
+            bar.setPadding(dp(20) + bars.left, dp(8), dp(20) + bars.right, dp(12) + bars.bottom);
             return insets;
         });
         overlay.requestApplyInsets();
@@ -1179,6 +1223,7 @@ public final class PrismSettingsActivity extends Activity {
         }
         appResults = null;
         appQuery = null;
+        setHomeChromeVisible(true);
         homeScroll.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
         buildPeek(carousel.current());
         if (ValueAnimator.areAnimatorsEnabled()) {
@@ -1216,10 +1261,124 @@ public final class PrismSettingsActivity extends Activity {
         return view;
     }
 
+    // rubik everywhere now, the eggs just get to shout in 700
     private Typeface uiTypeface(boolean bold) {
-        return egg || nxe
-                ? Typeface.create(getResources().getFont(R.font.petal_rubik), bold ? Typeface.BOLD : Typeface.NORMAL)
-                : Typeface.create(bold ? "sans-serif-medium" : "sans-serif", Typeface.NORMAL);
+        Typeface rubik = getResources().getFont(R.font.petal_rubik);
+        return Typeface.create(rubik, bold ? (egg || nxe ? 700 : 500) : 400, false);
+    }
+
+    // theres no 600 cut shipped, 500 beats a fake-bolded mess
+    private Typeface titleTypeface() {
+        return Typeface.create(getResources().getFont(R.font.petal_rubik),
+                egg || nxe ? 700 : 500, false);
+    }
+
+    private ImageView chevron() {
+        ImageView arrow = new ImageView(this);
+        arrow.setImageResource(R.drawable.ic_arrow);
+        arrow.setImageTintList(ColorStateList.valueOf(getColor(R.color.muted)));
+        arrow.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        arrow.setLayoutParams(new LinearLayout.LayoutParams(dp(20), dp(20)));
+        return arrow;
+    }
+
+    // hairline between rows, tucked past the icon if the row below has one
+    private View divider(View below) {
+        View line = new View(this);
+        line.setBackgroundColor(getColor(R.color.line));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, 1);
+        params.setMarginStart(below != null && "link".equals(below.getTag()) ? dp(36) : 0);
+        line.setLayoutParams(params);
+        line.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        return line;
+    }
+
+    // one card, shared corners, rows inside. stops the floaty loose-rows-on-glass look
+    private LinearLayout group(java.util.List<? extends View> rows) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setBackground(rounded(getColor(R.color.card), getColor(R.color.line),
+                normalRadius(28, 24)));
+        box.setPadding(dp(16), dp(4), dp(16), dp(4));
+        for (int i = 0; i < rows.size(); i++) {
+            View row = rows.get(i);
+            if (row.getParent() instanceof ViewGroup old) old.removeView(row);
+            if (i > 0) box.addView(divider(row));
+            box.addView(row, new LinearLayout.LayoutParams(-1, -2));
+        }
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.topMargin = dp(12);
+        box.setLayoutParams(params);
+        return box;
+    }
+
+    // splits whatever got built into controls vs links so each lands in its own card
+    private void addGrouped(LinearLayout body, LinearLayout items) {
+        java.util.List<View> run = new java.util.ArrayList<>();
+        Object kind = null;
+        while (items.getChildCount() > 0) {
+            View row = items.getChildAt(0);
+            items.removeViewAt(0);
+            Object next = "link".equals(row.getTag()) ? "link" : "control";
+            if (kind != null && !kind.equals(next) && !run.isEmpty()) {
+                body.addView(group(run));
+                run = new java.util.ArrayList<>();
+            }
+            kind = next;
+            run.add(row);
+        }
+        if (!run.isEmpty()) body.addView(group(run));
+    }
+
+    private TextView groupLabel(String label) {
+        TextView view = text(label, 14, getColor(R.color.muted), true);
+        view.setAccessibilityHeading(true);
+        view.setPadding(dp(4), dp(22), 0, 0);
+        return view;
+    }
+
+    // pages open with their title about a sixth down, rows land where the thumb is
+    private View reachSpacer() {
+        View gap = new View(this);
+        int screen = getResources().getDisplayMetrics().heightPixels;
+        boolean bigText = getResources().getConfiguration().fontScale > 1.3f;
+        int height = bigText ? dp(8) : Math.max(dp(40), Math.min(dp(140), Math.round(screen * .16f)));
+        gap.setLayoutParams(new LinearLayout.LayoutParams(-1, height));
+        return gap;
+    }
+
+    // back + one action down at the bottom, both under the thumb
+    private LinearLayout pageBar(String actionLabel, String actionDescription,
+            View.OnClickListener action) {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView back = roundIcon(R.drawable.ic_back, getString(R.string.back));
+        back.setBackground(rounded(getColor(R.color.floating), getColor(R.color.line), 28));
+        back.setElevation(dp(6));
+        back.setPadding(dp(16), dp(16), dp(16), dp(16));
+        bindTap(back, v -> closeDetail());
+        bar.addView(back, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        if (actionLabel != null) {
+            View spring = new View(this);
+            bar.addView(spring, new LinearLayout.LayoutParams(0, 1, 1f));
+            TextView pill = text(actionLabel, 15, getColor(R.color.accent), true);
+            pill.setGravity(Gravity.CENTER);
+            pill.setMinimumHeight(dp(56));
+            pill.setPadding(dp(22), 0, dp(22), 0);
+            pill.setBackground(rounded(getColor(R.color.floating), getColor(R.color.line), 28));
+            pill.setElevation(dp(6));
+            pill.setClickable(true);
+            pill.setFocusable(true);
+            if (actionDescription != null) pill.setContentDescription(actionDescription);
+            feedback(pill, 28);
+            bindTap(pill, action);
+            bar.addView(pill, new LinearLayout.LayoutParams(-2, dp(56)));
+        }
+        return bar;
+    }
+
+    private void setHomeChromeVisible(boolean visible) {
+        if (homeDock != null) homeDock.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     private int controlIconColor() {
@@ -1252,10 +1411,14 @@ public final class PrismSettingsActivity extends Activity {
     }
 
     private void feedback(View view) {
+        feedback(view, normalRadius(20, 12));
+    }
+
+    private void feedback(View view, float radiusDp) {
         view.setSoundEffectsEnabled(true);
         view.setHapticFeedbackEnabled(true);
         view.setForeground(new RippleDrawable(ColorStateList.valueOf(getColor(R.color.soft)),
-                null, rounded(0xFFFFFFFF, 0, normalRadius(20, 12))));
+                null, rounded(0xFFFFFFFF, 0, radiusDp)));
     }
 
     private void bindTap(View view, View.OnClickListener listener) {
@@ -1273,18 +1436,6 @@ public final class PrismSettingsActivity extends Activity {
         shape.setCornerRadius(dp(radiusDp));
         shape.setStroke(Math.max(1, dp(1)), stroke);
         return shape;
-    }
-
-    private LinearLayout card(View child) {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setBackground(rounded(getColor(R.color.card), getColor(R.color.line), normalRadius(24, 16)));
-        box.setPadding(dp(12), dp(4), dp(12), dp(4));
-        box.addView(child);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.topMargin = dp(10);
-        box.setLayoutParams(params);
-        return box;
     }
 
     private LinearLayout switchRow(String label, String help, boolean checked,
@@ -1442,6 +1593,8 @@ public final class PrismSettingsActivity extends Activity {
             labels.addView(sub);
         }
         row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
+        row.addView(chevron());
+        row.setTag("link");
         bindTap(row, v -> openSystem(action));
         row.setContentDescription(label + (help == null ? "" : ", " + help)
                 + ". " + getString(R.string.system_screen));
@@ -1519,6 +1672,8 @@ public final class PrismSettingsActivity extends Activity {
             labels.addView(sub);
         }
         row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
+        row.addView(chevron());
+        row.setTag("link");
         row.setContentDescription(label + (help == null ? "" : ", " + help));
         bindTap(row, v -> action.run());
         return row;
@@ -1598,6 +1753,9 @@ public final class PrismSettingsActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // battery/radios/write access all go stale while youre off in AOSP land
+        buildGlance();
+        buildQuick();
         if (carousel != null) buildPeek(carousel.current());
         if (detailPanel != null) {
             int scrollY = detailScroll == null ? 0 : detailScroll.getScrollY();

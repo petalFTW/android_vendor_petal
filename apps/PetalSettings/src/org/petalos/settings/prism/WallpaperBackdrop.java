@@ -15,7 +15,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 
-/** Home wallpaper, centre-cropped and heavily blurred, under a readable scrim. */
+// blurred home wallpaper w/ a scrim so text dont drown
 final class WallpaperBackdrop extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Matrix matrix = new Matrix();
@@ -38,7 +38,7 @@ final class WallpaperBackdrop extends View {
             Log.w("PetalSettings", "Wallpaper unavailable", unavailable);
         }
         wallpaper = drawable;
-        // A wallpaper drawable is not required to report an intrinsic size.
+        // some wallpapers dont report a size, cheers
         DisplayMetrics metrics = getResources().getDisplayMetrics();
         int w = wallpaper == null ? 0 : wallpaper.getIntrinsicWidth();
         int h = wallpaper == null ? 0 : wallpaper.getIntrinsicHeight();
@@ -58,7 +58,9 @@ final class WallpaperBackdrop extends View {
         width = w;
         height = h;
         scrim = new LinearGradient(0, 0, 0, h,
-                new int[] {0x33090A0E, 0x17090A0E, 0x5C090A0E},
+                new int[] {getContext().getColor(R.color.backdrop_top),
+                        getContext().getColor(R.color.backdrop_mid),
+                        getContext().getColor(R.color.backdrop_bottom)},
                 new float[] {0f, 0.45f, 1f}, Shader.TileMode.CLAMP);
         if (wallpaper == null || w == 0 || h == 0) return;
         float scale = Math.max(w / (float) sourceWidth, h / (float) sourceHeight);

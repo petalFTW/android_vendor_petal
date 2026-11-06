@@ -67,7 +67,7 @@ final class PanelCard extends FrameLayout {
         title.setText(panel.title);
         title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,
                 getResources().getDimension(R.dimen.settings_title_size));
-        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        title.setTypeface(Typeface.create(getResources().getFont(R.font.petal_rubik), 500, false));
         title.setLetterSpacing(-0.01f);
         title.setTextColor(context.getColor(R.color.ink));
         title.setMaxLines(1);
@@ -79,7 +79,7 @@ final class PanelCard extends FrameLayout {
         sub.setText(panel.sub);
         sub.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX,
                 getResources().getDimension(R.dimen.settings_summary_size));
-        sub.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+        sub.setTypeface(Typeface.create(getResources().getFont(R.font.petal_rubik), 400, false));
         sub.setTextColor(context.getColor(R.color.muted));
         sub.setLineSpacing(dp(1), 1f);
         sub.setMaxLines(2);
@@ -87,7 +87,7 @@ final class PanelCard extends FrameLayout {
         addView(sub, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM | Gravity.START));
 
-        setPadding(dp(22), dp(22), dp(22), dp(22));
+        setPadding(dp(20), dp(18), dp(20), dp(18));
         setContentDescription(panel.title + ", " + panel.sub);
         icon.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
         title.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -95,8 +95,9 @@ final class PanelCard extends FrameLayout {
 
         GradientDrawable mask = new GradientDrawable();
         mask.setColor(0xFFFFFFFF);
-        mask.setCornerRadius(dp(18));
-        setForeground(new RippleDrawable(ColorStateList.valueOf(0x24FFFFFF), null, mask));
+        mask.setCornerRadius(dp(22));
+        setForeground(new RippleDrawable(ColorStateList.valueOf(
+                context.getColor(R.color.soft)), null, mask));
         petal = context.getDrawable(R.drawable.ic_petal);
         dashboardIcon = context.getDrawable(panel.icon).mutate();
     }
@@ -122,8 +123,9 @@ final class PanelCard extends FrameLayout {
     private void updateRipple() {
         GradientDrawable mask = new GradientDrawable();
         mask.setColor(Color.WHITE);
-        mask.setCornerRadius(dp(nxe ? 3 : cartridge ? 27 : 18));
-        setForeground(new RippleDrawable(ColorStateList.valueOf(0x24FFFFFF), null, mask));
+        mask.setCornerRadius(dp(nxe ? 3 : cartridge ? 27 : 22));
+        setForeground(new RippleDrawable(ColorStateList.valueOf(nxe || cartridge ? 0x24FFFFFF
+                : getContext().getColor(R.color.soft)), null, mask));
     }
 
     private void updateContentVisibility() {
@@ -218,7 +220,8 @@ final class PanelCard extends FrameLayout {
     }
 
     private void drawTile(Canvas canvas) {
-        float r = dp(18);
+        // 22 is the tile radius in the guidance, 18 was freelancing
+        float r = dp(22);
         rect.set(dp(0.5f), dp(0.5f), getWidth() - dp(0.5f), getHeight() - dp(0.5f));
 
         paint.setStyle(Paint.Style.FILL);
@@ -261,8 +264,7 @@ final class PanelCard extends FrameLayout {
         paint.setColor(0x55000000);
         canvas.drawPath(shell, paint);
 
-        // The top-right insertion tab is the 3DS card's signature. The darker
-        // inner edge keeps the step readable when another cartridge sits behind.
+        // the notch tab, darker inner edge or it vanishes when carts stack
         paint.setStrokeWidth(Math.max(1f, dp(0.8f)));
         paint.setColor(0x33000000);
         canvas.drawLine(bodyW, tabH + dp(3), bodyW, h - r, paint);
@@ -277,8 +279,7 @@ final class PanelCard extends FrameLayout {
         canvas.drawRect(dp(10), h - dp(7), dp(12), h - dp(2), paint);
         canvas.drawRect(bodyW - dp(12), h - dp(7), bodyW - dp(10), h - dp(2), paint);
 
-        // Recessed paper label with the same generous plastic border as the
-        // real card: about 8% on the sides and 13-15% on top and bottom.
+        // sunk label, ~8% plastic on the sides, 13-15% top and bottom
         float side = Math.max(dp(18), bodyW * 0.085f);
         float labelTop = tabH + dp(4);
         float labelBottom = h - h * 0.12f;
@@ -424,7 +425,7 @@ final class PanelCard extends FrameLayout {
 
     private GradientDrawable iconChip() {
         GradientDrawable chip = new GradientDrawable();
-        chip.setColor(0x0FFFFFFF);
+        chip.setColor(getContext().getColor(R.color.card_strong));
         chip.setCornerRadius(dp(12));
         return chip;
     }

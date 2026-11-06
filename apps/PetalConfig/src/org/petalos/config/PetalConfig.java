@@ -35,6 +35,7 @@ public final class PetalConfig {
     public static final int NOTIFICATION_STYLE_EXISTING = 0;
     public static final int NOTIFICATION_STYLE_ISLAND_GLASS = 1;
     public static final int NOTIFICATION_STYLE_PETAL_SILK = 2;
+    public static final int DEFAULT_NOTIFICATION_STYLE = NOTIFICATION_STYLE_PETAL_SILK;
 
     private PetalConfig() {}
 
@@ -208,7 +209,7 @@ public final class PetalConfig {
     public static final int DISABLED = -1;
 
     // default blur, keeps some wallpaper detail
-    public static final int DEFAULT_BLUR_INTENSITY = 70;
+    public static final int DEFAULT_BLUR_INTENSITY = 50;
     public static final int DEFAULT_APPS_BLUR_INTENSITY = 40;
     // island blur, a bit softer than the shade by default
     public static final int DEFAULT_ISLAND_BLUR_INTENSITY = 50;
@@ -218,15 +219,12 @@ public final class PetalConfig {
     public static final int DEFAULT_ISLAND_CHROMA = 50;
     // island pop-out, a bit above half so it reads as raised by default
     public static final int DEFAULT_ISLAND_POPOUT = 60;
-    // Start with a frosted centre, keep the rim readable.
-    public static final int DEFAULT_QS_MEDIA_ART_BLUR = 50;
-    public static final int DEFAULT_QS_MEDIA_REFRACTION = 50;
     /** 100% on the media art slider maps to this many dp */
     public static final float QS_MEDIA_ART_BLUR_MAX_DP = 32f;
     /** fully opaque by default */
     public static final int DEFAULT_ALPHA = 255;
     // emission default, readable at a glance
-    public static final int DEFAULT_QS_EMISSION = 60;
+    public static final int DEFAULT_QS_EMISSION = 80;
 
     // read/write the QS values
 
@@ -236,7 +234,7 @@ public final class PetalConfig {
 
     /** QS skin state */
     public static boolean isQsSkinEnabled(Context context) {
-        return Settings.System.getInt(context.getContentResolver(), KEY_QS_SKIN_ENABLED, 0) == 1;
+        return Settings.System.getInt(context.getContentResolver(), KEY_QS_SKIN_ENABLED, 1) == 1;
     }
 
     public static String getQsReachMode(Context context) {
@@ -245,16 +243,13 @@ public final class PetalConfig {
                 ? mode : QS_REACH_BALANCED;
     }
 
-    /** album art blur as a fraction, 0 means off */
+    // media blur + refraction sliders got binned, did sod all. pinned off for good
     public static float getQsMediaArtBlurScale(Context context) {
-        int intensity = Settings.System.getInt(
-                context.getContentResolver(), KEY_QS_MEDIA_ART_BLUR, DEFAULT_QS_MEDIA_ART_BLUR);
-        return clamp(intensity, 0, 100) / 100f;
+        return 0f;
     }
 
     public static float getQsMediaRefractionScale(Context context) {
-        return clamp(Settings.System.getInt(context.getContentResolver(),
-                KEY_QS_MEDIA_REFRACTION, DEFAULT_QS_MEDIA_REFRACTION), 0, 100) / 100f;
+        return 0f;
     }
 
     // tile emission, same as the key above
@@ -485,7 +480,7 @@ public final class PetalConfig {
 
     /** seamless unlock state */
     public static boolean isSeamlessUnlockEnabled(Context context) {
-        return Settings.System.getInt(context.getContentResolver(), KEY_SEAMLESS_UNLOCK, 0) == 1;
+        return Settings.System.getInt(context.getContentResolver(), KEY_SEAMLESS_UNLOCK, 1) == 1;
     }
 
     /** pack package, null = stock */

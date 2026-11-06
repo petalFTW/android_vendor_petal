@@ -93,34 +93,6 @@ public class QuickSettingsFragment extends PetalPreferenceFragment {
             blur.setSummary(getString(R.string.qs_blur_summary, value));
             return true;
         });
-
-        SeekBarPreference mediaArtBlur = findPreference("qs_media_art_blur");
-        mediaArtBlur.setMin(0);
-        mediaArtBlur.setMax(100);
-        int mediaArtBlurValue = Math.round(
-                PetalConfig.getQsMediaArtBlurScale(requireContext()) * 100);
-        mediaArtBlur.setValue(mediaArtBlurValue);
-        mediaArtBlur.setSummary(getString(R.string.qs_media_art_blur_summary, mediaArtBlurValue));
-        mediaArtBlur.setOnPreferenceChangeListener((pref, newValue) -> {
-            int value = (int) newValue;
-            putInt(PetalConfig.KEY_QS_MEDIA_ART_BLUR, value);
-            mediaArtBlur.setSummary(getString(R.string.qs_media_art_blur_summary, value));
-            return true;
-        });
-
-        SeekBarPreference refraction = findPreference("qs_media_refraction");
-        refraction.setMin(0);
-        refraction.setMax(100);
-        int refractionValue = Math.round(
-                PetalConfig.getQsMediaRefractionScale(requireContext()) * 100);
-        refraction.setValue(refractionValue);
-        refraction.setSummary(getString(R.string.qs_media_refraction_summary, refractionValue));
-        refraction.setOnPreferenceChangeListener((pref, newValue) -> {
-            int value = (int) newValue;
-            putInt(PetalConfig.KEY_QS_MEDIA_REFRACTION, value);
-            refraction.setSummary(getString(R.string.qs_media_refraction_summary, value));
-            return true;
-        });
     }
 
     private int readPaletteColor() {

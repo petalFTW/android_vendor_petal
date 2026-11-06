@@ -50,14 +50,15 @@ public class IslandFragment extends PetalPreferenceFragment {
         });
 
         SwitchPreferenceCompat popup = findPreference("petal_aod_popup_enabled");
-        popup.setChecked(getSecureInt("petal_aod_popup_enabled", 0) == 1);
+        popup.setChecked(getSecureInt("petal_aod_popup_enabled", 1) == 1);
         popup.setOnPreferenceChangeListener((pref, newValue) -> {
             putSecureInt("petal_aod_popup_enabled", (Boolean) newValue ? 1 : 0);
             return true;
         });
 
         ListPreference popupStyle = findPreference("petal_aod_popup_style");
-        popupStyle.setValue(Integer.toString(getSecureInt("petal_aod_popup_style", 0) == 1 ? 1 : 0));
+        // pure black out the box, follow-appearance is the opt-out now
+        popupStyle.setValue(Integer.toString(getSecureInt("petal_aod_popup_style", 1) == 1 ? 1 : 0));
         popupStyle.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
         popupStyle.setOnPreferenceChangeListener((pref, newValue) -> {
             putSecureInt("petal_aod_popup_style", Integer.parseInt((String) newValue));
@@ -65,8 +66,10 @@ public class IslandFragment extends PetalPreferenceFragment {
         });
 
         ListPreference style = findPreference(PetalConfig.KEY_NOTIFICATION_STYLE);
-        int selected = getSecureInt(PetalConfig.KEY_NOTIFICATION_STYLE, 0);
-        style.setValue(Integer.toString(selected >= 0 && selected <= 2 ? selected : 0));
+        int selected = getSecureInt(PetalConfig.KEY_NOTIFICATION_STYLE,
+                PetalConfig.DEFAULT_NOTIFICATION_STYLE);
+        style.setValue(Integer.toString(selected >= 0 && selected <= 2
+                ? selected : PetalConfig.DEFAULT_NOTIFICATION_STYLE));
         style.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
         glass.setEnabled("0".equals(style.getValue()));
         style.setOnPreferenceChangeListener((pref, newValue) -> {
