@@ -210,6 +210,8 @@ public final class CarData {
     // island
     public Signal nextSignal() { return signals.poll(); }
     public boolean hasSignal() { return !signals.isEmpty(); }
+    // whatever piled up while no car was attached is old news by the time one connects
+    public void dropSignals() { signals.clear(); }
 
     // last thing each notif key showed so re-posts don't ding again
     private final java.util.Map<String, String> shown = new java.util.HashMap<>();

@@ -100,12 +100,13 @@ final class Island {
         w.to(capsuleWidth(), 300, .68f);
         h.to(CAPSULE_H, 300, .68f); radius.to(CORNER_CAPSULE, 300, .68f); y.to(TOP, 520, .9f);
     }
-    // capsule fits icon + text (+eq), max 60% width
+    // capsule fits icon + text (+eq), max the card's width. a few px slack: sized to the exact measured width the
+    // ellipsizer's own measure came out a hair wider and cut nearly every title
     private float capsuleWidth() {
         if (signal == null) return CAPSULE_MIN;
         float label = measure.width(signal.title, 18, 2);
         float eq = signal.kind == CarData.Signal.Kind.MEDIA ? 30 : 0;
-        return Math.max(CAPSULE_MIN, Math.min(layoutWidth * .7f, 8 + 24 + 10 + label + 14 + eq));
+        return Math.max(CAPSULE_MIN, Math.min(layoutWidth * CARD_SHARE, 8 + 24 + 10 + label + 14 + eq + 8));
     }
     // card fits its widest line, max full width
     // incoming card always takes 90% of the screen width

@@ -399,7 +399,8 @@ public final class CarUi {
         boolean starting = on && !session;
         session = on; overWifi = on && wifi; dirty = true;
         if (starting) {
-            // what's already in the shade goes straight onto the car, not just whatever arrives from now on
+            // what's already in the shade goes straight onto the car (carousel, not island), only new ones ping
+            data.dropSignals();
             org.petal.catback.car.PetalNotificationListener.rescan(context);
             listenVolume(true);
         }
