@@ -22,6 +22,22 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
         void key(int code);
         void evidence(String name, byte[] data);
         default void audioReady(ProjectionSession session) { }
+        // rotary knob detents, + clockwise
+        default void rotate(int delta) { }
+        // Settings.LAYOUT_* and whether to ask for the panel's own resolution on small screens
+        default String screenLayout() { return "auto"; }
+        default boolean nativeVideo() { return true; }
+    }
+    // knob, dpad + centre/enter, hardware nav/media/phone buttons. only asked for if the car lists them
+    private static final int[] WANTED_KEYS = {3, 4, 19, 20, 21, 22, 23, 24, 25, 66, 164, 85, 87, 88, 126, 127, 65536, 65537, 65538, 65540};
+    private static final int[] LEGACY_KEYS = {3, 4, 85, 87, 88, 126, 127};
+    private static int[] bindKeys(List<Integer> advertised) {
+        if (advertised.isEmpty()) return LEGACY_KEYS;
+        List<Integer> keys = new ArrayList<>();
+        for (int k : WANTED_KEYS) if (advertised.contains(k)) keys.add(k);
+        int[] out = new int[keys.size()];
+        for (int i = 0; i < out.length; i++) out[i] = keys.get(i);
+        return out;
     }
     // 1 guidance 2 system 3 media 4 telephony. media first, cheap aftermarket screens only have system so fall back
     private static int audioRank(long type) { return type == 3 ? 3 : type == 2 ? 2 : type == 1 ? 1 : 0; }
@@ -30,7 +46,11 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
         // visible bit of the frame, car crops margins evenly and may nick more for its own ui
         public int contentLeft, contentTop, contentWidth, contentHeight;
         // ui units, 480 tall, width follows real aspect
-        public float layoutWidth = 800, layoutHeight = 480;
+        public volatile float layoutWidth = 800, layoutHeight = 480;
+        // small panel: rail layout on a shorter canvas so everything draws bigger
+        public volatile boolean compact;
+        // 2 = render at twice the size and land at half (Supersampler), set by the service from settings
+        public int supersample = 1;
         public VideoConfig(int w, int h, int f, int i) {
             width = w; height = h; fps = f; index = i;
             contentWidth = w; contentHeight = h;
@@ -48,11 +68,20 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
             contentWidth = width - left - right; contentHeight = height - top - bottom;
             // stretched pixels, lay out for what the driver actually sees
             float aspect = contentWidth / (float) contentHeight * (pixelAspectE4 > 0 ? pixelAspectE4 / 10000f : 1f);
-            layoutHeight = 480;
-            layoutWidth = Math.max(560, Math.min(1600, 480 * aspect));
+            layoutHeight = compact ? COMPACT_HEIGHT : 480;
+            float k = layoutHeight / 480f;
+            layoutWidth = Math.max(560 * k, Math.min(1600 * k, layoutHeight * aspect));
         }
         private static int clamp(int value, int low, int high) { return Math.max(low, Math.min(high, value)); }
+        // swap layouts mid-session (battery taps): same video stream, just the other canvas. keeps the visible aspect
+        public void relayout(boolean rail) {
+            float aspect = layoutWidth / layoutHeight, h = rail ? COMPACT_HEIGHT : 480, k = h / 480f;
+            layoutWidth = Math.max(560 * k, Math.min(1600 * k, h * aspect));
+            layoutHeight = h; compact = rail;
+        }
     }
+    // 800x480 panel draws 384 tall = 1.25px per unit, text and targets come out a quarter bigger
+    public static final float COMPACT_HEIGHT = 384;
     public static final class AudioConfig {
         public int rate, channels, index;
         public AudioConfig(int r, int c, int i) { rate = r; channels = c; index = i; }
@@ -84,7 +113,7 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
     private static final class Channel {
         int id, kind, audioType, maxUnacked = 1;
         volatile int session = 1;
-        volatile boolean opened, configured, started;
+        volatile boolean opened, configured, started, rejected;
         Proto.Message descriptor;
         final Window window = new Window();
         Channel(int id, int kind, Proto.Message descriptor) { this.id = id; this.kind = kind; this.descriptor = descriptor; }
@@ -93,6 +122,8 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
     private final Host host;
     private final Map<Integer, Channel> channels = new ConcurrentHashMap<>();
     private volatile Channel video, audio;
+    // other pcm sinks, best first, tried if the car turns down the one we picked
+    private final List<Channel> audioFallbacks = new ArrayList<>();
     private volatile VideoConfig videoConfig;
     private volatile AudioConfig audioConfig;
     private volatile boolean authenticated, closed, videoFocused, audioFocused, mediaAudio;
@@ -114,9 +145,10 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
         if (!authenticated || !encrypted) throw new IOException("Service message before encrypted authentication");
         Channel c = channels.get(channel);
         if (c == null || !c.opened) throw new IOException("Message on unopened channel " + channel);
+        if (c.rejected) return;
         Proto.Message p = new Proto.Message(body);
         if (c.kind == 3 || c.kind == 1) {
-            if (id == 0x8003) setup(c, p);
+            if (id == 0x8003) setup(c, p, body);
             else if (id == 0x8004) {
                 if (p.integer(1, -1) == c.session) c.window.acknowledge((int) p.integer(2, 0));
                 else host.log("Ignoring old ACK on ch=" + c.id + " session=" + p.integer(1, -1) + "; current=" + c.session);
@@ -165,13 +197,19 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
             else if (id == 8) {
                 Channel c = channels.get(channel);
                 if (c == null || c.opened) throw new IOException("Unexpected channel-open response");
-                if (new Proto.Message(body).integer(1, 0) != 0) throw new IOException("Channel " + channel + " rejected");
+                long status = new Proto.Message(body).integer(1, 0);
                 c.opened = true;
+                if (status != 0 && c == audio) { audioRejected(c, "open status=" + status); return; }
+                if (status != 0) throw new IOException("Channel " + channel + " rejected");
                 if (c.kind == 3 || c.kind == 1)
                     send(channel, false, true, 0x8000, new Proto.Writer().integer(1, c.kind == 3 ? 3 : 1).build());
-                else if (c.kind == 4)
-                    send(channel, false, true, 0x8002, new Proto.Writer().integer(1, 3).integer(1, 4)
-                            .integer(1, 85).integer(1, 87).integer(1, 88).integer(1, 126).integer(1, 127).build());
+                else if (c.kind == 4) {
+                    int[] keys = bindKeys(c.descriptor.integers(1));
+                    Proto.Writer binding = new Proto.Writer();
+                    for (int k : keys) binding.integer(1, k);
+                    host.log("Binding car keys " + java.util.Arrays.toString(keys));
+                    send(channel, false, true, 0x8002, binding.build());
+                }
             } else if (id == 19 && channel == 0) {
                 long state = new Proto.Message(body).integer(1, 0);
                 audioFocused = state == 1 || state == 2 || state == 6 || state == 7;
@@ -200,10 +238,8 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
                 // newer sinks skip field 1 and stick the codec in field 10 (stock DHU does this)
                 if (video == null && !av.messages(4).isEmpty()) {
                     Channel c = new Channel(id, 3, av); video = c; selected.add(c);
-                } else if (codec == 1 && !av.messages(3).isEmpty() && audioRank(av.integer(2, 0)) > 0
-                        && (audio == null || audioRank(av.integer(2, 0)) > audioRank(audio.audioType))) {
-                    if (audio != null) selected.remove(audio);
-                    Channel c = new Channel(id, 1, av); c.audioType = (int) av.integer(2, 0); audio = c; selected.add(c);
+                } else if (codec == 1 && !av.messages(3).isEmpty() && audioRank(av.integer(2, 0)) > 0) {
+                    Channel c = new Channel(id, 1, av); c.audioType = (int) av.integer(2, 0); audioFallbacks.add(c);
                 }
             } else if (descriptor.has(4)) {
                 Channel c = new Channel(id, 4, descriptor.message(4)); selected.add(c);
@@ -214,31 +250,62 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
             // sensors/mic/bt/nav not opened yet
         }
         if (video == null) throw new IOException("Receiver advertises no baseline H.264 video sink");
-        for (Channel c : selected) {
-            channels.put(c.id, c);
-            host.log("Opening " + (c.kind == 3 ? "H.264 video" : c.kind == 1 ? (c.audioType == 3 ? "PCM media audio" : "PCM audio (type "
-                    + c.audioType + ", used for phone media)") : "input") + " channel " + c.id);
-            send(c.id, true, true, 7, new Proto.Writer().integer(1, c.kind == 3 ? 1 : 2).integer(2, c.id).build());
-        }
+        audioFallbacks.sort((a, b) -> audioRank(b.audioType) - audioRank(a.audioType));
+        if (!audioFallbacks.isEmpty()) { audio = audioFallbacks.remove(0); selected.add(audio); }
+        for (Channel c : selected) open(c);
+    }
+    private void open(Channel c) throws IOException {
+        channels.put(c.id, c);
+        host.log("Opening " + (c.kind == 3 ? "H.264 video" : c.kind == 1 ? (c.audioType == 3 ? "PCM media audio" : "PCM audio (type "
+                + c.audioType + ", used for phone media)") : "input") + " channel " + c.id);
+        send(c.id, true, true, 7, new Proto.Writer().integer(1, c.kind == 3 ? 1 : 2).integer(2, c.id).build());
+    }
+    // some cars refuse a pcm sink they advertised; projection still works without it
+    private void audioRejected(Channel c, String why) throws IOException {
+        host.log("Audio channel " + c.id + " (type " + c.audioType + ") unusable: " + why);
+        c.rejected = true;
+        audio = null; audioConfig = null;
+        if (!audioFallbacks.isEmpty()) { audio = audioFallbacks.remove(0); open(audio); }
+        else host.log("Continuing without car audio; phone media stays on phone speakers / Bluetooth");
     }
 
-    private void setup(Channel c, Proto.Message response) throws Exception {
-        if (c.configured || response.integer(1, 0) != 2) throw new IOException("Media setup failed on " + c.id);
+    private void setup(Channel c, Proto.Message response, byte[] raw) throws Exception {
+        if (c.configured) throw new IOException("Duplicate media setup on " + c.id);
+        long status = response.integer(1, 0);
+        List<Integer> indices = response.integers(3);
+        if (status != 2 || indices.isEmpty()) {
+            String why = "setup status=" + status + ", maxUnacked=" + response.integer(2, 0) + ", configs=" + indices + ", raw=" + hex(raw);
+            if (c == audio) { audioRejected(c, why); return; }
+            throw new IOException("Media setup failed on " + c.id + ": " + why);
+        }
         c.maxUnacked = (int) response.integer(2, 0);
         c.window.configure(c.maxUnacked);
-        List<Integer> indices = response.integers(3);
         List<Proto.Message> configs = c.descriptor.messages(c.kind == 3 ? 4 : 3);
-        if (indices.isEmpty()) throw new IOException("Receiver returned no media configurations");
+        boolean compact = false;
+        if (c.kind == 3) {
+            int panel = panelConfig(configs);
+            int panelHeight = panel < 0 ? 0 : height((int) configs.get(panel).integer(1, 0));
+            String layout = host.screenLayout();
+            compact = "compact".equals(layout) || (!"wide".equals(layout) && panelHeight > 0 && panelHeight <= 480);
+            // cheap boxes downscale 720p badly; on a small panel send its own size so nothing gets resampled
+            if (compact && panel >= 0 && host.nativeVideo() && indices.contains(panel) && indices.get(0) != panel) {
+                indices = new ArrayList<>(indices); indices.remove((Integer) panel); indices.add(0, panel);
+                host.log("Preferring the panel's own resolution (configuration " + panel + ")");
+            }
+            host.log("Car screen layout: " + (compact ? "compact rail" : "wide") + " (setting " + layout
+                    + ", panel " + (panelHeight > 0 ? panelHeight + "p" : "unknown") + ")");
+        }
         for (int index : indices) {
             if (index < 0 || index >= configs.size()) continue;
             Proto.Message config = configs.get(index);
             if (c.kind == 3) {
                 int resolution = (int) config.integer(1, 0);
                 int width = resolution == 1 ? 800 : resolution == 2 ? 1280 : resolution == 3 ? 1920 : 0;
-                int height = resolution == 1 ? 480 : resolution == 2 ? 720 : resolution == 3 ? 1080 : 0;
+                int height = height(resolution);
                 if (width == 0 || config.integer(10, 3) != 3) continue;
                 // gearhead jbi.a(): 1 = 60fps, 2 = 30fps
                 VideoConfig chosen = new VideoConfig(width, height, config.integer(2, 2) == 1 ? 60 : 30, index);
+                chosen.compact = compact;
                 int[] insets = insets(config);
                 chosen.fit((int) config.integer(3, 0), (int) config.integer(4, 0), insets, (int) config.integer(8, 0));
                 videoConfig = chosen;
@@ -261,7 +328,27 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
             } else { host.audioReady(this); if (mediaAudio) updateAudio(); }
             return;
         }
+        if (c == audio) { audioRejected(c, "no PCM16 mono/stereo configuration among " + indices); return; }
         throw new IOException("No supported media configuration on channel " + c.id);
+    }
+    private static int height(int resolution) { return resolution == 1 ? 480 : resolution == 2 ? 720 : resolution == 3 ? 1080 : 0; }
+    // the config the panel shows 1:1 = square pixels once the car's aspect fix is applied; else the smallest
+    private static int panelConfig(List<Proto.Message> configs) {
+        int square = -1, smallest = -1, smallestH = Integer.MAX_VALUE;
+        for (int i = 0; i < configs.size(); i++) {
+            Proto.Message config = configs.get(i);
+            int h = height((int) config.integer(1, 0));
+            if (h == 0) continue;
+            long aspect = config.integer(8, 0);
+            if (square < 0 && (aspect == 0 || Math.abs(aspect - 10000) <= 400)) square = i;
+            if (h < smallestH) { smallestH = h; smallest = i; }
+        }
+        return square >= 0 ? square : smallest;
+    }
+    private static String hex(byte[] data) {
+        StringBuilder out = new StringBuilder(data.length * 2);
+        for (byte b : data) out.append(String.format(Locale.ROOT, "%02x", b & 255));
+        return out.toString();
     }
 
     private void startVideo() throws IOException {
@@ -324,6 +411,13 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
                 touchEvents++;
                 host.touch(x, y, action);
                 host.log("Touch " + action + " at " + (int) x + "," + (int) y);
+            }
+        }
+        // relative events: the rotary knob, keycode 65536, signed detents
+        if (event.has(6)) {
+            for (Proto.Message turn : event.message(6).messages(1)) {
+                int code = (int) turn.integer(1, 0), delta = (int) turn.integer(2, 0);
+                if (code == 65536 && delta != 0) { host.rotate(delta); host.log("Rotary " + delta); }
             }
         }
         if (event.has(4)) {

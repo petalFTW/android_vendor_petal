@@ -175,7 +175,7 @@ final class CarAppPanel {
         if (seconds >= 0) parts.add(seconds >= 3600 ? (seconds / 3600) + " h " + (seconds % 3600) / 60 + " min" : Math.max(1, seconds / 60) + " min");
         if (eta.getRemainingDistance() != null) parts.add(distance(eta.getRemainingDistance()));
         String s = String.join("  ·  ", parts);
-        ui.measure.setTypeface(ui.semibold); ui.measure.setTextSize(14);
+        ui.style(ui.measure, ui.semibold, 14);
         float w = ui.measure.measureText(s) + 28;
         RectF chip = new RectF(box.left + 10, box.bottom - 44, box.left + 10 + w, box.bottom - 10);
         ui.fill(c, chip, 17, CARD);
@@ -210,7 +210,7 @@ final class CarAppPanel {
     }
     private float buttonWidth(Action a) {
         if (a.getIcon() != null || a.getType() == Action.TYPE_BACK || a.getType() == Action.TYPE_PAN) return 40;
-        ui.measure.setTypeface(ui.semibold); ui.measure.setTextSize(14);
+        ui.style(ui.measure, ui.semibold, 14);
         return Math.min(160, ui.measure.measureText(text(a.getTitle())) + 28);
     }
     private void button(Canvas c, RectF b, Action a, CarAppHost host) {
@@ -361,7 +361,7 @@ final class CarAppPanel {
     private void message(Canvas c, RectF card, Head head, String body, List<Action> actions, CarAppHost host) {
         float top = headerBar(c, card, head, host);
         // dumb word wrap, messages are short
-        ui.measure.setTypeface(ui.regular); ui.measure.setTextSize(15);
+        ui.style(ui.measure, ui.regular, 15);
         float y = top + 20, maxW = card.width() - 32;
         StringBuilder line = new StringBuilder();
         for (String word : body.split("\\s+")) {
@@ -389,7 +389,7 @@ final class CarAppPanel {
     private void toast(Canvas c, RectF box, CarAppHost host) {
         String s = host.toast;
         if (s == null || SystemClock.elapsedRealtime() - host.toastAt > 3000) return;
-        ui.measure.setTypeface(ui.medium); ui.measure.setTextSize(14);
+        ui.style(ui.measure, ui.medium, 14);
         float w = Math.min(box.width() - 40, ui.measure.measureText(s) + 32);
         RectF t = new RectF(box.centerX() - w / 2, box.bottom - 54, box.centerX() + w / 2, box.bottom - 22);
         ui.fill(c, t, 16, CARD);

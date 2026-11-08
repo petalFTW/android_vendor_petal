@@ -23,25 +23,28 @@ import java.util.concurrent.TimeUnit;
 final class GlassBaker {
     // same spec = same bitmap
     static final class Spec {
-        final String key; final int canvasW, canvasH, left, top; final float sx, sy, layoutW, radius, band;
+        final String key; final int canvasW, canvasH, left, top; final float sx, sy, layoutW, layoutH, radius, band;
         final RectF rect; final int wallpaperVersion, tint;
-        Spec(String key, int canvasW, int canvasH, int left, int top, float sx, float sy, float layoutW,
+        Spec(String key, int canvasW, int canvasH, int left, int top, float sx, float sy, float layoutW, float layoutH,
              RectF rect, float radius, int wallpaperVersion, int tint) {
             this.key = key; this.canvasW = canvasW; this.canvasH = canvasH; this.left = left; this.top = top;
-            this.sx = sx; this.sy = sy; this.layoutW = layoutW; this.rect = new RectF(rect); this.radius = radius;
+            this.sx = sx; this.sy = sy; this.layoutW = layoutW; this.layoutH = layoutH; this.rect = new RectF(rect); this.radius = radius;
             this.wallpaperVersion = wallpaperVersion; this.tint = tint; this.band = 0;
         }
         @Override public boolean equals(Object o) {
             if (!(o instanceof Spec)) return false;
             Spec s = (Spec) o;
             return key.equals(s.key) && canvasW == s.canvasW && canvasH == s.canvasH && left == s.left && top == s.top
-                    && sx == s.sx && sy == s.sy && layoutW == s.layoutW && rect.equals(s.rect) && radius == s.radius
+                    && sx == s.sx && sy == s.sy && layoutW == s.layoutW && layoutH == s.layoutH && rect.equals(s.rect) && radius == s.radius
                     && wallpaperVersion == s.wallpaperVersion && tint == s.tint;
         }
         @Override public int hashCode() { return key.hashCode() * 31 + canvasW * 7 + left; }
     }
 
     interface Wallpaper { void draw(Canvas canvas); }
+
+    // low density frames bake at up to 2x and get mipmapped down, the rim + bend stop stair-stepping
+    static float supersample(float sy) { return Math.max(1f, Math.min(2f, 2f / Math.max(.01f, sy))); }
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "Catback-GlassBake"); t.setDaemon(true); return t;
@@ -80,26 +83,29 @@ final class GlassBaker {
     }
 
     private Bitmap bake(Spec spec, Wallpaper wallpaper) throws Exception {
-        int pw = Math.max(1, Math.round(spec.rect.width() * spec.sx)), ph = Math.max(1, Math.round(spec.rect.height() * spec.sy));
+        float ss = supersample(spec.sy), sx = spec.sx * ss, sy = spec.sy * ss, left = spec.left * ss, top = spec.top * ss;
+        int pw = Math.max(1, Math.round(spec.rect.width() * sx)), ph = Math.max(1, Math.round(spec.rect.height() * sy));
+        int cw = Math.round(spec.canvasW * ss), ch = Math.round(spec.canvasH * ss);
 
-        // wallpaper only, placed exactly like the real frame
+        // wallpaper only, placed exactly like the real frame (at the bake scale)
         RenderNode wall = new RenderNode("glass-wall");
-        wall.setPosition(0, 0, spec.canvasW, spec.canvasH);
-        Canvas wc = wall.beginRecording(spec.canvasW, spec.canvasH);
+        wall.setPosition(0, 0, cw, ch);
+        Canvas wc = wall.beginRecording(cw, ch);
         try {
-            wc.clipRect(spec.left, spec.top, spec.left + Math.round(spec.layoutW * spec.sx), spec.top + Math.round(480 * spec.sy));
-            wc.translate(spec.left, spec.top); wc.scale(spec.sx, spec.sy);
+            wc.clipRect(left, top, left + spec.layoutW * sx, top + spec.layoutH * sy);
+            wc.translate(left, top); wc.scale(sx, sy);
             wallpaper.draw(wc);
         } finally { wall.endRecording(); }
 
         // glass drawn once into its own node, lens samples wall
         IslandGlass glass = new IslandGlass();
+        glass.area(left, top, left + spec.layoutW * sx, top + spec.layoutH * sy);
         RenderNode panel = new RenderNode("glass-panel");
         panel.setPosition(0, 0, pw, ph);
         Canvas pc = panel.beginRecording(pw, ph);
         try {
-            pc.scale(spec.sx, spec.sy); pc.translate(-spec.rect.left, -spec.rect.top);
-            glass.draw(pc, wall, 1, spec.left, spec.top, spec.sx, spec.sy, spec.rect, spec.radius, -1f, -1f, 0xFFB9A5FF, spec.tint);
+            pc.scale(sx, sy); pc.translate(-spec.rect.left, -spec.rect.top);
+            glass.draw(pc, wall, 1, left, top, sx, sy, spec.rect, spec.radius, -1f, -1f, 0xFFB9A5FF, spec.tint);
         } finally { panel.endRecording(); }
 
         ImageReader reader = ImageReader.newInstance(pw, ph, PixelFormat.RGBA_8888, 2,
@@ -118,6 +124,7 @@ final class GlassBaker {
                 if (hardware == null) throw new IllegalStateException("glass buffer not readable");
                 Bitmap copy = hardware.copy(Bitmap.Config.ARGB_8888, false); // outlives the hw buffer
                 hardware.recycle();
+                if (ss > 1f) copy.setHasMipMap(true);
                 return copy;
             }
         } finally { renderer.destroy(); reader.close(); }

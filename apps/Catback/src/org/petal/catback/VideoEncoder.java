@@ -21,6 +21,7 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import org.petal.catback.protocol.ProjectionSession;
 import org.petal.catback.ui.CarUi;
+import org.petal.catback.ui.Supersampler;
 
 // hw avc encoder, draws straight into the surface w/ a hw canvas (agsl + blur need it), sw bitmap if that dies
 public final class VideoEncoder implements Closeable {
@@ -45,7 +46,8 @@ public final class VideoEncoder implements Closeable {
             MediaFormat format = MediaFormat.createVideoFormat("video/avc", config.width, config.height);
             format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
             // bitrate for 30fps and kept at 60, ui barely moves so no point doubling car flow control load
-            int bitrate = (int) Math.min(8_000_000L, Math.max(2_000_000L, config.width * (long) config.height * Math.min(config.fps, 30) / 5));
+            // 4M floor: at 800x480 2M turned glass gradients into blocks
+            int bitrate = (int) Math.min(8_000_000L, Math.max(4_000_000L, config.width * (long) config.height * Math.min(config.fps, 30) / 5));
             format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
             format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR);
             format.setInteger(MediaFormat.KEY_PRIORITY, 0);                      // realtime
@@ -55,6 +57,9 @@ public final class VideoEncoder implements Closeable {
             // rare keyframes + intra refresh, no big burst every second choking the link
             format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 4);
             if (android.os.Build.VERSION.SDK_INT >= 30) format.setInteger(MediaFormat.KEY_INTRA_REFRESH_PERIOD, config.fps);
+            // when we skip an unchanged frame the encoder repeats the last one on schedule, so the car still
+            // gets every frame at full rate while the gpu sleeps (same trick stock projection uses)
+            format.setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1_000_000L / config.fps);
             format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline);
             format.setInteger(MediaFormat.KEY_LEVEL, config.width > 1280 ? MediaCodecInfo.CodecProfileLevel.AVCLevel41 : MediaCodecInfo.CodecProfileLevel.AVCLevel31);
             codec = MediaCodec.createEncoderByType("video/avc");
@@ -80,14 +85,29 @@ public final class VideoEncoder implements Closeable {
             }, "Catback-VideoSend");
             drainer.start();
             long interval = 1_000_000_000L / config.fps, next = System.nanoTime();
-            long statStart = next; int statFrames = 0, late = 0; long statWorst = 0, statTotal = 0;
+            long statStart = next; int statFrames = 0, statSkipped = 0, late = 0; long statWorst = 0, statTotal = 0;
             long worstLock = 0, worstDraw = 0, worstPost = 0, worstDrain = 0;
+            Supersampler supersampler = new Supersampler();
+            long lastDrawn = 0;
             while (!stopped) {
                 long frameStart = System.nanoTime();
+                // identical frame: let the encoder repeat the last one. a real frame at least once a second anyway,
+                // in case something changed that nothing told us about
+                if (hardware && canvas == null && !ui.needsFrame() && frameStart - lastDrawn < 1_000_000_000L) {
+                    statSkipped++;
+                    next += interval;
+                    long idle = next - System.nanoTime();
+                    if (idle > 0) Thread.sleep(idle / 1_000_000, (int) (idle % 1_000_000));
+                    else if (idle < -2 * interval) next = System.nanoTime();
+                    continue;
+                }
+                lastDrawn = frameStart;
                 if (hardware && canvas == null) canvas = input.lockHardwareCanvas();
                 long t1 = System.nanoTime();
-                ui.draw(canvas, config.contentLeft, config.contentTop, config.contentWidth, config.contentHeight,
-                        config.layoutWidth);
+                if (hardware) supersampler.draw(ui, canvas, config.contentLeft, config.contentTop, config.contentWidth,
+                        config.contentHeight, config.layoutWidth, config.layoutHeight, config.compact, config.supersample);
+                else ui.draw(canvas, config.contentLeft, config.contentTop, config.contentWidth, config.contentHeight,
+                        config.layoutWidth, config.layoutHeight, config.compact);
                 long t2 = System.nanoTime();
                 if (hardware) { input.unlockCanvasAndPost(canvas); canvas = null; }
                 else gl.draw(bitmap, System.nanoTime());
@@ -104,11 +124,12 @@ public final class VideoEncoder implements Closeable {
                 long now = System.nanoTime();
                 if (now - statStart >= 5_000_000_000L) {
                     android.util.Log.i("Catback", String.format(java.util.Locale.ROOT,
-                            "Render: %.1f fps (target %d), frame avg %.1f ms worst %.1f ms, late frames %d | worst lock %.0f draw %.0f post %.0f ms, send %.0f ms",
-                            statFrames * 1e9 / (now - statStart), config.fps, statTotal / 1e6 / statFrames, statWorst / 1e6, late,
+                            "Render: %.1f fps drawn + %.1f repeated (target %d, %dx), frame avg %.1f ms worst %.1f ms, late frames %d | worst lock %.0f draw %.0f post %.0f ms, send %.0f ms",
+                            statFrames * 1e9 / (now - statStart), statSkipped * 1e9 / (now - statStart), config.fps, config.supersample,
+                            statFrames > 0 ? statTotal / 1e6 / statFrames : 0, statWorst / 1e6, late,
                             worstLock / 1e6, worstDraw / 1e6, worstPost / 1e6, sendWorstNs / 1e6));
                     sendWorstNs = 0;
-                    statStart = now; statFrames = 0; late = 0; statWorst = 0; statTotal = 0;
+                    statStart = now; statFrames = 0; statSkipped = 0; late = 0; statWorst = 0; statTotal = 0;
                     worstLock = worstDraw = worstPost = worstDrain = 0;
                 }
             }

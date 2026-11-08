@@ -379,6 +379,26 @@ public final class MainActivity extends Activity {
         audioNote = text("", LABEL, TEXT2); audioNote.setLineSpacing(0, 1.25f); audioNote.setPadding(dp(4), 0, dp(4), 0);
         layout.addView(audioNote, gap(12));
 
+        layout.addView(section("Car screen"), gap(36));
+        String screenLayout = Settings.screenLayout(this);
+        layout.addView(layoutRow("Automatic", "Rail layout on small screens (480 lines or fewer), panels on bigger ones.", Settings.LAYOUT_AUTO, screenLayout), gap(0));
+        layout.addView(layoutRow("Rail", "Maps, music and alerts one at a time, bigger text. Works with the car's knob.", Settings.LAYOUT_COMPACT, screenLayout), gap(0));
+        layout.addView(layoutRow("Panels", "Everything side by side.", Settings.LAYOUT_WIDE, screenLayout), gap(8));
+        boolean nativeVideo = Settings.nativeVideo(this);
+        layout.addView(row("Match the screen's resolution", nativeVideo
+                ? "On: small screens get their own resolution, so the car doesn't have to shrink the picture."
+                : "Off: uses the car's first choice, often 720p that it shrinks to fit.", nativeVideo,
+                v -> { Settings.setNativeVideo(this, !nativeVideo); showSettings(); }), gap(8));
+        boolean supersample = Settings.supersample(this);
+        layout.addView(row("Extra smoothing", supersample
+                ? "On: screens under 720p are drawn at twice the size and scaled down, for smooth edges and glass."
+                : "Off: drawn at the screen's own resolution.", supersample,
+                v -> { Settings.setSupersample(this, !supersample); showSettings(); }), gap(8));
+        TextView screenNote = text("Applies the next time the car connects.", LABEL, TEXT2);
+        screenNote.setPadding(dp(4), 0, dp(4), 0);
+        layout.addView(screenNote, gap(4));
+        button(layout, "Preview the car screen", this::showPreview);
+
         layout.addView(section("Car identity"), gap(36));
         Date expiry = Identity.carExpiry(this);
         boolean ready = expiry != null && Identity.carReady(this);
@@ -391,6 +411,9 @@ public final class MainActivity extends Activity {
         if (gearheadInstalled()) button(layout, "Import from installed Android Auto", this::importInstalled).setEnabled(!importing);
         setContentView(scroll(layout));
         refreshAudioNote();
+    }
+    private View layoutRow(String title, String detail, String value, String current) {
+        return row(title, detail, value.equals(current), v -> { Settings.setScreenLayout(this, value); showSettings(); });
     }
     private View audioRow(String title, String detail, boolean selected, String value) {
         return row(title, detail, selected, v -> chooseAudio(value));
@@ -454,7 +477,9 @@ public final class MainActivity extends Activity {
         layout.addView(scroll, logParams);
         setContentView(layout);
     }
+    private Screen previewFrom = Screen.DEVELOPER;
     private void showPreview() {
+        previewFrom = screen == Screen.SETTINGS ? Screen.SETTINGS : Screen.DEVELOPER;
         screen = Screen.PREVIEW;
         setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         setContentView(new Preview());
@@ -466,7 +491,7 @@ public final class MainActivity extends Activity {
             getWindow().getInsetsController().show(android.view.WindowInsets.Type.systemBars());
         setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         if (screen == Screen.SETTINGS) showHome();
-        else if (screen == Screen.PREVIEW) showDeveloper();
+        else if (screen == Screen.PREVIEW) { if (previewFrom == Screen.SETTINGS) showSettings(); else showDeveloper(); }
         else if (screen == Screen.DEVELOPER) showHome();
         else super.onBackPressed();
     }
@@ -573,27 +598,163 @@ public final class MainActivity extends Activity {
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
     private void toast(String text) { Toast.makeText(this, text, Toast.LENGTH_LONG).show(); }
 
-    // actual car ui, same draw path as the encoder
+    // actual car ui, same draw path as the encoder. car pixels renders at the panel's real size and blows it up
+    // unfiltered so you see what the driver gets; the side buttons stand in for the car's knob and keys
     private final class Preview extends View {
-        private float layout = 800;
         private final CarUi ui = CarUi.preview(MainActivity.this);
-        Preview() { super(MainActivity.this); setContentDescription("Car display preview"); }
+        private final org.petal.catback.ui.Supersampler supersampler = new org.petal.catback.ui.Supersampler();
+        private boolean compact, carPixels = true;
+        private float layout = 800, layoutH = 480;
+        private final android.graphics.Rect frame = new android.graphics.Rect();
+        private final List<Key> keys = new ArrayList<>();
+        private final android.graphics.Paint chip = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG),
+                label = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG),
+                pixels = new android.graphics.Paint(); // no filter flag: nearest neighbour, real pixels
+        private Key pressed;
+        private android.graphics.HardwareRenderer renderer;
+        private android.media.ImageReader reader;
+        private android.graphics.RenderNode root;
+        private android.graphics.Bitmap shown;
+        private android.media.Image shownImage;
+        private int renderW, renderH;
+
+        private final class Key {
+            final android.graphics.RectF box = new android.graphics.RectF(); final String text; final Runnable action; final boolean on;
+            Key(String text, boolean on, Runnable action) { this.text = text; this.on = on; this.action = action; }
+        }
+
+        Preview() {
+            super(MainActivity.this); setContentDescription("Car display preview");
+            // battery taps flip the preview the same way they flip the car, and save it the same way
+            ui.layoutToggle = () -> post(() -> {
+                compact = !compact; ui.invalidate();
+                Settings.setScreenLayout(MainActivity.this, compact ? Settings.LAYOUT_COMPACT : Settings.LAYOUT_WIDE);
+            });
+            String mode = Settings.screenLayout(MainActivity.this);
+            compact = Settings.LAYOUT_COMPACT.equals(mode) || (Settings.LAYOUT_AUTO.equals(mode) && Settings.lastCompact(MainActivity.this));
+            label.setTypeface(medium); label.setTextAlign(android.graphics.Paint.Align.CENTER); label.setTextSize(dp(14));
+        }
+
+        private void layoutFrame(int w, int h) {
+            // 800x480 panel is 5:3, the usual 720p screen 16:9. leave room for a button column each side
+            float aspect = compact ? 5f / 3f : 16f / 9f;
+            int side = dp(88), fw = Math.min(w - 2 * side, Math.round(h * aspect)), fh = Math.round(fw / aspect);
+            frame.set((w - fw) / 2, (h - fh) / 2, (w + fw) / 2, (h + fh) / 2);
+            layoutH = compact ? org.petal.catback.protocol.ProjectionSession.COMPACT_HEIGHT : 480;
+            layout = layoutH * aspect;
+
+            keys.clear();
+            List<Key> left = new ArrayList<>(), right = new ArrayList<>();
+            left.add(new Key(compact ? "Rail" : "Panels", true, () -> { compact = !compact; ui.invalidate(); }));
+            left.add(new Key(carPixels ? "Car pixels" : "Phone pixels", carPixels, () -> carPixels = !carPixels));
+            left.add(new Key("Back", false, () -> ui.key(4)));
+            left.add(new Key("Home", false, () -> ui.key(3)));
+            // same codes a car's volume keys send, so this drives the real media volume + the car's volume hud
+            left.add(new Key("Vol +", false, () -> ui.key(24)));
+            left.add(new Key("Vol \u2212", false, () -> ui.key(25)));
+            right.add(new Key("Turn \u2191", false, () -> ui.rotate(-1)));
+            right.add(new Key("Press", false, () -> ui.key(23)));
+            right.add(new Key("Turn \u2193", false, () -> ui.rotate(1)));
+            if (compact) {
+                right.add(new Key("Nav", false, () -> ui.key(65538)));
+                right.add(new Key("Media", false, () -> ui.key(65537)));
+                right.add(new Key("Phone", false, () -> ui.key(65540)));
+            }
+            column(left, dp(8), frame.left - dp(8), h);
+            column(right, frame.right + dp(8), w - dp(8), h);
+        }
+        private void column(List<Key> list, float l, float r, int h) {
+            float kh = dp(44), gap = dp(10), top = (h - (list.size() * kh + (list.size() - 1) * gap)) / 2;
+            for (int i = 0; i < list.size(); i++) {
+                Key k = list.get(i);
+                k.box.set(l, top + i * (kh + gap), r, top + i * (kh + gap) + kh);
+                keys.add(k);
+            }
+        }
+
         @Override protected void onDraw(Canvas canvas) {
             int w = getWidth(), h = getHeight();
-            // letterbox the car frame
-            int frameH = Math.min(h, Math.round(w * 9f / 16f)), top = (h - frameH) / 2;
-            layout = Math.max(560, Math.min(1600, 480f * w / frameH));
-            ui.draw(canvas, 0, top, w, frameH, layout);
+            layoutFrame(w, h);
+            if (carPixels && canvas.isHardwareAccelerated()) {
+                canvas.drawColor(Color.BLACK);
+                drawCarPixels(canvas);
+            } else {
+                ui.draw(canvas, frame.left, frame.top, frame.width(), frame.height(), layout, layoutH, compact);
+            }
+            for (Key k : keys) {
+                chip.setColor(k == pressed ? 0x40FFFFFF : k.on ? ACCENT_CONTAINER : 0x1FFFFFFF);
+                canvas.drawRoundRect(k.box, dp(14), dp(14), chip);
+                label.setColor(k.on ? ACCENT : TEXT);
+                canvas.drawText(k.text, k.box.centerX(), k.box.centerY() + dp(5), label);
+            }
             postInvalidateOnAnimation();
         }
+        // same frame the car would get, rendered offscreen at its real size
+        private void drawCarPixels(Canvas canvas) {
+            int rw = compact ? 800 : 1280, rh = compact ? 480 : 720;
+            if (renderer == null || rw != renderW || rh != renderH) {
+                release();
+                renderW = rw; renderH = rh;
+                reader = android.media.ImageReader.newInstance(rw, rh, android.graphics.PixelFormat.RGBA_8888, 3,
+                        android.hardware.HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE | android.hardware.HardwareBuffer.USAGE_GPU_COLOR_OUTPUT);
+                root = new android.graphics.RenderNode("preview-car");
+                root.setPosition(0, 0, rw, rh);
+                renderer = new android.graphics.HardwareRenderer();
+                renderer.setSurface(reader.getSurface());
+                renderer.setContentRoot(root);
+                ui.invalidate();
+            }
+            Canvas record = root.beginRecording(rw, rh);
+            // same supersampling the encoder does, so car pixels really are what the car gets
+            int factor = Settings.supersample(MainActivity.this) && rh < 720 ? 2 : 1;
+            try { supersampler.draw(ui, record, 0, 0, rw, rh, layout, layoutH, compact, factor); }
+            finally { root.endRecording(); }
+            renderer.createRenderRequest().syncAndDraw();
+            // hold the shown image until a newer one lands, or the renderer could draw into it mid-display
+            try {
+                android.media.Image image = reader.acquireLatestImage();
+                if (image != null) {
+                    android.graphics.Bitmap next;
+                    try (android.hardware.HardwareBuffer buffer = image.getHardwareBuffer()) {
+                        next = android.graphics.Bitmap.wrapHardwareBuffer(buffer,
+                                android.graphics.ColorSpace.get(android.graphics.ColorSpace.Named.SRGB));
+                    }
+                    if (next != null) {
+                        if (shownImage != null) shownImage.close();
+                        shownImage = image; shown = next;
+                    } else image.close();
+                }
+            } catch (RuntimeException busy) { /* reader full this frame, keep the last one */ }
+            if (shown != null) canvas.drawBitmap(shown, null, frame, pixels);
+        }
+        private void release() {
+            if (renderer != null) renderer.destroy();
+            if (shownImage != null) shownImage.close();
+            if (reader != null) reader.close();
+            renderer = null; reader = null; root = null; shown = null; shownImage = null;
+        }
+        @Override protected void onDetachedFromWindow() { release(); super.onDetachedFromWindow(); }
+
         @Override public boolean onTouchEvent(MotionEvent event) {
-            int h = getHeight(), frameH = Math.min(h, Math.round(getWidth() * 9f / 16f)), top = (h - frameH) / 2;
-            float x = event.getX() / getWidth() * layout, y = (event.getY() - top) / frameH * 480f;
             int masked = event.getActionMasked();
+            float ex = event.getX(), ey = event.getY();
+            if (masked == MotionEvent.ACTION_DOWN) {
+                pressed = null;
+                for (Key k : keys) if (k.box.contains(ex, ey)) pressed = k;
+                if (pressed != null) return true;
+            }
+            if (pressed != null) {
+                if (masked == MotionEvent.ACTION_UP) {
+                    if (pressed.box.contains(ex, ey)) pressed.action.run();
+                    pressed = null; performClick();
+                } else if (masked == MotionEvent.ACTION_CANCEL) pressed = null;
+                return true;
+            }
+            float x = (ex - frame.left) / Math.max(1, frame.width()) * layout, y = (ey - frame.top) / Math.max(1, frame.height()) * layoutH;
             int action = masked == MotionEvent.ACTION_UP ? 1 : masked == MotionEvent.ACTION_MOVE ? 2 : masked == MotionEvent.ACTION_DOWN ? 0 : -1;
-            if (action >= 0 && (masked != MotionEvent.ACTION_DOWN || (y >= 0 && y < 480)))
-                ui.touch(x, Math.max(0, Math.min(479, y)), action);
-            if (event.getActionMasked() == MotionEvent.ACTION_UP) performClick();
+            if (action >= 0 && (masked != MotionEvent.ACTION_DOWN || (x >= 0 && x < layout && y >= 0 && y < layoutH)))
+                ui.touch(Math.max(0, Math.min(layout - 1, x)), Math.max(0, Math.min(layoutH - 1, y)), action);
+            if (masked == MotionEvent.ACTION_UP) performClick();
             return true;
         }
         @Override public boolean performClick() { super.performClick(); return true; }

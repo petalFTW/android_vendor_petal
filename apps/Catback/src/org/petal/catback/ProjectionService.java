@@ -363,13 +363,24 @@ public final class ProjectionService extends Service implements ProjectionSessio
         if (listener != null) try { listener.close(); } catch (IOException ignored) { }
         server = null; transport = null; session = null;
         stopVideo(); audio(false, null, active);
+        CarUi.get(this).layoutToggle = null;
         CarUi.get(this).session(false, false);
         CarConnectionProvider.set(this, false);
         state = "Stopped";
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
     }
     @Override public synchronized void startVideo(ProjectionSession.VideoConfig config, ProjectionSession active) {
+        config.supersample = Settings.supersample(this) && config.contentHeight < 720 ? 2 : 1;
+        log("Rendering " + (config.supersample > 1 ? config.supersample + "x supersampled" : "at output resolution")
+                + ", unchanged frames repeated by the encoder");
         stopVideo(); encoder = new VideoEncoder(CarUi.get(this), active, config);
+        Settings.setLastCompact(this, config.compact);
+        CarUi.get(this).layoutToggle = () -> {
+            config.relayout(!config.compact);
+            Settings.setScreenLayout(this, config.compact ? Settings.LAYOUT_COMPACT : Settings.LAYOUT_WIDE);
+            Settings.setLastCompact(this, config.compact);
+            log("Car screen layout switched to " + (config.compact ? "rail" : "panels") + " from the car");
+        };
         CarUi.get(this).session(true, wireless != null);
         CarConnectionProvider.set(this, true);
         state = "Projecting " + config.width + "x" + config.height;
@@ -398,6 +409,9 @@ public final class ProjectionService extends Service implements ProjectionSessio
     }
     @Override public void touch(float x, float y, int action) { CarUi.get(this).touch(x, y, action); }
     @Override public void key(int code) { CarUi.get(this).key(code); }
+    @Override public void rotate(int delta) { CarUi.get(this).rotate(delta); }
+    @Override public String screenLayout() { return Settings.screenLayout(this); }
+    @Override public boolean nativeVideo() { return Settings.nativeVideo(this); }
     private String carName(String address) {
         return CarLink.isCar(this, address) ? CarLink.name(this) : "head unit";
     }

@@ -85,13 +85,13 @@ final class Backdrop {
         sharp = full; version++;
     }
 
-    // shrink + 3 box blurs, cheap and bilinear upscale hides the mush
+    // shrink + 3 box blurs. /6 not /12: the bigger upscale showed bilinear blocks on 800x480 panels
     private static Bitmap blur(Bitmap source) {
-        int w = Math.max(8, source.getWidth() / 12), h = Math.max(8, source.getHeight() / 12);
+        int w = Math.max(8, source.getWidth() / 6), h = Math.max(8, source.getHeight() / 6);
         Bitmap small = Bitmap.createScaledBitmap(source, w, h, true);
         int[] px = new int[w * h], tmp = new int[w * h];
         small.getPixels(px, 0, w, 0, 0, w, h);
-        int radius = Math.max(1, Math.round(FROST * 3));
+        int radius = Math.max(1, Math.round(FROST * 8)); // same 24px reach as before at full res
         for (int pass = 0; pass < 3; pass++) { boxBlur(px, tmp, w, h, radius, true); boxBlur(tmp, px, w, h, radius, false); }
         Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         out.setPixels(px, 0, w, 0, 0, w, h);

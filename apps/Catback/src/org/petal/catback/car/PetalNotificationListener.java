@@ -7,16 +7,37 @@ import android.service.notification.StatusBarNotification;
 public final class PetalNotificationListener extends NotificationListenerService {
     private static volatile PetalNotificationListener active;
 
+    // whatever's already in the shade goes on the car. a session starting calls this too, and if the system
+    // hasn't bound us (fresh install, process got killed) asks it to, the connect callback scans when it lands
+    public static void rescan(android.content.Context context) {
+        // listener callbacks (and CarData's notif maps) live on the main thread, sessions start on their own
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> rescan(context));
+            return;
+        }
+        if (active == null) {
+            try { requestRebind(new android.content.ComponentName(context, PetalNotificationListener.class)); }
+            catch (RuntimeException notAllowed) { }
+            return;
+        }
+        rescan();
+    }
     static void rescan() {
         PetalNotificationListener listener = active;
         if (listener == null) return;
-        try {
-            CarData data = CarData.get(listener);
-            RankingMap ranking = listener.getCurrentRanking();
-            data.resetShowing();
-            // old notifs aren't news, just remember em
-            for (StatusBarNotification sbn : listener.getActiveNotifications()) data.seed(sbn, importance(ranking, sbn));
-        } catch (RuntimeException ignored) { }
+        StatusBarNotification[] all;
+        RankingMap ranking;
+        try { all = listener.getActiveNotifications(); ranking = listener.getCurrentRanking(); }
+        catch (RuntimeException e) { android.util.Log.w("Catback", "Couldn't read the shade", e); return; }
+        if (all == null) return;
+        CarData data = CarData.get(listener);
+        data.resetShowing();
+        // old notifs aren't news, just remember em. one at a time: a single bad one (icon from a package we can't
+        // read, say) used to throw out of the loop and leave every notif after it off the car
+        for (StatusBarNotification sbn : all) {
+            try { data.seed(sbn, importance(ranking, sbn)); }
+            catch (RuntimeException e) { android.util.Log.w("Catback", "Skipped notification " + sbn.getKey(), e); }
+        }
     }
 
     @Override public void onListenerConnected() {
@@ -29,7 +50,7 @@ public final class PetalNotificationListener extends NotificationListenerService
         CarData.get(this).listener(false);
     }
     @Override public void onNotificationPosted(StatusBarNotification sbn, RankingMap ranking) {
-        // importance decides it, island only dings for DEFAULT+, carousel takes LOW+
+        // importance decides it, island and carousel both only take alerting ones (DEFAULT+), silent never reaches the car
         CarData.get(this).posted(sbn, importance(ranking, sbn));
     }
     private static int importance(RankingMap ranking, StatusBarNotification sbn) {

@@ -70,12 +70,13 @@ public final class CarData {
     }
     public static final class Media {
         public final String title, artist;
-        public final Bitmap art;
+        // art = small, for thumbnails; cover = near full res for the music page's full-screen background
+        public final Bitmap art, cover;
         public final long duration, position, updated;
         public final float speed;
         public final boolean playing;
-        Media(String title, String artist, Bitmap art, long duration, long position, long updated, float speed, boolean playing) {
-            this.title = title; this.artist = artist; this.art = art; this.duration = duration;
+        Media(String title, String artist, Bitmap art, Bitmap cover, long duration, long position, long updated, float speed, boolean playing) {
+            this.title = title; this.artist = artist; this.art = art; this.cover = cover; this.duration = duration;
             this.position = position; this.updated = updated; this.speed = speed; this.playing = playing;
         }
         public long positionNow() {
@@ -208,6 +209,7 @@ public final class CarData {
 
     // island
     public Signal nextSignal() { return signals.poll(); }
+    public boolean hasSignal() { return !signals.isEmpty(); }
 
     // last thing each notif key showed so re-posts don't ding again
     private final java.util.Map<String, String> shown = new java.util.HashMap<>();
@@ -254,13 +256,13 @@ public final class CarData {
         if (connected) bindMedia();
         else { live.clear(); publishShowing(); }
     }
-    void resetShowing() { live.clear(); }
+    void resetShowing() { live.clear(); publishShowing(); }
 
-    // same junk filter as the island minus the alerting bit, silent stuff still shows in the shade so it counts
+    // same junk filter as the island: silent (LOW/MIN) ones stay out of the car, they're shade clutter not something to read while driving
     private void track(StatusBarNotification sbn, int importance) {
         Notification n = sbn.getNotification();
         String pkg = sbn.getPackageName();
-        boolean keep = importance > android.app.NotificationManager.IMPORTANCE_MIN && !pkg.equals(context.getPackageName())
+        boolean keep = importance >= android.app.NotificationManager.IMPORTANCE_DEFAULT && !pkg.equals(context.getPackageName())
                 && !isOngoing(n) && (n.flags & Notification.FLAG_GROUP_SUMMARY) == 0
                 && !Notification.CATEGORY_TRANSPORT.equals(n.category) && !Notification.CATEGORY_SERVICE.equals(n.category);
         CharSequence title = n.extras.getCharSequence(Notification.EXTRA_TITLE), text = n.extras.getCharSequence(Notification.EXTRA_TEXT);
@@ -341,16 +343,24 @@ public final class CarData {
         String title = meta == null ? "" : str(meta.getText(MediaMetadata.METADATA_KEY_TITLE));
         String artist = meta == null ? "" : str(firstNonNull(meta.getText(MediaMetadata.METADATA_KEY_ARTIST),
                 meta.getText(MediaMetadata.METADATA_KEY_ALBUM_ARTIST), meta.getText(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)));
-        Bitmap art = null;
+        Bitmap source = null;
         if (meta != null) {
-            art = meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
-            if (art == null) art = meta.getBitmap(MediaMetadata.METADATA_KEY_ART);
-            if (art == null) art = meta.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
-            if (art != null) art = scaled(art, 256);
+            source = meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+            if (source == null) source = meta.getBitmap(MediaMetadata.METADATA_KEY_ART);
+            if (source == null) source = meta.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
         }
+        // metadata comes round again on every play/pause/seek, and each read off the controller is a fresh parcel
+        // = a new Bitmap object with the same pixels. only count it as new art when the pixels differ, or the
+        // music page restarts its crossfade on every tick (and rescales the art each time)
+        if (source != artSource && !samePicture(source, artSource)) {
+            artSource = source;
+            artSmall = source == null ? null : scaled(source, 256);
+            artCover = source == null ? null : scaled(source, 1280);
+        }
+        Bitmap art = artSmall;
         long duration = meta == null ? 0 : Math.max(0, meta.getLong(MediaMetadata.METADATA_KEY_DURATION));
         boolean playing = state != null && state.getState() == PlaybackState.STATE_PLAYING;
-        media = new Media(title, artist, art, duration, state == null ? 0 : Math.max(0, state.getPosition()),
+        media = new Media(title, artist, art, artCover, duration, state == null ? 0 : Math.max(0, state.getPosition()),
                 state == null ? SystemClock.elapsedRealtime() : state.getLastPositionUpdateTime(),
                 state == null ? 1f : state.getPlaybackSpeed(), playing);
         String track = title + "\u0000" + artist;
@@ -430,6 +440,11 @@ public final class CarData {
         Canvas canvas = new Canvas(bitmap);
         drawable.setBounds(0, 0, size, size); drawable.draw(canvas);
         return bitmap;
+    }
+    private Bitmap artSource, artSmall, artCover;
+    private static boolean samePicture(Bitmap a, Bitmap b) {
+        if (a == null || b == null || a.getWidth() != b.getWidth() || a.getHeight() != b.getHeight()) return false;
+        try { return a.sameAs(b); } catch (RuntimeException recycled) { return false; }
     }
     private static Bitmap scaled(Bitmap source, int max) {
         int w = source.getWidth(), h = source.getHeight();

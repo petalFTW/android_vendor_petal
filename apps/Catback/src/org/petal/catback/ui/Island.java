@@ -5,8 +5,9 @@ import org.petal.catback.car.CarData;
 
 // island state machine, IslandConstants springs/dwell (dp/ms)
 final class Island {
-    private static final float DROPLET = 14, CAPSULE_H = 30, CAPSULE_MIN = 64, CAPSULE_MAX = 176,
-            CARD_MAX_W = 420, CARD_H = 104, CORNER_CAPSULE = 15, CORNER_CARD = 28, TOP = 9, TOP_CARD = 12;
+    // car sizes, bigger than the phone's: card spans 90% of the screen, text a size or two up
+    private static final float DROPLET = 14, CAPSULE_H = 38, CAPSULE_MIN = 80, CARD_SHARE = .9f,
+            CARD_H = 150, CORNER_CAPSULE = 19, CORNER_CARD = 32, TOP = 7, TOP_CARD = 12;
     private static final float AUTO_EXPAND = .6f, DWELL_EXPANDED = 3f, DWELL_COLLAPSED = 2f, DWELL_OTHER = 4f;
 
     // damped spring, k stiffness z damping, mass 1
@@ -41,6 +42,8 @@ final class Island {
     private final RectF bounds = new RectF();
     CarData.Signal signal;
     boolean expanded;
+    // kind the current compact page already shows, null = show everything
+    CarData.Signal.Kind redundant;
     private boolean visible, manual;
     // 0 capsule -> 1 card -> 2 capsule -> gone
     private int phase;
@@ -61,6 +64,8 @@ final class Island {
         if (still) for (Spring s : new Spring[]{w, h, radius, y}) { s.v = s.target; s.vel = 0; }
         if (!visible && now - hiddenAt > .35f) {
             CarData.Signal next = data.nextSignal();
+            // compact: the page already on screen doesn't need repeating up top
+            while (next != null && next.kind == redundant) next = data.nextSignal();
             if (next != null) show(next, next.kind == CarData.Signal.Kind.NAVIGATION);
             return;
         }
@@ -98,17 +103,18 @@ final class Island {
     // capsule fits icon + text (+eq), max 60% width
     private float capsuleWidth() {
         if (signal == null) return CAPSULE_MIN;
-        float label = measure.width(signal.title, 14, 2);
-        float eq = signal.kind == CarData.Signal.Kind.MEDIA ? 22 : 0;
-        return Math.max(CAPSULE_MIN, Math.min(layoutWidth * .6f, 6 + 18 + 6 + label + 10 + eq));
+        float label = measure.width(signal.title, 18, 2);
+        float eq = signal.kind == CarData.Signal.Kind.MEDIA ? 30 : 0;
+        return Math.max(CAPSULE_MIN, Math.min(layoutWidth * .7f, 8 + 24 + 10 + label + 14 + eq));
     }
     // card fits its widest line, max full width
-    private float cardWidth() {
-        if (signal == null) return CARD_MAX_W;
-        float avatar = signal.avatar != null ? 52 : 0;
-        float header = 14 + 22 + measure.width(header(signal), 14, 2) + 14;
-        float body = 14 + avatar + Math.max(measure.width(signal.title, 15, 1), measure.width(signal.text, 14, 0)) + 14;
-        return Math.max(200, Math.min(layoutWidth - 24, Math.max(header, body)));
+    // incoming card always takes 90% of the screen width
+    private float cardWidth() { return layoutWidth * CARD_SHARE; }
+    // anything still moving or timing out; false = the island looks exactly like last frame and will keep doing so
+    boolean busy() {
+        if (visible || now - hiddenAt < .4f) return true;
+        for (Spring s : new Spring[]{w, h, radius, y}) if (Math.abs(s.v - s.target) > .01f || Math.abs(s.vel) > .01f) return true;
+        return false;
     }
     void dismiss() {
         if (!visible) return;
