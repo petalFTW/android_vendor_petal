@@ -199,10 +199,8 @@ public final class CarUi {
     private long inputAt = SystemClock.elapsedRealtime(), railFrameAt = SystemClock.elapsedRealtime();
     private boolean railSlim; private float railSpring = 1, railVel;
     private void poke() { inputAt = SystemClock.elapsedRealtime(); }
-    private boolean railWantsSlim() {
-        // not while the knob's parked on the rail, you'd be steering by labels that just vanished
-        return compact && SystemClock.elapsedRealtime() - inputAt > RAIL_IDLE_MS && !(focusShown && focusZone == 0);
-    }
+    // knob parked on the rail slims too, the next detent pokes the labels back before it moves anything you can't see
+    private boolean railWantsSlim() { return compact && SystemClock.elapsedRealtime() - inputAt > RAIL_IDLE_MS; }
     // 1 full rail, 0 slim; overshoots past both ends mid-boing
     private float railK() { return railSpring; }
     private boolean railMoving() { return Math.abs(railSpring - (railSlim ? 0 : 1)) > .002f || Math.abs(railVel) > .01f; }
@@ -579,15 +577,15 @@ public final class CarUi {
             case 19:
                 // up from the carousel moves onto the a-z strip; turning there goes letter by letter
                 if (drawerOpen && picking == null && drawerColumns > 0) { stripFocus = true; focusShown = true; return true; }
-                rotate(-1); return true;
+                turn(-1, false); return true;
             case 20:
                 if (drawerOpen && picking == null) { stripFocus = false; focusShown = true; return true; }
-                rotate(1); return true;
+                turn(1, false); return true;
             case 21:
-                if (compact && !overlay && focusZone == 1) { focusZone = 0; focusShown = true; } else rotate(-1);
+                if (compact && !overlay && focusZone == 1) { focusZone = 0; focusShown = true; } else turn(-1, false);
                 return true;
             case 22:
-                if (compact && !overlay && focusZone == 0) press(); else rotate(1);
+                if (compact && !overlay && focusZone == 0) press(); else turn(1, false);
                 return true;
             case 4:
                 if (drawerOpen && picking == null && stripFocus) { stripFocus = false; return true; }
@@ -597,14 +595,19 @@ public final class CarUi {
             default: return false;
         }
     }
-    public synchronized void rotate(int delta) {
+    // the knob. on the rail it runs reversed unless that's switched off in settings; dpad keys never flip
+    public synchronized void rotate(int delta) { turn(delta, true); }
+    private void turn(int delta, boolean knob) {
         dirty = true; poke();
         if (delta == 0) return;
         boolean wasShown = focusShown, overlay = overlayStart >= 0;
         focusShown = true;
         if (!wasShown) return; // first detent just shows where you are
         if (drawerOpen && picking == null) { turnDrawer(delta); return; }
-        if (compact && !overlay && focusZone == 0) { selectPage(Math.max(0, Math.min(2, page + Integer.signum(delta)))); return; }
+        if (compact && !overlay && focusZone == 0) {
+            int step = knob && org.petal.catback.Settings.knobRailReversed(context) ? -Integer.signum(delta) : Integer.signum(delta);
+            selectPage(Math.max(0, Math.min(2, page + step))); return;
+        }
         if (compact && !overlay && page == 2 && data.showing.size() > 1) { stepCarousel(Integer.signum(delta)); return; }
         List<Hit> list = focusables();
         if (!list.isEmpty()) focusIndex = Math.max(0, Math.min(list.size() - 1, focusIndex + delta));
@@ -764,7 +767,7 @@ public final class CarUi {
         if (liveMaps() || window != null || windowAnim > .002f) return true; // live app frames
         if (!still && ((eqVisible && eqPlaying) || railEqVisible)) return true;
         if (!still && wobbleTime() < WOBBLE_SECONDS + .05f) return true;
-        if (carouselMoving() || pageMoving() || railMoving() || (compact && coverMoving())) return true;
+        if (carouselMoving() || pageMoving() || railMoving() || (compact && (coverMoving() || behindMoving()))) return true;
         if (volScrub || volume.visible() || volume.animating(SystemClock.elapsedRealtime())
                 || SystemClock.elapsedRealtime() - volAt < VOLUME_SHOW_MS + 50) return true;
         float open = drawerOpen ? 1 : 0;
@@ -797,6 +800,8 @@ public final class CarUi {
         h1 = h1 * 31 + (railWantsSlim() ? 1 : 0);
         if (railMoving()) h1 = h1 * 31 + SystemClock.elapsedRealtime();
         if (compact && coverMoving()) h1 = h1 * 31 + SystemClock.elapsedRealtime();
+        // playback stopping only lands here once the hold runs out, so the cover can let go without new input
+        if (compact && behindMoving()) h1 = h1 * 31 + SystemClock.elapsedRealtime();
         if (pageMoving()) h1 = h1 * 31 + SystemClock.elapsedRealtime();
         if (wobbleTime() < WOBBLE_SECONDS + .05f) h1 = h1 * 31 + SystemClock.elapsedRealtime();
         return h1;
@@ -890,11 +895,14 @@ public final class CarUi {
     private void drawCompact(Canvas c, float now) {
         backdrop.draw(c, width, H, 0f);
         float t = pageProgress();
-        // music page with art = the cover is the whole screen. switching pages on the rail crossfades it back
-        // to wallpaper + panels in step with the page swing
+        // music page with art = the cover is the whole screen. leaving it, the cover blurs into the background
+        // in step with the page swing and stays there while music plays; paused (or no hw blur) it fades back
+        // to wallpaper + panels instead
         float from = pageFrom == 1 ? 1 : 0, to = page == 1 ? 1 : 0, onMusic = t >= 1 ? to : from + (to - from) * smooth(t);
-        ambient = onMusic * coverShown();
-        if (onMusic > .01f) drawCover(c, onMusic);
+        boolean blurs = c.isHardwareAccelerated() && android.os.Build.VERSION.SDK_INT >= 31;
+        float visible = Math.max(onMusic, blurs ? stepBehind() : 0);
+        ambient = visible * coverShown();
+        if (visible > .01f) drawCover(c, visible, blurs ? 1 - onMusic : 0);
         float m = 10, railW = RAIL_SLIM + (RAIL_W - RAIL_SLIM) * railK(), x0 = m + railW + 10;
         railBox.set(m, m, m + railW, H - m);
         rail(c, railBox);
@@ -953,16 +961,20 @@ public final class CarUi {
             if (which == 2) msgBox.setEmpty();
         }
     }
-    private void rail(Canvas c, RectF box) {
+    // over the cover (sharp or blurred) a panel is just a darker wash, the glass would look like a box pasted on top
+    private void coverPanel(Canvas c, String key, Silk silk, RectF box, float radius) {
         float a = ambient;
         if (a < .99f) {
             r.set(box); r.inset(-2, -2);
             int s0 = a > .01f ? c.saveLayerAlpha(r, Math.round(255 * (1 - a))) : c.save();
-            panel(c, "rail", railSilk, box, 26, PANEL);
+            panel(c, key, silk, box, radius, PANEL);
             c.restoreToCount(s0);
         }
-        // over the cover it's just a darker wash, the glass would look like a box pasted on top
-        if (a > .01f) fill(c, box, 26, Color.argb(Math.round(0x59 * a), 0, 0, 0));
+        if (a > .01f) fill(c, box, radius, Color.argb(Math.round(0x59 * a), 0, 0, 0));
+    }
+    private void rail(Canvas c, RectF box) {
+        float a = ambient;
+        coverPanel(c, "rail", railSilk, box, 26);
         float inset = 6, gap = 6, itemH = (box.height() - 2 * inset - 2 * gap) / 3;
         for (int i = 0; i < 3; i++) {
             float top = box.top + inset + i * (itemH + gap);
@@ -1089,21 +1101,54 @@ public final class CarUi {
         float f = coverFade(), was = coverPrev != null ? 1 : 0, is = coverNow != null ? 1 : 0;
         return was + (is - was) * f;
     }
-    // the cover itself, sharp, cropped to fill, the old one under the new while they swap. only darkened at the
-    // top (clock) and bottom (controls)
-    private void drawCover(Canvas c, float onMusic) {
+    // rail layout, maps/messages: how much the blurred cover sits behind them. follows playback, holding through
+    // the blip between tracks so a skip doesn't flash the wallpaper
+    private static final long BEHIND_MS = 400, BEHIND_HOLD_MS = 1500;
+    private static final float COVER_BLUR = 28; // layout units, fully blurred
+    private final RenderNode coverNode = new RenderNode("cover");
+    private float behind;
+    private long behindFrameAt = SystemClock.elapsedRealtime(), playingAt = -100000;
+    private boolean behindWanted() {
+        CarData.Media m = data.media;
+        long nowMs = SystemClock.elapsedRealtime();
+        if (m != null && m.playing && data.chosenApp(CarData.MEDIA) != null) playingAt = nowMs;
+        return nowMs - playingAt < BEHIND_HOLD_MS;
+    }
+    private boolean behindMoving() { return Math.abs(behind - (behindWanted() ? 1 : 0)) > .002f; }
+    private float stepBehind() {
+        long nowMs = SystemClock.elapsedRealtime();
+        float dt = Math.min(.1f, (nowMs - behindFrameAt) / 1000f), target = behindWanted() ? 1 : 0; behindFrameAt = nowMs;
+        float step = still ? 1 : dt * 1000 / BEHIND_MS;
+        behind = target > behind ? Math.min(target, behind + step) : Math.max(target, behind - step);
+        return smooth(behind);
+    }
+    // the cover itself, cropped to fill, the old one under the new while they swap. sharp it's only darkened at
+    // the top (clock) and bottom (controls); blurred (0..1) it goes soft and evenly dimmed behind the panels
+    private void drawCover(Canvas c, float alpha, float blur) {
         float f = coverFade(), shown = coverShown();
         if (shown <= .01f) return;
-        if (coverPrev != null && f < 1) coverBitmap(c, coverPrev, onMusic * (coverNow != null ? 1 : 1 - f));
-        if (coverNow != null) coverBitmap(c, coverNow, onMusic * f);
+        boolean blurred = blur > .01f;
+        Canvas into = c;
+        if (blurred) { coverNode.setPosition(0, 0, Math.round(width), Math.round(H)); into = coverNode.beginRecording(); }
+        if (coverPrev != null && f < 1) coverBitmap(into, coverPrev, alpha * (coverNow != null ? 1 : 1 - f));
+        if (coverNow != null) coverBitmap(into, coverNow, alpha * f);
+        if (blurred) {
+            coverNode.endRecording();
+            float radius = COVER_BLUR * blur;
+            coverNode.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP));
+            c.drawRenderNode(coverNode);
+            paint.setColor(Color.argb(Math.round(0x40 * alpha * shown * blur), 0, 0, 0));
+            c.drawRect(0, 0, width, H, paint);
+            paint.setColor(Color.WHITE);
+        }
         if (coverTop == null || coverShadeH != H) {
             coverShadeH = H;
             coverTop = new android.graphics.LinearGradient(0, 0, 0, 96, 0x80000000, 0x00000000, Shader.TileMode.CLAMP);
             coverBottom = new android.graphics.LinearGradient(0, H * .4f, 0, H, 0x00000000, 0xD9000000, Shader.TileMode.CLAMP);
         }
-        int alpha = Math.round(255 * onMusic * shown);
-        paint.setShader(coverTop); paint.setAlpha(alpha); c.drawRect(0, 0, width, 96, paint);
-        paint.setShader(coverBottom); paint.setAlpha(alpha); c.drawRect(0, H * .4f, width, H, paint);
+        int scrim = Math.round(255 * alpha * shown * (1 - blur));
+        paint.setShader(coverTop); paint.setAlpha(scrim); c.drawRect(0, 0, width, 96, paint);
+        paint.setShader(coverBottom); paint.setAlpha(scrim); c.drawRect(0, H * .4f, width, H, paint);
         paint.setShader(null); paint.setAlpha(255);
     }
     private void coverBitmap(Canvas c, Bitmap cover, float alpha) {
@@ -1125,7 +1170,7 @@ public final class CarUi {
 
     // maps
     private void maps(Canvas c, RectF box) {
-        panel(c, "maps", navSilk, box, 24, PANEL);
+        coverPanel(c, "maps", navSilk, box, 24);
         CarData.App app = data.chosenApp(CarData.MAPS);
         if (app != null && liveMaps()) {
             centered(c, "Opening " + app.label + "…", box.centerX(), box.centerY(), 16, semibold, TEXT2, box.width() - 40);
@@ -1250,7 +1295,7 @@ public final class CarUi {
 
     // messages: vertical carousel of what's in the shade, swipe up/down or it drifts on its own
     private void messages(Canvas c, RectF box) {
-        panel(c, "messages", messageSilk, box, 24, PANEL);
+        coverPanel(c, "messages", messageSilk, box, 24);
         msgBox.set(box);
         List<CarData.Signal> list = data.showing;
         if (list.isEmpty()) {

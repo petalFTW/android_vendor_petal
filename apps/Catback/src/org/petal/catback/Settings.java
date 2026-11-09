@@ -26,4 +26,7 @@ public final class Settings {
     // what the last car ended up with, so the phone preview can show the same layout on auto
     public static boolean lastCompact(Context c) { return prefs(c).getBoolean("last_compact", false); }
     public static void setLastCompact(Context c, boolean value) { prefs(c).edit().putBoolean("last_compact", value).apply(); }
+    // knob on the rail runs reversed by default; off = the old way, same direction as lists
+    public static boolean knobRailReversed(Context c) { return prefs(c).getBoolean("knob_rail_reversed", true); }
+    public static void setKnobRailReversed(Context c, boolean value) { prefs(c).edit().putBoolean("knob_rail_reversed", value).apply(); }
 }

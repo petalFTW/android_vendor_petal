@@ -207,7 +207,8 @@ public final class WirelessController implements Closeable {
             if (closed.get()) return;
             try {
                 WifiManager wifi = context.getSystemService(WifiManager.class);
-                if (wifi == null || !wifi.isWifiEnabled()) throw new IOException("Enable Wi-Fi on the phone first");
+                if (wifi == null) throw new IOException("This phone has no Wi-Fi");
+                if (!wifi.isWifiEnabled()) { enableWifiThenJoin(wifi, ap, endpoint, controlTls, token); return; }
                 // hidden ssid match finds broadcast ones too, loads of cars hide theirs
                 WifiNetworkSpecifier.Builder specifier = new WifiNetworkSpecifier.Builder().setSsid(ap.ssid).setIsHiddenSsid(true);
                 if (ap.hasBssid()) specifier.setBssid(MacAddress.fromString(ap.bssid));
@@ -240,6 +241,26 @@ public final class WirelessController implements Closeable {
                 connectivity.requestNetwork(request, cb, main, 65000);
             } catch (Exception error) { fail("Wi-Fi setup failed", error); }
         });
+    }
+
+    // wifi off = gearhead just flips it on, system uid lets us too. poll till it's up, the car waits a few secs
+    private static final long WIFI_ON_TIMEOUT_MS = 15000;
+    @SuppressWarnings("deprecation") // setWifiEnabled still works for system apps
+    private void enableWifiThenJoin(WifiManager wifi, WifiBootstrap.AccessPoint ap, WifiBootstrap.Endpoint endpoint, boolean controlTls, byte[] token) {
+        boolean asked;
+        try { asked = wifi.setWifiEnabled(true); } catch (SecurityException e) { asked = false; }
+        if (!asked) { fail("Wi-Fi setup failed", new IOException("Enable Wi-Fi on the phone first")); return; }
+        listener.log("Phone Wi-Fi was off; turning it on");
+        listener.state("Wireless: turning on Wi-Fi");
+        waitForWifi(wifi, ap, endpoint, controlTls, token, android.os.SystemClock.elapsedRealtime() + WIFI_ON_TIMEOUT_MS);
+    }
+    private void waitForWifi(WifiManager wifi, WifiBootstrap.AccessPoint ap, WifiBootstrap.Endpoint endpoint, boolean controlTls, byte[] token, long deadline) {
+        main.postDelayed(() -> {
+            if (closed.get()) return;
+            if (wifi.isWifiEnabled()) joinNetwork(ap, endpoint, controlTls, token);
+            else if (android.os.SystemClock.elapsedRealtime() > deadline) fail("Wi-Fi setup failed", new IOException("Wi-Fi didn't turn on"));
+            else waitForWifi(wifi, ap, endpoint, controlTls, token, deadline);
+        }, 250);
     }
 
     private void startTlsControl(WifiBootstrap.Endpoint endpoint, byte[] token) {

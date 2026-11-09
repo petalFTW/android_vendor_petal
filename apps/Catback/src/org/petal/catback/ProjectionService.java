@@ -14,6 +14,7 @@ import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.hardware.usb.UsbAccessory;
 import android.hardware.usb.UsbManager;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Handler;
@@ -113,6 +114,16 @@ public final class ProjectionService extends Service implements ProjectionSessio
 
     private final BroadcastReceiver bluetoothEvents = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
+            if (WifiManager.WIFI_STATE_CHANGED_ACTION.equals(intent.getAction())) {
+                // gave up while wifi was off but the car's still here: wifi coming on is the cue, no bt bounce needed
+                String car = standbyDevice;
+                if (car != null && auto && carPresent && !busy()
+                        && intent.getIntExtra(WifiManager.EXTRA_WIFI_STATE, -1) == WifiManager.WIFI_STATE_ENABLED) {
+                    log("Phone Wi-Fi turned on; trying the car again");
+                    autoFailures = 0; startWireless(car);
+                }
+                return;
+            }
             BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
             String wanted = standbyDevice;
             if (device == null || wanted == null || !wanted.equalsIgnoreCase(device.getAddress())) return;
@@ -296,6 +307,7 @@ public final class ProjectionService extends Service implements ProjectionSessio
         if (bluetoothRegistered) return;
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED);
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
         try { registerReceiver(bluetoothEvents, filter); bluetoothRegistered = true; }
         catch (SecurityException e) { log("Wireless standby unavailable: " + e.getMessage()); }
     }

@@ -398,6 +398,11 @@ public final class MainActivity extends Activity {
         screenNote.setPadding(dp(4), 0, dp(4), 0);
         layout.addView(screenNote, gap(4));
         button(layout, "Preview the car screen", this::showPreview);
+        boolean knobReversed = Settings.knobRailReversed(this);
+        layout.addView(row("Reverse the knob on the rail", knobReversed
+                ? "On: turning the knob moves through Maps, Music and Messages the opposite way to lists."
+                : "Off: the knob moves through the rail the same way it moves through lists.", knobReversed,
+                v -> { Settings.setKnobRailReversed(this, !knobReversed); showSettings(); }), gap(8));
 
         layout.addView(section("Car identity"), gap(36));
         Date expiry = Identity.carExpiry(this);
