@@ -28,6 +28,8 @@
     <string name="blocker_summary">Ad and tracker blocking that runs without root</string>
     <string name="category_app_center">Petal App Center</string>
     <string name="app_center_summary">Enable, disable or update optional petalOS apps</string>
+    <string name="app_center_alpha_title">Early alpha</string>
+    <string name="app_center_alpha_summary">All of these apps are in a very early alpha stage of development. Expect bugs, including in their core features.</string>
     <string name="app_center_note_title">About these apps</string>
     <string name="app_center_note_summary">Optional petalOS apps stay preinstalled so their privileged features keep working. Toggle one off to remove it for the current user, then back on to restore it.</string>
     <string name="app_center_enabled">Enabled</string>
@@ -289,7 +291,7 @@
     <!-- Version page -->
     <string name="petal_version_title" translatable="false">petalOS version</string>
     <string name="petal_version_name" translatable="false">petalOS</string>
-    <string name="petal_version_fallback" translatable="false">1.0.1</string>
+    <string name="petal_version_fallback" translatable="false">1.0.3-exp</string>
     <string name="petal_creator" translatable="false">RaB1DLANDMINE</string>
     <string name="petal_logo_description">petalOS logo</string>
     <string name="petal_version_build_type">Build type</string>

@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
-PETAL_VERSION := 1.0.1
+# bump the version in vendor/petal/VERSION, not here
+PETAL_VERSION := $(strip $(shell cat vendor/petal/VERSION 2>/dev/null))
+ifeq ($(PETAL_VERSION),)
+    PETAL_VERSION := 0.0.0
+endif
 override LINEAGE_BUILDTYPE := UNOFFICIAL
 override LINEAGE_EXTRAVERSION :=
 # stamped when the config gets read, close enough to the actual build

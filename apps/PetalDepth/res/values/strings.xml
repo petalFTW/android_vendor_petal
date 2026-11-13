@@ -50,6 +50,10 @@
     <string name="depth_ink_auto">Auto</string>
     <string name="depth_date">Date</string>
     <string name="depth_show_date">Show date</string>
+    <string name="depth_show_colon">Show colon</string>
+    <string name="depth_match_clocks">Match lock &amp; home clocks</string>
+    <string name="depth_match_clocks_home">Lock screen clock now matches home.</string>
+    <string name="depth_match_clocks_lock">Home screen clock now matches lock.</string>
     <string name="depth_target_lock">Lock screen</string>
     <string name="depth_target_home">Home screen</string>
     <string name="depth_apply_home">Apply to home screen</string>

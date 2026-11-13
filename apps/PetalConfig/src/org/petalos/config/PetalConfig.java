@@ -149,6 +149,8 @@ public final class PetalConfig {
     public static final String KEY_DEPTH_CLOCK_COLOR = "petal_depth_clock_color";
     /** show the date line */
     public static final String KEY_DEPTH_CLOCK_DATE = "petal_depth_clock_date";
+    /** 1 shows the colon in the side by side layout */
+    public static final String KEY_DEPTH_CLOCK_COLON = "petal_depth_clock_colon";
     /** clock y anchor, 5-85 */
     public static final String KEY_DEPTH_CLOCK_ANCHOR = "petal_depth_clock_anchor";
     /** clock x anchor, 10-90 */
@@ -466,6 +468,39 @@ public final class PetalConfig {
 
     public static boolean isDepthClockDateEnabled(Context context, boolean home) {
         return Settings.System.getInt(context.getContentResolver(), depthKey(KEY_DEPTH_CLOCK_DATE, home), 1) == 1;
+    }
+
+    /** sysui fires this at seamless unlock, launcher catches it and lifts its clock in */
+    public static final String ACTION_DEPTH_CLOCK_HANDOFF = "org.petalos.action.DEPTH_CLOCK_HANDOFF";
+    /** how far the lock clock sinks before home picks it up */
+    public static final float DEPTH_HANDOFF_DROP_DP = 14f;
+    public static final long DEPTH_HANDOFF_SINK_MS = 240;
+    public static final long DEPTH_HANDOFF_RISE_MS = 420;
+
+    // same spot, size and layout on both. style can differ, the hand off only cares where it sits
+    public static boolean areDepthClocksAligned(Context context) {
+        int lock = getDepthClockStyle(context, false), home = getDepthClockStyle(context, true);
+        if (lock == 0 || home == 0) return false;
+        boolean lockStack = isDepthClockStackVertical(context, false) || DepthClockMaterials.isSquare(lock);
+        boolean homeStack = isDepthClockStackVertical(context, true) || DepthClockMaterials.isSquare(home);
+        return lockStack == homeStack
+                && getDepthClockScalePct(context, false) == getDepthClockScalePct(context, true)
+                && getDepthClockXPct(context, false) == getDepthClockXPct(context, true)
+                && getDepthClockAnchorPct(context, false) == getDepthClockAnchorPct(context, true);
+    }
+
+    // both clocks lay out against the real display, not whatever their view happens to be
+    public static android.graphics.Rect displayBounds(Context context) {
+        android.view.WindowManager wm = context.getSystemService(android.view.WindowManager.class);
+        if (wm == null) {
+            android.util.DisplayMetrics dm = context.getResources().getDisplayMetrics();
+            return new android.graphics.Rect(0, 0, dm.widthPixels, dm.heightPixels);
+        }
+        return wm.getMaximumWindowMetrics().getBounds();
+    }
+
+    public static boolean isDepthClockColonEnabled(Context context, boolean home) {
+        return Settings.System.getInt(context.getContentResolver(), depthKey(KEY_DEPTH_CLOCK_COLON, home), 1) == 1;
     }
 
     /** clock style 0-3 */

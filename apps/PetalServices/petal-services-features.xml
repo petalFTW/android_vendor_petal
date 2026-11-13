@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<!-- sandboxed gms.persistent touches CHRE at boot, has no ACCESS_CONTEXT_HUB, dies. so no hub -->
+<config>
+    <unavailable-feature name="android.hardware.context_hub" />
+</config>

@@ -22,6 +22,8 @@ public final class AapConnection implements Closeable {
     private final Object crypto = new Object();
     private final Pending[] pending = new Pending[256];
     private volatile boolean closed;
+    // last time the car said anything. a switched-off head unit never sends a FIN, the socket just goes quiet
+    private volatile long heardAt = android.os.SystemClock.elapsedRealtime();
     private int buffered;
     private static final int LIMIT = 4 * 1024 * 1024;
 
@@ -42,6 +44,7 @@ public final class AapConnection implements Closeable {
         if (reply.length > 0) send(0, false, false, 3, reply);
     }
     public boolean tlsReady() { synchronized (crypto) { return tls.ready; } }
+    public long silentMs() { return android.os.SystemClock.elapsedRealtime() - heardAt; }
 
     public void readLoop(Listener listener) throws Exception {
         while (!closed) {
@@ -51,6 +54,7 @@ public final class AapConnection implements Closeable {
             int total = fragment == 1 ? input.readInt() : -1;
             if (fragment == 1 && (total < 2 || total > LIMIT)) throw new IOException("AAP message length limit");
             byte[] payload = new byte[size]; input.readFully(payload);
+            heardAt = android.os.SystemClock.elapsedRealtime();
             if ((flags & 8) != 0) synchronized (crypto) { payload = tls.decrypt(payload); }
             Pending p = pending[channel];
             if ((flags & 1) != 0) {

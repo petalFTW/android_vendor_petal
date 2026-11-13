@@ -56,6 +56,37 @@ public final class ProjectionService extends Service implements ProjectionSessio
     private static final int AUTO_ATTEMPTS = 3;
     // engine crank drops bt for a sec, don't die over it
     private static final long GONE_GRACE_MS = 3000;
+    // head units ack every video frame + ping, so 4s of nothing = the car's off, not thinking
+    private static final long STALE_MS = 4000;
+    private final Runnable checkStale = this::checkStale;
+
+    private boolean sessionStale() {
+        ProjectionSession active = session;
+        return active != null && active.silentMs() > STALE_MS;
+    }
+
+    // car bt dropped but wifi "still up": keep poking till the link proves it's dead or the car's back
+    private void checkStale() {
+        if (carPresent || !busy()) return;
+        if (sessionStale()) {
+            log("Car went quiet; dropping the dead link");
+            carWasDead();
+            stopSelf();
+            return;
+        }
+        main.postDelayed(checkStale, 1500);
+    }
+    // car off = its bt keeps flapping for a bit, every flap was a full reconnect. back off between dead tries
+    private static volatile long backoffUntil;
+    private static volatile int deadCycles;
+    private static final long BACKOFF_BASE_MS = 10000, BACKOFF_MAX_MS = 60000;
+    private static void carWasDead() {
+        long wait = Math.min(BACKOFF_MAX_MS, BACKOFF_BASE_MS << Math.min(deadCycles, 3));
+        deadCycles++;
+        backoffUntil = android.os.SystemClock.elapsedRealtime() + wait;
+    }
+    private static void carWasAlive() { deadCycles = 0; backoffUntil = 0; }
+    private Runnable pendingStart;
     private final Runnable leaveIfGone = this::stopIfCarGone;
     private void stopIfCarGone() { if (!carPresent && !busy()) { log("Car still gone; stopping"); stopSelf(); } }
     // human text for home + notif, state is the nerd one
@@ -192,7 +223,19 @@ public final class ProjectionService extends Service implements ProjectionSessio
             if (gone != null && serving != null && !gone.equalsIgnoreCase(serving)) return START_NOT_STICKY;
             // loads of cars drop bt once wifi is up, so the tcp link decides when we're done, not bt
             carPresent = false;
-            if (busy()) log("Car Bluetooth disconnected; continuing over Wi-Fi");
+            if (busy() && session == null) {
+                // still mid setup and the car left, that attempt is dead, dont let it sit on the next start
+                log("Car left during setup; dropping the attempt");
+                stopTransport();
+                main.removeCallbacks(leaveIfGone);
+                main.postDelayed(leaveIfGone, GONE_GRACE_MS);
+            } else if (busy()) {
+                // car switched off = bt drops but the tcp socket never closes. this used to keep a
+                // zombie session forever, so the next startup got "already connected" and nothing worked
+                log("Car Bluetooth disconnected; continuing over Wi-Fi");
+                main.removeCallbacks(checkStale);
+                main.postDelayed(checkStale, 1500);
+            }
             else {
                 log("Car disconnected; stopping in " + GONE_GRACE_MS / 1000 + " s unless it reconnects");
                 main.removeCallbacks(leaveIfGone);
@@ -210,13 +253,28 @@ public final class ProjectionService extends Service implements ProjectionSessio
             else if (device == null) log("Wireless start needs a head-unit address");
             else {
                 if (automatic) { carPresent = true; main.removeCallbacks(leaveIfGone); }
-                if (automatic && device.equalsIgnoreCase(standbyDevice) && busy()) log("Already connected to the linked car");
+                // only a live session counts as connected. a half done setup used to eat the real start = hang
+                if (automatic && device.equalsIgnoreCase(standbyDevice) && session != null && !sessionStale()) log("Already connected to the linked car");
+                else if (automatic && android.os.SystemClock.elapsedRealtime() < backoffUntil) delayedStart(device);
                 else { auto = automatic; autoFailures = 0; startWireless(device); }
             }
         }
         else if (TCP.equals(action)) { standbyDevice = null; auto = false; startTcp(); }
         else if (USB.equals(action)) { standbyDevice = null; auto = false; connectUsb(); }
         return START_NOT_STICKY;
+    }
+
+    // one queued start max, flapping bt just pushes the same one
+    private void delayedStart(String device) {
+        if (pendingStart != null) main.removeCallbacks(pendingStart);
+        long wait = Math.max(0, backoffUntil - android.os.SystemClock.elapsedRealtime());
+        log("Car was just off; trying again in " + (wait / 1000 + 1) + " s");
+        phase("Waiting for " + carName(device));
+        pendingStart = () -> {
+            pendingStart = null;
+            if (carPresent && !(session != null && !sessionStale())) { auto = true; autoFailures = 0; startWireless(device); }
+        };
+        main.postDelayed(pendingStart, wait);
     }
 
     private void startTcp() {
@@ -276,11 +334,15 @@ public final class ProjectionService extends Service implements ProjectionSessio
                 if (projected) return; // projection() already handled it
                 if (auto && !carPresent) {
                     ProjectionService.this.log("Setup ended and the car is gone; stopping");
+                    carWasDead();
                     main.post(ProjectionService.this::stopSelf);
                 } else if (auto && ++autoFailures < AUTO_ATTEMPTS) {
                     phase("Retrying connection to " + carName(car));
                     main.postDelayed(() -> { if (generation.get() == token && !busy()) startWireless(car); }, 5000);
-                } else phase("Couldn't connect to " + carName(car) + ". Will try again when it reconnects.");
+                } else {
+                    carWasDead();
+                    phase("Couldn't connect to " + carName(car) + ". Will try again when it reconnects.");
+                }
             }
             @Override public void projection(Socket socket) {
                 // blocks on the controller's thread till the session dies
@@ -348,6 +410,7 @@ public final class ProjectionService extends Service implements ProjectionSessio
             log(Identity.status);
             if (generation.get() != token) { connection.close(); return; }
             active = new ProjectionSession(connection, this); session = active;
+            carWasAlive();
             wakeLock.acquire(60 * 60 * 1000L);
             state = "Negotiating projection";
             active.run();
@@ -363,17 +426,23 @@ public final class ProjectionService extends Service implements ProjectionSessio
     private void stopTransport() {
         generation.incrementAndGet();
         stopping = true;
+        main.removeCallbacks(checkStale);
         Thread current = worker;
         if (current != null) current.interrupt();
         ProjectionSession active = session;
-        if (active != null) try { active.close(); } catch (IOException ignored) { }
         WirelessController controller = wireless; wireless = null;
-        if (controller != null) controller.close();
         Closeable descriptor = transport;
-        if (descriptor != null) try { descriptor.close(); } catch (IOException ignored) { }
         ServerSocket listener = server;
-        if (listener != null) try { listener.close(); } catch (IOException ignored) { }
         server = null; transport = null; session = null;
+        // socket first: a dead car leaves frame writes blocked in write(), closing the socket kicks them
+        // out. the rest goes off main, it used to sit here and freeze the whole app (and its ui) for ages
+        new Thread(() -> {
+            if (descriptor != null) try { descriptor.close(); } catch (IOException ignored) { }
+            if (listener != null) try { listener.close(); } catch (IOException ignored) { }
+            if (controller != null) controller.close();
+            if (active != null) active.closeLink();
+        }, "Catback-Teardown").start();
+        // both just flag + interrupt, cheap enough for main
         stopVideo(); audio(false, null, active);
         CarUi.get(this).layoutToggle = null;
         CarUi.get(this).session(false, false);
@@ -428,6 +497,7 @@ public final class ProjectionService extends Service implements ProjectionSessio
         return CarLink.isCar(this, address) ? CarLink.name(this) : "head unit";
     }
     @Override public void onDestroy() {
+        if (pendingStart != null) { main.removeCallbacks(pendingStart); pendingStart = null; }
         if (bridge != null) bridge.close();
         if (projection != null) projection.stop();
         headline = ""; foreground = false;

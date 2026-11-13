@@ -20,6 +20,8 @@ import android.util.Log;
 
 /** Wallpaper lenses with a rounded meniscus and thin-film colour along the glass edge. */
 final class LiquidClockMaterial {
+    // plain glass: refraction only at the rim, quiet clear middle, one soft highlight.
+    // the old one had sine ripples + rainbow film + stripe sheen, looked like a screensaver
     private static final String SHADER = """
             uniform shader wallpaper;
             uniform shader surface;
@@ -28,33 +30,26 @@ final class LiquidClockMaterial {
             uniform float textSize;
             uniform float3 tint;
             float field(float2 p) {
-                return surface.eval((p - origin + maskOrigin) * 0.5).a;
+                return surface.eval(p - origin + maskOrigin).a;
             }
             half4 main(float2 p) {
-                float stepSize = max(1.0, textSize * 0.009);
+                float stepSize = max(1.5, textSize * 0.018);
                 float2 gradient = float2(
                     field(p + float2(stepSize, 0)) - field(p - float2(stepSize, 0)),
                     field(p + float2(0, stepSize)) - field(p - float2(0, stepSize)));
-                float edge = clamp(length(gradient) * 4.0, 0.0, 1.0);
-                float2 normal = -gradient / max(length(gradient), 0.0001);
-                float2 q = (p - origin) / textSize;
-                float2 ripple = float2(sin(q.y * 9.0 + q.x * 3.0),
-                                       cos(q.x * 8.0 - q.y * 2.0));
-                float2 bend = normal * edge * textSize * 0.105
-                            + ripple * textSize * 0.012;
-                // Separate wavelengths bend slightly differently through the rounded edge.
-                float3 glass = float3(wallpaper.eval(p + bend * 1.12).r,
+                float g = length(gradient);
+                float edge = smoothstep(0.0, 1.0, clamp(g * 2.6, 0.0, 1.0));
+                float2 normal = -gradient / max(g, 0.0001);
+                // rim bends hard, middle barely moves, like real thick glass
+                float2 bend = normal * edge * edge * textSize * 0.075;
+                float3 glass = float3(wallpaper.eval(p + bend * 1.035).r,
                                       wallpaper.eval(p + bend).g,
-                                      wallpaper.eval(p + bend * 0.88).b);
-                float facing = dot(normal, normalize(float2(-0.65, -0.76)));
-                float highlight = pow(max(facing, 0.0), 5.0) * edge;
-                float shadow = max(-facing, 0.0) * edge;
-                float3 film = 0.5 + 0.5 * cos(6.28318 *
-                    (q.y * 0.65 + q.x * 0.22 + edge * 0.8 + float3(0.0, 0.33, 0.67)));
-                float sheen = pow(0.5 + 0.5 * sin(q.y * 5.0 + q.x * 2.0), 18.0);
-                float3 colour = glass * (0.92 - shadow * 0.30)
-                    + tint * 0.035 + film * edge * 0.24
-                    + highlight * 0.78 + sheen * 0.085;
+                                      wallpaper.eval(p + bend * 0.965).b);
+                float facing = dot(normal, normalize(float2(-0.6, -0.8)));
+                float highlight = pow(max(facing, 0.0), 6.0) * edge;
+                float shade = max(-facing, 0.0) * edge * edge;
+                float3 colour = glass * (1.0 - shade * 0.16)
+                    + highlight * 0.42 + edge * edge * 0.05 + tint * 0.02;
                 return half4(clamp(colour, 0.0, 1.0), 1.0);
             }
             """;
@@ -107,6 +102,8 @@ final class LiquidClockMaterial {
             if (lastBackdrop != backdrop) {
                 lastBackdrop = backdrop;
                 wallpaper = new BitmapShader(backdrop, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+                // nearest sampling inside the runtime shader = the stair-steppy pixel mess
+                wallpaper.setFilterMode(BitmapShader.FILTER_MODE_LINEAR);
             }
             wallpaperMatrix.setScale(width / (float) backdrop.getWidth(),
                     height / (float) backdrop.getHeight());
@@ -158,15 +155,16 @@ final class LiquidClockMaterial {
         path.computeBounds(box, true);
         float blur = Math.max(1f, source.getTextSize() * 0.035f);
         box.inset(-blur * 3f, -blur * 3f);
-        Bitmap bitmap = Bitmap.createBitmap(Math.max(1, (int) Math.ceil(box.width() * 0.5f)),
-                Math.max(1, (int) Math.ceil(box.height() * 0.5f)), Bitmap.Config.ARGB_8888);
+        // full res now, the half-size mask is what made the rim go blocky
+        Bitmap bitmap = Bitmap.createBitmap(Math.max(1, (int) Math.ceil(box.width())),
+                Math.max(1, (int) Math.ceil(box.height())), Bitmap.Config.ALPHA_8);
         Canvas maskCanvas = new Canvas(bitmap);
-        maskCanvas.scale(0.5f, 0.5f);
         maskCanvas.translate(-box.left, -box.top);
         maskPaint.setMaskFilter(new BlurMaskFilter(blur, BlurMaskFilter.Blur.NORMAL));
         maskCanvas.drawPath(path, maskPaint);
-        Mask result = new Mask(new BitmapShader(bitmap, Shader.TileMode.CLAMP,
-                Shader.TileMode.CLAMP), box.left, box.top);
+        BitmapShader maskShader = new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+        maskShader.setFilterMode(BitmapShader.FILTER_MODE_LINEAR);
+        Mask result = new Mask(maskShader, box.left, box.top);
         masks.put(key, result);
         return result;
     }

@@ -1,0 +1,8 @@
+# petal microG only. seinfo=platform = signed w/ the petalOS platform key, so official
+# microG (own key) and google gms (google key) never land here, they stay untrusted_app.
+# same 3-way split aosp uses for gmscore_app: main proc, .unstable/.persistent, :ui etc.
+# aosp's gmscore_app lines need isPrivApp=true, petal microG is a data update over a
+# non-priv stub so they never fight us
+user=_app seinfo=platform name=com.google.android.gms domain=petal_microg_app type=app_data_file levelFrom=user
+user=_app seinfo=platform name=com.google.android.gms.* domain=petal_microg_app type=app_data_file levelFrom=user
+user=_app seinfo=platform name=com.google.android.gms:* domain=petal_microg_app type=app_data_file levelFrom=user

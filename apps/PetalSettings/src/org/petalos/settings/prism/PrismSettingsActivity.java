@@ -279,6 +279,10 @@ public final class PrismSettingsActivity extends Activity {
     private void buildQuick() {
         if (quickHost == null) return;
         quickHost.removeAllViews();
+        // the eggs get the whole stage, sliders shoved the build/version row under the dock
+        boolean eggMode = egg || nxe;
+        quickHost.setVisibility(eggMode ? View.GONE : View.VISIBLE);
+        if (eggMode) return;
         quickHost.addView(group(java.util.Arrays.asList(brightnessSlider(true),
                 volumeSlider(true))));
     }
@@ -330,7 +334,7 @@ public final class PrismSettingsActivity extends Activity {
     private int carouselStageHeight() {
         int screenDp = Math.round(getResources().getDisplayMetrics().heightPixels
                 / getResources().getDisplayMetrics().density);
-        return egg || nxe ? dp(Math.max(240, Math.min(350, Math.round(screenDp * .40f))))
+        return egg || nxe ? dp(Math.max(232, Math.min(320, Math.round(screenDp * .36f))))
                 : dp(Math.max(172, Math.min(196, Math.round(screenDp * .21f)))
                 + Math.max(0f, getResources().getConfiguration().fontScale - 1f) * 80);
     }

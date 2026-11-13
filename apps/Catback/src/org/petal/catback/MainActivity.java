@@ -657,6 +657,10 @@ public final class MainActivity extends Activity {
             // same codes a car's volume keys send, so this drives the real media volume + the car's volume hud
             left.add(new Key("Vol +", false, () -> ui.key(24)));
             left.add(new Key("Vol \u2212", false, () -> ui.key(25)));
+            // fake ringing call to try the call tab without phoning yourself
+            org.petal.catback.car.CarData car = org.petal.catback.car.CarData.get(MainActivity.this);
+            boolean testing = car.testCallActive();
+            right.add(new Key(testing ? "End call" : "Test call", testing, () -> { car.toggleTestCall(); ui.invalidate(); }));
             right.add(new Key("Turn \u2191", false, () -> ui.rotate(-1)));
             right.add(new Key("Press", false, () -> ui.key(23)));
             right.add(new Key("Turn \u2193", false, () -> ui.rotate(1)));

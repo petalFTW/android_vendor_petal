@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 petalOS; SPDX-License-Identifier: Apache-2.0 -->
+<permissions>
+    <!-- This only allowlists the signature grant: the APK must still match the
+         platform signer. Google-signed sandboxed GMS does not qualify.
+         microG uses these permissions for TS.43 subscriber identity / SIM auth
+         and to temporarily allow push recipients to run during device idle. -->
+    <signature-permissions package="com.google.android.gms">
+        <permission name="android.permission.READ_PRIVILEGED_PHONE_STATE" />
+        <permission name="android.permission.CHANGE_DEVICE_IDLE_TEMP_WHITELIST" />
+    </signature-permissions>
+</permissions>

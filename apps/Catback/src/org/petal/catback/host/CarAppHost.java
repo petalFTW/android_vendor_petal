@@ -138,6 +138,10 @@ public final class CarAppHost {
             if (result instanceof TemplateWrapper) {
                 template = ((TemplateWrapper) result).getTemplate(); changed();
                 Log.i(TAG, "Car app template " + template.getClass().getSimpleName());
+                if (template instanceof androidx.car.app.model.MessageTemplate) {
+                    androidx.car.app.model.MessageTemplate msg = (androidx.car.app.model.MessageTemplate) template;
+                    Log.i(TAG, "  message: " + msg.getTitle() + " / " + msg.getMessage());
+                }
             }
         })));
     }
@@ -186,7 +190,19 @@ public final class CarAppHost {
     public void press(Action action) {
         if (action == null) return;
         if (action.getType() == Action.TYPE_BACK) { back(); return; }
-        if (action.getOnClickDelegate() != null) action.getOnClickDelegate().sendClick(new OnDoneCallback() { });
+        if (action.getOnClickDelegate() != null) action.getOnClickDelegate().sendClick(clickDone("action"));
+    }
+
+    // clicks used to vanish silently, now a refused one at least shows up in logcat
+    public static OnDoneCallback clickDone(String what) {
+        return new OnDoneCallback() {
+            @Override public void onFailure(androidx.car.app.serialization.Bundleable response) {
+                String why = "?";
+                try { Object f = response == null ? null : response.get(); if (f != null) why = f.toString(); }
+                catch (androidx.car.app.serialization.BundlerException | RuntimeException e) { why = e.toString(); }
+                Log.w(TAG, "Car app " + what + " click failed: " + why);
+            }
+        };
     }
 
     public void close() {
@@ -285,7 +301,10 @@ public final class CarAppHost {
                 case "navigation": return navigationHost.asBinder();
                 case "constraints": return constraintHost.asBinder();
                 case "suggestion": return suggestionHost.asBinder();
-                default: return null;
+                default:
+                    // waze "screen not supported" hunt, log every host the app wanted and didnt get
+                    Log.w(TAG, "Car app " + service.getPackageName() + " asked for missing host '" + type + "'");
+                    return null;
             }
         }
         @Override public void finish() { main.post(() -> { status = "App closed itself"; template = null; changed(); }); }

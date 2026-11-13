@@ -133,6 +133,7 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
 
     public ProjectionSession(AapConnection connection, Host host) { this.connection = connection; this.host = host; }
     public void run() throws Exception { connection.readLoop(this); }
+    public long silentMs() { return connection.silentMs(); }
 
     @Override public void message(int channel, boolean control, boolean encrypted, int id, byte[] body) throws Exception {
         // pings every second were drowning the whole log, skip em
@@ -488,6 +489,16 @@ public final class ProjectionSession implements Closeable, AapConnection.Listene
         if (!closed) host.log("Session failed: " + error.getClass().getSimpleName() + ": " + error.getMessage());
         try { close(); } catch (IOException ignored) { }
     }
+    // host already stopped video/audio itself, just cut the wire. calling back into the host from a
+    // teardown thread could kill the NEXT session's encoder if the car reconnected quick
+    public void closeLink() {
+        if (closed) return;
+        closed = true;
+        for (Channel c : channels.values()) c.window.close();
+        host.log("Session closed; video=" + videoPackets + ", audio=" + audioPackets + ", touch=" + touchEvents);
+        try { connection.close(); } catch (IOException ignored) { }
+    }
+
     @Override public void close() throws IOException {
         if (closed) return;
         closed = true;

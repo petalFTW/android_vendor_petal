@@ -26,7 +26,7 @@
     <string name="cartridge_enabled">Cartridge library unlocked.</string>
     <string name="cartridge_disabled">Back to settings cards.</string>
     <string name="dashboard_enabled">Welcome to the dashboard.</string>
-    <string name="petal_os_version" translatable="false">1.0.1</string>
+    <string name="petal_os_version" translatable="false">1.0.3-exp</string>
     <string name="write_settings_title">Allow brightness and depth changes?</string>
     <string name="write_settings_body">Allow Petal Settings to modify system settings to adjust brightness and lock-screen depth.</string>
     <string name="grant">Allow</string>

@@ -200,7 +200,10 @@ public final class CarUi {
     private boolean railSlim; private float railSpring = 1, railVel;
     private void poke() { inputAt = SystemClock.elapsedRealtime(); }
     // knob parked on the rail slims too, the next detent pokes the labels back before it moves anything you can't see
-    private boolean railWantsSlim() { return compact && SystemClock.elapsedRealtime() - inputAt > RAIL_IDLE_MS; }
+    // stays full on the call page: slimming widens the page under the call panel, which reflows + rebakes it mid-call
+    private boolean railWantsSlim() {
+        return compact && page != PAGE_CALL && SystemClock.elapsedRealtime() - inputAt > RAIL_IDLE_MS;
+    }
     // 1 full rail, 0 slim; overshoots past both ends mid-boing
     private float railK() { return railSpring; }
     private boolean railMoving() { return Math.abs(railSpring - (railSlim ? 0 : 1)) > .002f || Math.abs(railVel) > .01f; }
@@ -226,6 +229,29 @@ public final class CarUi {
     private static final long PAGE_MS = 420;
     private boolean compact;
     private int page, pageFrom;
+    // call tab. page 3 but it sits between music and alerts on the rail
+    private static final int PAGE_CALL = 3;
+    private static final int CALL_GREEN = 0xFF34C759, CALL_RED = 0xFFFF453A;
+    // 0 = folded inside music, 1 = its own tab. springy on purpose so the drop lands with a plop
+    private float callReveal, callRevealVel;
+    private long callFrameAt = SystemClock.elapsedRealtime(), callSplashAt = -100000;
+    // ~1.6x quicker than before, same bounce out (zeta ~0.42) and no bounce back in (critical)
+    private static final float CALL_K = 620, CALL_D = 21, CALL_D_HOME = 50;
+    private static final long CALL_SPLASH_MS = 400;
+    private boolean callLanded, callFocusPending;
+    private CarData.Call callSeen;
+    private Hit callAnswerHit;
+    // music note -> handset as one shape: both outlines sampled to the same N points, lined up, lerped.
+    // same path data as car_music.xml / car_call.xml so frame 0 and frame 1 are pixel-identical to the icons
+    private static final int MORPH_N = 96;
+    private static final String MUSIC_D = "M12,3v10.6A4,4 0,1 0,14 17V7h4V3z",
+            PHONE_D = "M20.01,15.38c-1.23,0 -2.42,-0.2 -3.53,-0.56a0.98,0.98 0,0 0,-1.01 0.24l-1.57,1.97c-2.83,-1.35 -5.48,-3.9 -6.89,-6.83l1.95,-1.66c0.27,-0.28 0.35,-0.67 0.24,-1.02 -0.37,-1.11 -0.56,-2.3 -0.56,-3.53 0,-0.54 -0.45,-0.99 -0.99,-0.99H4.19C3.65,3 3,3.24 3,3.99 3,13.28 10.73,21 20.01,21c0.71,0 0.99,-0.63 0.99,-1.18v-3.45c0,-0.54 -0.45,-0.99 -0.99,-0.99z";
+    private float[] morphFrom, morphTo;
+    private final android.graphics.Path morphPath = new android.graphics.Path();
+    private final Paint morphPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    // where the user was before the phone butted in
+    private int callReturnPage = 1, callReturnZone;
+    private boolean callReturnShown;
     private long pageAt = -100000;
     private final RectF pageBox = new RectF(), railBox = new RectF();
     // live map rides along with its page during a swing: offset, fade, and no taps while it's on its way out
@@ -606,7 +632,9 @@ public final class CarUi {
         if (drawerOpen && picking == null) { turnDrawer(delta); return; }
         if (compact && !overlay && focusZone == 0) {
             int step = knob && org.petal.catback.Settings.knobRailReversed(context) ? -Integer.signum(delta) : Integer.signum(delta);
-            selectPage(Math.max(0, Math.min(2, page + step))); return;
+            int[] order = railOrder(); int at = 0;
+            for (int i = 0; i < order.length; i++) if (order[i] == page) at = i;
+            selectPage(order[Math.max(0, Math.min(order.length - 1, at + step))]); return;
         }
         if (compact && !overlay && page == 2 && data.showing.size() > 1) { stepCarousel(Integer.signum(delta)); return; }
         List<Hit> list = focusables();
@@ -666,6 +694,98 @@ public final class CarUi {
         c.drawRoundRect(r, radius, radius, focusGlow);
         c.drawRoundRect(r, radius, radius, focusCore);
     }
+    // call showed up / went away / flipped ringing -> live
+    private void syncCall() {
+        CarData.Call call = data.call;
+        boolean had = callSeen != null, has = call != null;
+        if (has && !had) {
+            callReturnPage = page == PAGE_CALL ? 1 : page;
+            callReturnZone = focusZone; callReturnShown = focusShown;
+            callLanded = false; callSplashAt = -100000;
+            // cursor straight onto the call tab. one press from there drops onto answer
+            if (compact) { selectPage(PAGE_CALL); focusZone = 0; }
+            else callFocusPending = true;
+            focusShown = true;
+        } else if (!has && had) {
+            // hung up or declined: back where they were, tab folds back into music
+            if (page == PAGE_CALL) selectPage(callReturnPage);
+            focusZone = callReturnZone; focusShown = callReturnShown; focusIndex = 0;
+        } else if (has && call.ringing != callSeen.ringing && focusZone == 1) {
+            focusIndex = 0; // answered, hang up's the first button now
+        }
+        callSeen = call;
+        long nowMs = SystemClock.elapsedRealtime();
+        float dt = Math.min(.1f, (nowMs - callFrameAt) / 1000f), target = has ? 1 : 0; callFrameAt = nowMs;
+        for (float left = dt; left > 0; left -= .004f) {
+            float step = Math.min(.004f, left);
+            // bouncy on the way out, critically damped back in. the bounce past 0 used to pop the tab
+            // back to half visible for a beat after it folded away
+            float damping = has ? CALL_D : CALL_D_HOME;
+            callRevealVel += (CALL_K * (target - callReveal) - damping * callRevealVel) * step; callReveal += callRevealVel * step;
+        }
+        if (!has && callReveal < 0) { callReveal = 0; callRevealVel = 0; }
+        if (still || (Math.abs(target - callReveal) < .002f && Math.abs(callRevealVel) < .01f)) { callReveal = target; callRevealVel = 0; }
+        // first touchdown of the drop = splash
+        if (has && !callLanded && callReveal >= .98f) { callLanded = true; if (!still) callSplashAt = nowMs; }
+    }
+    private static float[] outline(String d) {
+        android.graphics.PathMeasure measure = new android.graphics.PathMeasure(android.util.PathParser.createPathFromPathData(d), true);
+        float length = measure.getLength(), out[] = new float[MORPH_N * 2], pos[] = new float[2];
+        for (int i = 0; i < MORPH_N; i++) { measure.getPosTan(length * i / MORPH_N, pos, null); out[2 * i] = pos[0]; out[2 * i + 1] = pos[1]; }
+        return out;
+    }
+    private static float area(float[] p) {
+        float a = 0;
+        for (int i = 0; i < MORPH_N; i++) { int j = (i + 1) % MORPH_N; a += p[2 * i] * p[2 * j + 1] - p[2 * j] * p[2 * i + 1]; }
+        return a;
+    }
+    // same winding + best starting point, otherwise the lerp turns itself inside out halfway
+    private void ensureMorph() {
+        if (morphFrom != null) return;
+        float[] a = outline(MUSIC_D), b = outline(PHONE_D);
+        if (Math.signum(area(a)) != Math.signum(area(b))) {
+            float[] flipped = new float[b.length];
+            for (int i = 0; i < MORPH_N; i++) { flipped[2 * i] = b[2 * (MORPH_N - 1 - i)]; flipped[2 * i + 1] = b[2 * (MORPH_N - 1 - i) + 1]; }
+            b = flipped;
+        }
+        int best = 0; float bestCost = Float.MAX_VALUE;
+        for (int off = 0; off < MORPH_N; off++) {
+            float cost = 0;
+            for (int i = 0; i < MORPH_N; i++) {
+                int j = (i + off) % MORPH_N;
+                float dx = a[2 * i] - b[2 * j], dy = a[2 * i + 1] - b[2 * j + 1];
+                cost += dx * dx + dy * dy;
+            }
+            if (cost < bestCost) { bestCost = cost; best = off; }
+        }
+        float[] aligned = new float[b.length];
+        for (int i = 0; i < MORPH_N; i++) { int j = (i + best) % MORPH_N; aligned[2 * i] = b[2 * j]; aligned[2 * i + 1] = b[2 * j + 1]; }
+        morphFrom = a; morphTo = aligned;
+    }
+    // glyph box like icon(): x,y top-left, size in layout units, viewport 24
+    private void morphIcon(Canvas c, float t, float x, float y, float size, int color) {
+        ensureMorph();
+        float e = t * t * (3 - 2 * t), k = size / 24f;
+        morphPath.rewind();
+        for (int i = 0; i < MORPH_N; i++) {
+            float px = x + (morphFrom[2 * i] + (morphTo[2 * i] - morphFrom[2 * i]) * e) * k;
+            float py = y + (morphFrom[2 * i + 1] + (morphTo[2 * i + 1] - morphFrom[2 * i + 1]) * e) * k;
+            if (i == 0) morphPath.moveTo(px, py); else morphPath.lineTo(px, py);
+        }
+        morphPath.close();
+        morphPaint.setStyle(Paint.Style.FILL);
+        morphPaint.setColor(color);
+        c.drawPath(morphPath, morphPaint);
+    }
+    private boolean callMoving() {
+        float target = data.call != null ? 1 : 0;
+        return Math.abs(callReveal - target) > .002f || Math.abs(callRevealVel) > .01f
+                || SystemClock.elapsedRealtime() - callSplashAt < CALL_SPLASH_MS + 20
+                || (!still && data.call != null && data.call.ringing);
+    }
+    // rail order top to bottom, call slots in under music while it's out
+    private int[] railOrder() { return callReveal > .5f || data.call != null ? new int[]{0, 1, PAGE_CALL, 2} : new int[]{0, 1, 2}; }
+    private static float railRank(int p) { return p == PAGE_CALL ? 1.5f : p; }
     private void selectPage(int p) {
         if (p == page) return;
         pageFrom = page; page = p; pageAt = SystemClock.elapsedRealtime();
@@ -710,6 +830,7 @@ public final class CarUi {
         boolean slim = railWantsSlim();
         railSlim = slim;
         stepRail();
+        syncCall();
         island.redundant = !compact ? null : page == 0 ? CarData.Signal.Kind.NAVIGATION : page == 1 ? CarData.Signal.Kind.MEDIA : null;
         if (closeSheetsAt != 0 && SystemClock.elapsedRealtime() >= closeSheetsAt) { closeSheetsAt = 0; picking = null; drawerOpen = false; }
         float sx = w / layoutWidth, sy = h / H, now = (SystemClock.elapsedRealtime() - start) / 1000f;
@@ -753,6 +874,10 @@ public final class CarUi {
         if (picking != null) { overlay = pending.size(); drawPicker(canvas); }
         drawVolume(canvas);
         hits.clear(); hits.addAll(pending);
+        if (callFocusPending && callAnswerHit != null) {
+            int at = focusables().indexOf(callAnswerHit);
+            if (at >= 0) { focusIndex = at; callFocusPending = false; dirty = true; }
+        }
         if ((overlay >= 0) != (overlayStart >= 0)) {
             if (overlay >= 0) { savedFocus = focusIndex; focusIndex = 0; } else focusIndex = savedFocus;
         }
@@ -767,7 +892,7 @@ public final class CarUi {
         if (liveMaps() || window != null || windowAnim > .002f) return true; // live app frames
         if (!still && ((eqVisible && eqPlaying) || railEqVisible)) return true;
         if (!still && wobbleTime() < WOBBLE_SECONDS + .05f) return true;
-        if (carouselMoving() || pageMoving() || railMoving() || (compact && (coverMoving() || behindMoving()))) return true;
+        if (carouselMoving() || pageMoving() || railMoving() || callMoving() || (compact && (coverMoving() || behindMoving()))) return true;
         if (volScrub || volume.visible() || volume.animating(SystemClock.elapsedRealtime())
                 || SystemClock.elapsedRealtime() - volAt < VOLUME_SHOW_MS + 50) return true;
         float open = drawerOpen ? 1 : 0;
@@ -799,6 +924,8 @@ public final class CarUi {
         // flips by itself after the idle timeout, so this is what wakes the encoder for the slim animation
         h1 = h1 * 31 + (railWantsSlim() ? 1 : 0);
         if (railMoving()) h1 = h1 * 31 + SystemClock.elapsedRealtime();
+        h1 = h1 * 31 + System.identityHashCode(data.call);
+        if (callMoving()) h1 = h1 * 31 + SystemClock.elapsedRealtime();
         if (compact && coverMoving()) h1 = h1 * 31 + SystemClock.elapsedRealtime();
         // playback stopping only lands here once the hold runs out, so the cover can let go without new input
         if (compact && behindMoving()) h1 = h1 * 31 + SystemClock.elapsedRealtime();
@@ -835,9 +962,9 @@ public final class CarUi {
                     layoutWidth, layoutHeight, box, radius, backdrop.version(), PANEL_GLASS),
                     canvas -> backdrop.draw(canvas, layoutWidth, layoutHeight, 0f));
             Bitmap glassImage = baker.get(key);
-            float ss = GlassBaker.supersample(frameSy);
-            if (glassImage != null && (moving || Math.abs(glassImage.getWidth() - box.width() * frameSx * ss) <= 1.5f * ss)
-                    && (moving || Math.abs(glassImage.getHeight() - box.height() * frameSy * ss) <= 1.5f * ss)) {
+            // any glass beats silk: stretch the last bake till the new one lands. falling back to silk on a
+            // size change (slim rail = wider page) or a failed bake made panels strobe silk<->glass
+            if (glassImage != null) {
                 c.drawBitmap(glassImage, null, box, image);
                 return;
             }
@@ -864,7 +991,8 @@ public final class CarUi {
         if (liveMaps()) maps(c, mapsBox);
         else { int s0 = wobble(c, mapsBox); hit(mapsBox, mapsBox, null); maps(c, mapsBox); c.restoreToCount(s0); }
         int saved;
-        saved = wobble(c, mediaBox); hit(mediaBox, mediaBox, null); media(c, mediaBox, now); c.restoreToCount(saved);
+        if (data.call != null) callPage(c, mediaBox); // no rail on wide, the call borrows music's spot
+        else { saved = wobble(c, mediaBox); hit(mediaBox, mediaBox, null); media(c, mediaBox, now); c.restoreToCount(saved); }
         saved = wobble(c, messageBox); messages(c, messageBox); c.restoreToCount(saved);
     }
 
@@ -913,7 +1041,7 @@ public final class CarUi {
         // full swing: the old page travels all the way out one way while the new one travels all the way in
         // from the other, both fading completely. down the rail = pages move up, back up = pages move down
         float e = t < .5f ? 4 * t * t * t : 1 - (float) Math.pow(-2 * t + 2, 3) / 2;
-        float dir = page > pageFrom ? 1 : -1, travel = box.height() + 16;
+        float dir = railRank(page) > railRank(pageFrom) ? 1 : -1, travel = box.height() + 16;
         // quick fades so neither page is really visible at the cut lines: the old one is gone by 40% of the
         // swing, the new one only shows from 30% on, when it's mostly past the edge
         float out = 1 - smooth(t / .4f), in = smooth((t - .3f) / .7f);
@@ -942,6 +1070,8 @@ public final class CarUi {
             else { int s0 = wobble(c, box); hit(box, box, null); maps(c, box); c.restoreToCount(s0); }
         } else if (which == 1) {
             int s1 = wobble(c, box); hit(box, box, null); mediaPage(c, box, now); c.restoreToCount(s1);
+        } else if (which == PAGE_CALL) {
+            callPage(c, box);
         } else {
             int s2 = wobble(c, box); messages(c, box); c.restoreToCount(s2);
         }
@@ -975,9 +1105,26 @@ public final class CarUi {
     private void rail(Canvas c, RectF box) {
         float a = ambient;
         coverPanel(c, "rail", railSilk, box, 26);
-        float inset = 6, gap = 6, itemH = (box.height() - 2 * inset - 2 * gap) / 3;
+        // reveal can overshoot a bit, that's the drop's bounce. slot count only takes the 0..1 part
+        float reveal = Math.max(0, callReveal), slots = 3 + Math.min(1, reveal);
+        float inset = 6, gap = 6, itemH = (box.height() - 2 * inset - (slots - 1) * gap) / slots;
+        float musicTop = box.top + inset + (itemH + gap);
+        if (reveal > .001f) {
+            // drawn first so it slides out from UNDER music, not over it
+            float top = musicTop + (itemH + gap) * reveal;
+            RectF item = new RectF(box.left + inset, top, box.right - inset, top + itemH);
+            // no fade: it starts as an exact copy of music's note and just morphs off it
+            int saved = c.save();
+            boolean on = page == PAGE_CALL;
+            if (on) fill(c, item, 20, mix(ACCENT_CONTAINER, BLEND_ON, a));
+            callSplash(c, item);
+            railItem(c, PAGE_CALL, item, on);
+            c.restoreToCount(saved);
+            if (data.call != null) { Hit hit = new Hit(item, item, () -> selectPage(PAGE_CALL)); hit.rail = PAGE_CALL; pending.add(hit); }
+        }
         for (int i = 0; i < 3; i++) {
-            float top = box.top + inset + i * (itemH + gap);
+            float slot = i == 2 ? 2 + Math.min(1, reveal) : i;
+            float top = box.top + inset + slot * (itemH + gap);
             RectF item = new RectF(box.left + inset, top, box.right - inset, top + itemH);
             int saved = wobble(c, item);
             boolean on = i == page;
@@ -1000,6 +1147,19 @@ public final class CarUi {
             if (nav != null && nav.maneuver != null) { r.set(cx - 20, iconY - 2, cx + 20, iconY + 38); bitmapFit(c, nav.maneuver, r, 0); }
             else icon(c, R.drawable.car_map, cx - 16, iconY + 2, 32, tint);
             label = nav != null && nav.detail != null && !nav.detail.isEmpty() ? nav.detail : "Maps";
+        } else if (i == PAGE_CALL) {
+            CarData.Call call = data.call;
+            boolean ringing = call != null && call.ringing;
+            // ringing handset gives a little shake, ~3 per second
+            float shake = ringing && !still ? (float) Math.sin(SystemClock.elapsedRealtime() / 1000f * 2 * Math.PI * 3) * 8 : 0;
+            // the note itself bends into the handset while it drops off music
+            float morph = Math.max(0, Math.min(1, (callReveal - .1f) / .65f));
+            int phone = ringing ? CALL_GREEN : tint;
+            int saved = c.save();
+            c.rotate(shake * morph, cx, iconY + 18);
+            morphIcon(c, morph, cx - 16, iconY + 2, 32, mix(tint, phone, morph));
+            c.restoreToCount(saved);
+            label = "Call";
         } else if (i == 1) {
             CarData.Media m = data.media;
             icon(c, R.drawable.car_music, cx - 16, iconY + 2, 32, tint);
@@ -1018,9 +1178,11 @@ public final class CarUi {
             }
             label = "Alerts";
         }
-        if (label != null && k > .02f) {
+        // call's label is the one thing that fades, otherwise "Call" sits printed over "Music" mid-morph
+        float labelK = i == PAGE_CALL ? k * Math.max(0, Math.min(1, (callReveal - .35f) / .5f)) : k;
+        if (label != null && labelK > .02f) {
             int color = on ? TEXT : TEXT2;
-            centered(c, label, cx, labelY, 15, semibold, (color & 0x00FFFFFF) | (Math.round(Color.alpha(color) * k) << 24), item.width() - 8);
+            centered(c, label, cx, labelY, 15, semibold, (color & 0x00FFFFFF) | (Math.round(Color.alpha(color) * labelK) << 24), item.width() - 8);
         }
     }
     // music page (rail layout): one layout whatever's playing. title, seek and controls bottom centre over the cover
@@ -1848,6 +2010,91 @@ public final class CarUi {
     }
 
     // shared bits
+    // caller up top, answer + decline side by side at the bottom (just hang up once it's live).
+    // answer is added first on purpose: pressing in from the rail lands on the first button
+    private void callPage(Canvas c, RectF box) {
+        CarData.Call call = data.call;
+        callAnswerHit = null;
+        // same box + key as the music panel, so it reuses that glass bake instead of swapping silk->glass mid-view
+        coverPanel(c, "media", mediaSilk, box, 28);
+        if (call == null) return; // folding away, page is on its way out
+        boolean small = box.height() < 260;
+        // one block centred on the page: photo, name, (status), gap, buttons. was pinned to the top
+        // and the bottom separately so the middle went baggy and the text sat miles off the buttons
+        boolean status = !call.ringing; // ringing is obvious from the green button, no need to say it
+        float avatar = small ? 72 : 104, nameSize = small ? 22 : 26, statusSize = small ? 14 : 16;
+        float bh = small ? 52 : 60, bw = Math.min(220, (box.width() - 72) / 2);
+        float block = avatar + (small ? 18 : 22) + nameSize + (status ? 10 + statusSize : 0) + (small ? 22 : 30) + bh;
+        float top = box.centerY() - block / 2;
+        float cy = top + avatar / 2;
+        r.set(box.centerX() - avatar / 2, cy - avatar / 2, box.centerX() + avatar / 2, cy + avatar / 2);
+        if (call.ringing && !still) {
+            // slow breathing ring round the caller while it rings
+            float t = (SystemClock.elapsedRealtime() % 1600) / 1600f;
+            // fades up from nothing each loop, the restart used to pop back to full and read as a flicker
+            float fade = Math.min(1, t / .2f) * (1 - t);
+            paint.setColor((CALL_GREEN & 0x00FFFFFF) | (Math.round(140 * fade) << 24));
+            c.drawCircle(r.centerX(), r.centerY(), avatar / 2 + 6 + 22 * t, paint);
+        }
+        if (call.avatar != null) {
+            int saved = c.save();
+            android.graphics.Path clip = new android.graphics.Path();
+            clip.addCircle(r.centerX(), r.centerY(), avatar / 2, android.graphics.Path.Direction.CW);
+            c.clipPath(clip);
+            bitmapFit(c, call.avatar, r, 0);
+            c.restoreToCount(saved);
+        } else {
+            paint.setColor(PLACEHOLDER); c.drawCircle(r.centerX(), r.centerY(), avatar / 2, paint);
+            icon(c, R.drawable.car_call, r.centerX() - avatar * .22f, r.centerY() - avatar * .22f, avatar * .44f, TEXT2);
+        }
+        float maxW = box.width() - 48;
+        float nameBase = r.bottom + (small ? 18 : 22) + nameSize * .8f;
+        centered(c, call.name, box.centerX(), nameBase, nameSize, semibold, TEXT, maxW);
+        float after = nameBase + nameSize * .2f;
+        if (status) {
+            float statusBase = after + 10 + statusSize * .8f;
+            centered(c, call.detail, box.centerX(), statusBase, statusSize, regular, TEXT2, maxW);
+            after = statusBase + statusSize * .2f;
+        }
+        float by = after + (small ? 22 : 30);
+        if (call.ringing) {
+            callAnswerHit = callButton(c, box.centerX() - 8 - bw, by, bw, bh, R.drawable.car_call, "Answer", CALL_GREEN, data::answerCall);
+            callButton(c, box.centerX() + 8, by, bw, bh, R.drawable.car_call_end, "Decline", CALL_RED, data::endCall);
+        } else {
+            callAnswerHit = callButton(c, box.centerX() - bw / 2, by, bw, bh, R.drawable.car_call_end, "Hang up", CALL_RED, data::endCall);
+        }
+    }
+    private Hit callButton(Canvas c, float left, float top, float w, float h, int glyph, String text, int color, Runnable action) {
+        RectF visual = new RectF(left, top, left + w, top + h);
+        int saved = wobble(c, visual);
+        fill(c, visual, h / 2, color);
+        style(this.text, semibold, 17);
+        float tw = this.text.measureText(text), iconS = 24, total = iconS + 10 + tw, x = visual.centerX() - total / 2;
+        icon(c, glyph, x, visual.centerY() - iconS / 2, iconS, Color.WHITE);
+        label(c, text, x + iconS + 10, visual.centerY() + 6, 17, semibold, Color.WHITE);
+        c.restoreToCount(saved);
+        RectF target = new RectF(visual); target.inset(-6, -6);
+        Hit hit = new Hit(target, visual, action);
+        pending.add(hit);
+        return hit;
+    }
+    // ripple off the call tab when it lands, gone in half a second
+    private void callSplash(Canvas c, RectF item) {
+        float t = (SystemClock.elapsedRealtime() - callSplashAt) / (float) CALL_SPLASH_MS;
+        if (t < 0 || t >= 1) return;
+        float grow = 14 * (1 - (1 - t) * (1 - t));
+        r2.set(item); r2.inset(-grow, -grow * .6f);
+        Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
+        ring.setStyle(Paint.Style.STROKE); ring.setStrokeWidth(3 * (1 - t) + .5f);
+        ring.setColor((CALL_GREEN & 0x00FFFFFF) | (Math.round(200 * (1 - t)) << 24));
+        c.drawRoundRect(r2, 20 + grow, 20 + grow, ring);
+        // a couple of droplets flicked off the sides
+        paint.setColor((CALL_GREEN & 0x00FFFFFF) | (Math.round(220 * (1 - t)) << 24));
+        float drop = 18 * t, lift = 10 * t - 14 * t * t;
+        c.drawCircle(item.left - 4 - drop, item.top + 8 - lift, 3 * (1 - t) + 1, paint);
+        c.drawCircle(item.right + 4 + drop, item.top + 8 - lift, 3 * (1 - t) + 1, paint);
+    }
+
     private void empty(Canvas c, RectF box, int glyph, String title, String body, String button, Runnable action) {
         boolean small = box.height() < 220;
         // body wraps to two lines on the rail layout's full page, there's room and an ellipsized hint helps no one

@@ -52,6 +52,10 @@
     <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
     <uses-permission android:name="android.permission.REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND" />
     <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
+    <!-- call tab: answer/hang up from the car, and know if it's actually ringing -->
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-feature android:name="android.software.companion_device_setup" android:required="false" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
@@ -79,8 +83,9 @@
     <application android:label="CATBACK" android:icon="@drawable/ic_catback"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:allowBackup="false" android:dataExtractionRules="@xml/backup_rules" android:supportsRtl="true">
+        <!-- singleTask: hub launches used to spawn a 2nd copy inside the hub's task while the old one was still dying -->
         <activity android:name=".MainActivity" android:exported="true"
-            android:launchMode="singleTop" android:configChanges="orientation|screenSize">
+            android:launchMode="singleTask" android:configChanges="orientation|screenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>

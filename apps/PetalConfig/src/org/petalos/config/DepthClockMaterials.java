@@ -76,13 +76,14 @@ public final class DepthClockMaterials {
                 canvas.drawBitmap(backdrop, null, destination, paint);
             }
             paint.setShader(new LinearGradient(0, y - size, size, y,
-                    base == FROST ? new int[]{0xCCFFFFFF, 0x507FADC0, 0xA0FFFFFF}
+                    // frost was near-opaque milk, now it's a tint over the blur
+                    base == FROST ? new int[]{0x3DFFFFFF, 0x147FADC0, 0x2EFFFFFF}
                             : new int[]{0xC04B4D58, 0xB0181920, 0x805E6270},
                     null, Shader.TileMode.CLAMP));
             canvas.drawPaint(paint);
             canvas.restoreToCount(save);
             paint.setShader(new LinearGradient(0, y - size, 0, y,
-                    0xEEFFFFFF, 0x407FA5B0, Shader.TileMode.CLAMP));
+                    base == FROST ? 0xB0FFFFFF : 0xEEFFFFFF, 0x307FA5B0, Shader.TileMode.CLAMP));
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(size * 0.008f);
             canvas.drawText(text, x, y, paint);

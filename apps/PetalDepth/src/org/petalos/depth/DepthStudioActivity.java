@@ -63,6 +63,7 @@ public class DepthStudioActivity extends Activity {
     private DepthWidgets.PresetCard[] mPresetCards;
     private DepthWidgets.InkSwatch[] mInkSwatches;
     private Switch mDateToggle;
+    private Switch mColonToggle;
     private LiquidPill mStackChip;
     private final LiquidPill[] mRefineTools = new LiquidPill[2];
     private DepthWidgets.FancySlider mSizeSlider;
@@ -292,8 +293,37 @@ public class DepthStudioActivity extends Activity {
             PetalConfig.KEY_DEPTH_CLOCK_STYLE, PetalConfig.KEY_DEPTH_CLOCK_STACK,
             PetalConfig.KEY_DEPTH_CLOCK_COLOR, PetalConfig.KEY_DEPTH_CLOCK_DATE,
             PetalConfig.KEY_DEPTH_CLOCK_ANCHOR, PetalConfig.KEY_DEPTH_CLOCK_X,
-            PetalConfig.KEY_DEPTH_CLOCK_SCALE,
+            PetalConfig.KEY_DEPTH_CLOCK_SCALE, PetalConfig.KEY_DEPTH_CLOCK_COLON,
     };
+
+    // whatever youre editing wins, the other one gets its size/spot/layout. styles stay put
+    private void matchClocks() {
+        if (mBusy) return;
+        boolean from = mHome;
+        boolean to = !mHome;
+        boolean stacked = PetalConfig.isDepthClockStackVertical(this, from)
+                || org.petalos.config.DepthClockMaterials.isSquare(
+                        PetalConfig.getDepthClockStyle(this, from));
+        int otherStyle = PetalConfig.getDepthClockStyle(this, to);
+        // squares cant do side by side, drop it to its flat sibling like the stack chip does
+        if (!stacked && org.petalos.config.DepthClockMaterials.isSquare(otherStyle)) {
+            Settings.System.putInt(getContentResolver(),
+                    PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_STYLE, to), otherStyle - 4);
+        }
+        android.content.ContentResolver cr = getContentResolver();
+        Settings.System.putInt(cr, PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_STACK, to),
+                stacked ? 1 : 0);
+        Settings.System.putInt(cr, PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_SCALE, to),
+                PetalConfig.getDepthClockScalePct(this, from));
+        Settings.System.putInt(cr, PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_X, to),
+                PetalConfig.getDepthClockXPct(this, from));
+        Settings.System.putInt(cr, PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_ANCHOR, to),
+                PetalConfig.getDepthClockAnchorPct(this, from));
+        Settings.System.putInt(cr, PetalConfig.depthKey(PetalConfig.KEY_DEPTH_CLOCK_COLON, to),
+                PetalConfig.isDepthClockColonEnabled(this, from) ? 1 : 0);
+        Toast.makeText(this, from ? R.string.depth_match_clocks_home
+                : R.string.depth_match_clocks_lock, Toast.LENGTH_SHORT).show();
+    }
 
     // Same photo, subject and clock on Home: the unlock fade then reveals an identical clock.
     private void copyLockDesign() {
@@ -495,6 +525,18 @@ public class DepthStudioActivity extends Activity {
             mPreview.setDateOn(checked);
         });
         panel.addView(mDateToggle, new LinearLayout.LayoutParams(-1, dp(48)));
+        // side by side only, stacked never had one
+        mColonToggle = new Switch(this);
+        mColonToggle.setText(R.string.depth_show_colon);
+        styleSwitch(mColonToggle);
+        mColonToggle.setChecked(PetalConfig.isDepthClockColonEnabled(this, mHome));
+        mColonToggle.setOnCheckedChangeListener((button, checked) -> {
+            Settings.System.putInt(getContentResolver(),
+                    key(PetalConfig.KEY_DEPTH_CLOCK_COLON), checked ? 1 : 0);
+            mPreview.mClock.setColon(checked);
+            mPreview.invalidate();
+        });
+        panel.addView(mColonToggle, new LinearLayout.LayoutParams(-1, dp(48)));
         LinearLayout gallery = new LinearLayout(this);
         gallery.setOrientation(LinearLayout.VERTICAL);
         mPresetCards = new DepthWidgets.PresetCard[DepthPresets.ALL.length];
@@ -672,6 +714,13 @@ public class DepthStudioActivity extends Activity {
         mNotificationToggle.setOnCheckedChangeListener((button, checked) -> saveNotificationStart(
                 checked ? mNotificationSlider.getValue() : DepthNotificationPlacement.AUTOMATIC));
 
+        LiquidPill match = new LiquidPill(this);
+        match.setLabel(getString(R.string.depth_match_clocks));
+        match.setOnClickListener(v -> matchClocks());
+        LinearLayout.LayoutParams matchLp = new LinearLayout.LayoutParams(-1, dp(48));
+        matchLp.topMargin = dp(16);
+        panel.addView(match, matchLp);
+
         LiquidPill disable = new LiquidPill(this);
         disable.setColors(mT.dangerContainer, mT.danger);
         disable.setLabel(getString(R.string.depth_disable_short));
@@ -731,6 +780,11 @@ public class DepthStudioActivity extends Activity {
         boolean stacked = PetalConfig.isDepthClockStackVertical(this, mHome)
                 || org.petalos.config.DepthClockMaterials.isSquare(
                         PetalConfig.getDepthClockStyle(this, mHome));
+        boolean colon = PetalConfig.isDepthClockColonEnabled(this, mHome);
+        mColonToggle.setChecked(colon);
+        mColonToggle.setEnabled(!stacked);
+        mColonToggle.setAlpha(stacked ? 0.4f : 1f);
+        mPreview.mClock.setColon(colon);
         mStackChip.setChecked(stacked);
         mStackChip.setLabel(getString(stacked ? R.string.depth_layout_stacked
                 : R.string.depth_layout_horizontal));

@@ -57,8 +57,8 @@ public class IslandFragment extends PetalPreferenceFragment {
         });
 
         ListPreference popupStyle = findPreference("petal_aod_popup_style");
-        // pure black out the box, follow-appearance is the opt-out now
-        popupStyle.setValue(Integer.toString(getSecureInt("petal_aod_popup_style", 1) == 1 ? 1 : 0));
+        // 0 = pure black, the default. i had this flipped to 1 (cards) before, my bad
+        popupStyle.setValue(Integer.toString(getSecureInt("petal_aod_popup_style", 0) == 1 ? 1 : 0));
         popupStyle.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
         popupStyle.setOnPreferenceChangeListener((pref, newValue) -> {
             putSecureInt("petal_aod_popup_style", Integer.parseInt((String) newValue));

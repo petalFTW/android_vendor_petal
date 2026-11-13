@@ -3,4 +3,9 @@ PRODUCT_PACKAGES += \
     PetalGmsStub \
     PetalPlayStoreStub \
     PetalGoogleGmsApks \
-    PetalGooglePlayStoreApk
+    PetalGooglePlayStoreApk \
+    petal-services-features.xml \
+    petal-microg-signature-permissions.xml \
+    PetalGsfStub \
+    PetalGoogleGsfApk \
+    PetalMicrogApks

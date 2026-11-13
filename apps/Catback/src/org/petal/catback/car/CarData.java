@@ -68,6 +68,19 @@ public final class CarData {
             this.appIcon = appIcon; this.avatar = avatar; this.color = color; this.when = when;
         }
     }
+    // a call's notif boiled down. answer/end are whatever the dialer gave us, telecom is the backup
+    public static final class Call {
+        public final String key, name, detail;
+        public final Bitmap avatar;
+        public final boolean ringing;
+        final android.app.PendingIntent answer, end;
+        Call(String key, String name, String detail, Bitmap avatar, boolean ringing,
+                android.app.PendingIntent answer, android.app.PendingIntent end) {
+            this.key = key; this.name = name; this.detail = detail; this.avatar = avatar;
+            this.ringing = ringing; this.answer = answer; this.end = end;
+        }
+    }
+
     public static final class Media {
         public final String title, artist;
         // art = small, for thumbnails; cover = near full res for the music page's full-screen background
@@ -101,6 +114,8 @@ public final class CarData {
     public volatile Signal latestMessage;
     // whatever's sitting in the shade right now, newest first, feeds the messages carousel
     public volatile List<Signal> showing = Collections.emptyList();
+    // the phone call, if there is one. null = no call, the tab folds back into music
+    public volatile Call call;
     private final java.util.LinkedHashMap<String, Signal> live = new java.util.LinkedHashMap<>();
     public volatile boolean listenerConnected;
     private volatile List<App> mapsApps = Collections.emptyList(), mediaApps = Collections.emptyList(),
@@ -216,6 +231,7 @@ public final class CarData {
     // last thing each notif key showed so re-posts don't ding again
     private final java.util.Map<String, String> shown = new java.util.HashMap<>();
     void seed(StatusBarNotification sbn, int importance) {
+        if (callFrom(sbn)) return;
         shown.put(sbn.getKey(), signature(sbn.getNotification()));
         track(sbn, importance);
         // route already running when the maps app gets picked, grab it now instead of waiting for the next repost
@@ -227,6 +243,7 @@ public final class CarData {
     }
 
     void posted(StatusBarNotification sbn, int importance) {
+        if (callFrom(sbn)) return;
         boolean alerting = importance >= android.app.NotificationManager.IMPORTANCE_DEFAULT;
         track(sbn, importance);
         Notification n = sbn.getNotification();
@@ -249,6 +266,8 @@ public final class CarData {
         while (signals.size() > 5) signals.poll();
     }
     void removed(StatusBarNotification sbn) {
+        Call c = call;
+        if (c != null && c.key.equals(sbn.getKey())) call = null;
         shown.remove(sbn.getKey());
         if (live.remove(sbn.getKey()) != null) publishShowing();
         if (sbn.getPackageName().equals(chosen(MAPS)) && isOngoing(sbn.getNotification())) navigation = null;
@@ -256,9 +275,115 @@ public final class CarData {
     void listener(boolean connected) {
         listenerConnected = connected;
         if (connected) bindMedia();
-        else { live.clear(); publishShowing(); }
+        else { live.clear(); publishShowing(); call = null; }
     }
-    void resetShowing() { live.clear(); publishShowing(); }
+    void resetShowing() { live.clear(); publishShowing(); call = null; }
+
+    // any app's CATEGORY_CALL notif. callstyle extras when the dialer bothers, lineage's dialer
+    // doesn't, so fall back to telecom + sniffing the action labels
+    private boolean callFrom(StatusBarNotification sbn) {
+        Notification n = sbn.getNotification();
+        if (!Notification.CATEGORY_CALL.equals(n.category)) return false;
+        Bundle e = n.extras;
+        int type = e.getInt(Notification.EXTRA_CALL_TYPE, 0);
+        android.app.PendingIntent answer = e.getParcelable(Notification.EXTRA_ANSWER_INTENT, android.app.PendingIntent.class);
+        android.app.PendingIntent decline = e.getParcelable(Notification.EXTRA_DECLINE_INTENT, android.app.PendingIntent.class);
+        android.app.PendingIntent hangUp = e.getParcelable(Notification.EXTRA_HANG_UP_INTENT, android.app.PendingIntent.class);
+        if (n.actions != null) for (Notification.Action a : n.actions) {
+            String t = str(a.title).toLowerCase(Locale.ROOT);
+            if (answer == null && (t.contains("answer") || t.contains("accept"))) answer = a.actionIntent;
+            else if (decline == null && (t.contains("decline") || t.contains("reject") || t.contains("dismiss"))) decline = a.actionIntent;
+            else if (hangUp == null && (t.contains("hang up") || t.contains("end call") || t.equals("end"))) hangUp = a.actionIntent;
+        }
+        boolean ringing = type == Notification.CallStyle.CALL_TYPE_INCOMING
+                || (type == 0 && (answer != null || telecomRinging()));
+        android.app.Person person = e.getParcelable(Notification.EXTRA_CALL_PERSON, android.app.Person.class);
+        // dialer posts before its contact lookup lands, so the first name is often "Unknown". take whichever
+        // field is real, then contacts, then whatever we already had for this call, number last
+        String personName = person != null && person.getName() != null ? person.getName().toString() : "";
+        String title = str(e.getCharSequence(Notification.EXTRA_TITLE));
+        String number = number(person);
+        String name = !placeholder(personName) ? personName : !placeholder(title) ? title : lookup(number);
+        Call before = call;
+        if (placeholder(name) && before != null && before.key.equals(sbn.getKey()) && !placeholder(before.name)) name = before.name;
+        if (placeholder(name) && !number.isEmpty()) name = number;
+        if (name.isEmpty()) name = !title.isEmpty() ? title : appLabel(sbn.getPackageName());
+        Bitmap avatar = null;
+        if (person != null && person.getIcon() != null) {
+            try { avatar = bitmap(person.getIcon().loadDrawable(context), 128); } catch (RuntimeException ignored) { }
+        }
+        if (avatar == null) avatar = largeIcon(n);
+        String detail = ringing ? "Incoming call" : str(e.getCharSequence(Notification.EXTRA_TEXT));
+        if (detail.isEmpty()) detail = "On a call";
+        call = new Call(sbn.getKey(), name, detail, avatar, ringing, answer, ringing ? firstNonNull(decline, hangUp) : firstNonNull(hangUp, decline));
+        return true;
+    }
+    private static boolean placeholder(String name) {
+        if (name == null || name.trim().isEmpty()) return true;
+        String n = name.trim().toLowerCase(Locale.ROOT);
+        return n.equals("unknown") || n.startsWith("unknown ") || n.equals("private number")
+                || n.startsWith("calling") || n.startsWith("dialing") || n.startsWith("incoming call")
+                || n.matches("[+0-9 ()\\-.]{3,}");
+    }
+    private static String number(android.app.Person person) {
+        String uri = person == null ? null : person.getUri();
+        if (uri == null || !uri.startsWith("tel:")) return "";
+        return android.net.Uri.decode(uri.substring(4));
+    }
+    // cheap, one row, and only when the dialer hasn't told us who it is
+    private String lookup(String number) {
+        if (number.isEmpty() || context.checkSelfPermission(android.Manifest.permission.READ_CONTACTS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) return "";
+        android.net.Uri uri = android.net.Uri.withAppendedPath(
+                android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(number));
+        try (android.database.Cursor c = context.getContentResolver().query(uri,
+                new String[] {android.provider.ContactsContract.PhoneLookup.DISPLAY_NAME}, null, null, null)) {
+            if (c != null && c.moveToFirst()) return str(c.getString(0));
+        } catch (RuntimeException ignored) { }
+        return "";
+    }
+    private boolean telecomRinging() {
+        try {
+            android.telecom.TelecomManager t = context.getSystemService(android.telecom.TelecomManager.class);
+            return t != null && t.isRinging();
+        } catch (SecurityException noPerm) { return false; }
+    }
+    // preview's fake call. never touches telecom, answer/decline just push it through its states
+    private static final String TEST_CALL = "catback:test-call";
+    public boolean testCallActive() { Call c = call; return c != null && TEST_CALL.equals(c.key); }
+    public void toggleTestCall() {
+        if (testCallActive()) { call = null; return; }
+        if (call != null) return; // a real call's up, don't trample it
+        call = new Call(TEST_CALL, "Test caller", "Incoming call", null, true, null, null);
+    }
+
+    // pick up. dialer's own button first, it knows its call better than telecom does
+    public void answerCall() {
+        Call c = call;
+        if (c != null && TEST_CALL.equals(c.key)) {
+            call = new Call(TEST_CALL, c.name, "On a call", null, false, null, null);
+            return;
+        }
+        if (c != null && c.answer != null) {
+            try { c.answer.send(); return; } catch (android.app.PendingIntent.CanceledException ignored) { }
+        }
+        try {
+            android.telecom.TelecomManager t = context.getSystemService(android.telecom.TelecomManager.class);
+            if (t != null) t.acceptRingingCall();
+        } catch (SecurityException noPerm) { Log.w("Catback", "Can't answer, no ANSWER_PHONE_CALLS", noPerm); }
+    }
+    // decline while ringing, hang up once it's live
+    public void endCall() {
+        Call c = call;
+        if (c != null && TEST_CALL.equals(c.key)) { call = null; return; }
+        if (c != null && c.end != null) {
+            try { c.end.send(); return; } catch (android.app.PendingIntent.CanceledException ignored) { }
+        }
+        try {
+            android.telecom.TelecomManager t = context.getSystemService(android.telecom.TelecomManager.class);
+            if (t != null) t.endCall();
+        } catch (SecurityException noPerm) { Log.w("Catback", "Can't end call, no ANSWER_PHONE_CALLS", noPerm); }
+    }
 
     // same junk filter as the island: silent (LOW/MIN) ones stay out of the car, they're shade clutter not something to read while driving
     private void track(StatusBarNotification sbn, int importance) {

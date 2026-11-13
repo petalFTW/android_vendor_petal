@@ -1,0 +1,48 @@
+# petal microG (rcs/wallet build). platform-signed for TS.43 SIM auth, which would
+# drop it in platform_app, and platform_app can't run droidguard's downloaded VM
+# out of app_cache_dg -> "couldn't map segment 1" -> no token -> no RCS.
+# own domain so the exec hole doesn't open up for every platform app.
+type petal_microg_app, domain;
+typeattribute petal_microg_app coredomain;
+
+app_domain(petal_microg_app)
+net_domain(petal_microg_app)
+bluetooth_domain(petal_microg_app)
+
+# THE fix. dlopen of app_cache_dg/<vm>/lib*.so. same perm stock untrusted apps get,
+# no execute_no_trans (not execve-ing anything) and no execmod (neverallow anyway)
+allow petal_microg_app app_data_file:file execute;
+allow petal_microg_app app_data_file:{ lnk_file sock_file fifo_file } create_file_perms;
+
+# services it found as untrusted_app/platform_app, keep em all or stuff breaks quietly
+allow petal_microg_app {
+  app_api_service
+  system_api_service
+  audioserver_service
+  cameraserver_service
+  drmserver_service
+  mediadrmserver_service
+  mediaextractor_service
+  mediametrics_service
+  mediaserver_service
+  radio_service
+  nfc_service
+  stats_service
+  vr_manager_service
+}:service_manager find;
+allow petal_microg_app servicemanager:service_manager list;
+binder_call(petal_microg_app, statsd)
+# NOT read_runtime_log_tags, logd.te only lets a fixed list of system app domains in
+
+# framework bits read these in-process, cheap to allow
+get_prop(petal_microg_app, audio_config_prop)
+get_prop(petal_microg_app, keyguard_config_prop)
+get_prop(petal_microg_app, bluetooth_lea_prop)
+# NOT last_boot_reason_prop, bootstat.te neverallows it for anything but platform_app & co
+
+allow petal_microg_app media_rw_data_file:dir create_dir_perms;
+allow petal_microg_app media_rw_data_file:file create_file_perms;
+allow petal_microg_app preloads_media_file:dir r_dir_perms;
+allow petal_microg_app preloads_media_file:file r_file_perms;
+allow petal_microg_app system_server:udp_socket {
+  connect getattr read recvfrom sendto write getopt setopt };

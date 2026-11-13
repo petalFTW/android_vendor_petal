@@ -96,6 +96,13 @@ public class PetalAppCenterFragment extends PetalPreferenceFragment {
         PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(requireContext());
         setPreferenceScreen(screen);
 
+        // heads up first, these apps are rough as hell rn
+        Preference alpha = new Preference(requireContext());
+        alpha.setTitle(R.string.app_center_alpha_title);
+        alpha.setSummary(R.string.app_center_alpha_summary);
+        alpha.setSelectable(false);
+        screen.addPreference(alpha);
+
         Preference note = new Preference(requireContext());
         note.setTitle(R.string.app_center_note_title);
         note.setSummary(R.string.app_center_note_summary);

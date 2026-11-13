@@ -8,6 +8,7 @@ import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.os.SystemClock;
+import android.util.Log;
 import androidx.car.app.OnDoneCallback;
 import androidx.car.app.model.Action;
 import androidx.car.app.model.ActionStrip;
@@ -30,6 +31,12 @@ import androidx.car.app.model.SearchTemplate;
 import androidx.car.app.model.SectionedItemList;
 import androidx.car.app.model.Template;
 import androidx.car.app.model.Toggle;
+import androidx.car.app.model.PlaceListMapTemplate;
+import androidx.car.app.model.Section;
+import androidx.car.app.model.SectionedItemTemplate;
+import androidx.car.app.model.Tab;
+import androidx.car.app.model.TabTemplate;
+import androidx.car.app.navigation.model.MapTemplate;
 import androidx.car.app.navigation.model.MapController;
 import androidx.car.app.navigation.model.MapWithContentTemplate;
 import androidx.car.app.navigation.model.MessageInfo;
@@ -71,7 +78,7 @@ final class CarAppPanel {
     void draw(Canvas c, RectF box, CarAppHost host, Bitmap frame) {
         canvas = c;
         Template t = host.template;
-        if (t != iconsFor) { icons.clear(); iconsFor = t; }
+        if (t != iconsFor) { icons.clear(); iconsFor = t; synchronized (sectionItems) { sectionItems.clear(); sectionAsked.clear(); } }
         if (t != scrolledFor) { listScroll = 0; scrolledFor = t; }
         listBox.setEmpty(); cardArea.setEmpty();
         int saved = c.save();
@@ -91,6 +98,20 @@ final class CarAppPanel {
             PlaceListNavigationTemplate p = (PlaceListNavigationTemplate) t;
             mapStrip(c, box, p.getMapActionStrip(), host); strip(c, box, p.getActionStrip(), host);
             list(c, sideCard(box), header(p.getHeader(), p.getTitle(), p.getHeaderAction()), p.getItemList(), null, p.isLoading(), host);
+        } else if (t instanceof MapTemplate) {
+            // old style nav map w/ a pane or list on the side, waze still sends these off a few buttons
+            MapTemplate m = (MapTemplate) t;
+            if (m.getMapController() != null) mapStrip(c, box, m.getMapController().getMapActionStrip(), host);
+            strip(c, box, m.getActionStrip(), host);
+            Head head = header(m.getHeader(), null, null);
+            if (m.getPane() != null) {
+                Pane pane = m.getPane();
+                rows(c, sideCard(box), head, new ArrayList<>(pane.getRows()), null, pane.getActions(), pane.isLoading(), host);
+            } else if (m.getItemList() != null) list(c, sideCard(box), head, m.getItemList(), null, false, host);
+        } else if (t instanceof PlaceListMapTemplate) {
+            PlaceListMapTemplate p = (PlaceListMapTemplate) t;
+            strip(c, box, p.getActionStrip(), host);
+            list(c, sideCard(box), header(null, p.getTitle(), p.getHeaderAction()), p.getItemList(), null, p.isLoading(), host);
         } else if (t instanceof RoutePreviewNavigationTemplate) {
             RoutePreviewNavigationTemplate p = (RoutePreviewNavigationTemplate) t;
             mapStrip(c, box, p.getMapActionStrip(), host); strip(c, box, p.getActionStrip(), host);
@@ -273,11 +294,95 @@ final class CarAppPanel {
             SearchTemplate s = (SearchTemplate) t;
             String hint = s.getSearchHint() != null ? s.getSearchHint() : "Search";
             list(c, card, new Head(hint + " (type on your phone)", s.getHeaderAction(), new ArrayList<>()), s.getItemList(), null, s.isLoading(), host);
+        } else if (t instanceof TabTemplate) {
+            TabTemplate tt = (TabTemplate) t;
+            RectF bar = new RectF(card.left, card.top, card.right, card.top + 44);
+            tabs(c, bar, tt);
+            RectF rest = new RectF(card.left, bar.bottom + 6, card.right, card.bottom);
+            Template inner = tt.getTabContents() == null ? null : tt.getTabContents().getTemplate();
+            if (tt.isLoading() || inner == null) {
+                ui.fill(c, rest, 20, CARD);
+                ui.centered(c, "Loading…", rest.centerX(), rest.centerY(), 14, ui.medium, CarUi.TEXT2, rest.width() - 24);
+            } else content(c, rest, inner, host);
+        } else if (t instanceof SectionedItemTemplate) {
+            // 1.8 lists, items come in lazily per section so we ask for them and draw what's landed
+            SectionedItemTemplate st = (SectionedItemTemplate) t;
+            List<Object> flat = new ArrayList<>();
+            boolean waiting = false;
+            for (Section<?> section : st.getSections()) {
+                List<Item> items = sectionItems(section);
+                String title = text(section.getTitle());
+                if (!title.isEmpty()) flat.add(title);
+                if (items == null) waiting = true; else flat.addAll(items);
+            }
+            boolean anyItems = false;
+            for (Object o : flat) if (o instanceof Item) { anyItems = true; break; }
+            rows(c, card, header(st.getHeader(), null, null), flat, null, st.getActions(),
+                    st.isLoading() || (waiting && !anyItems), host);
         } else {
+            Log.w("Catback", "No renderer for " + t.getClass().getSimpleName());
             ui.fill(c, card, 20, CARD);
             ui.centered(c, "This screen isn't supported yet", card.centerX(), card.centerY(), 14, ui.medium, CarUi.TEXT2, card.width() - 24);
         }
     }
+    // tab pills across the top, tapping one asks the app to swap the content
+    private void tabs(Canvas c, RectF bar, TabTemplate tt) {
+        List<Tab> tabs = tt.getTabs();
+        if (tabs.isEmpty()) return;
+        String active = tt.getActiveTabContentId();
+        float w = bar.width() / tabs.size();
+        for (int i = 0; i < tabs.size(); i++) {
+            Tab tab = tabs.get(i);
+            RectF b = new RectF(bar.left + i * w + 3, bar.top, bar.left + (i + 1) * w - 3, bar.bottom);
+            boolean on = tab.getContentId().equals(active);
+            ui.fill(c, b, 18, on ? CarUi.ACCENT_CONTAINER : CARD);
+            ui.centered(c, text(tab.getTitle()), b.centerX(), b.centerY() + 5, 14, ui.semibold,
+                    on ? CarUi.TEXT : CarUi.TEXT2, b.width() - 12);
+            if (!on && tt.getTabCallbackDelegate() != null) {
+                String id = tab.getContentId();
+                ui.hit(b, new RectF(b), () -> tt.getTabCallbackDelegate().sendTabSelected(id, CarAppHost.clickDone("tab")));
+            }
+        }
+    }
+
+    // section delegate -> items, null till the app answers. keyed by identity, cleared per template
+    private final IdentityHashMap<Object, List<Item>> sectionItems = new IdentityHashMap<>();
+    private final java.util.Set<Object> sectionAsked = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+    @SuppressWarnings("unchecked")
+    private List<Item> sectionItems(Section<?> section) {
+        Object delegate = section.getItemsDelegate();
+        if (delegate == null) return new ArrayList<>();
+        synchronized (sectionItems) {
+            List<Item> have = sectionItems.get(delegate);
+            if (have != null || !sectionAsked.add(delegate)) return have;
+        }
+        androidx.car.app.serialization.ListDelegate<Item> d = (androidx.car.app.serialization.ListDelegate<Item>) delegate;
+        int size = d.getSize();
+        if (size <= 0) { synchronized (sectionItems) { sectionItems.put(delegate, new ArrayList<>()); } return new ArrayList<>(); }
+        try {
+            d.requestItemRange(0, Math.min(size, 100) - 1, new OnDoneCallback() {
+                @Override public void onSuccess(androidx.car.app.serialization.Bundleable response) {
+                    try {
+                        Object got = response == null ? null : response.get();
+                        List<Item> items = new ArrayList<>();
+                        if (got instanceof List) for (Object o : (List<Object>) got) if (o instanceof Item) items.add((Item) o);
+                        synchronized (sectionItems) { sectionItems.put(delegate, items); }
+                    } catch (androidx.car.app.serialization.BundlerException | RuntimeException e) {
+                        Log.w("Catback", "Section items unreadable: " + e);
+                    }
+                }
+                @Override public void onFailure(androidx.car.app.serialization.Bundleable response) {
+                    Log.w("Catback", "Section items refused");
+                    synchronized (sectionItems) { sectionItems.put(delegate, new ArrayList<>()); }
+                }
+            });
+        } catch (RuntimeException e) {
+            Log.w("Catback", "Section items request failed: " + e);
+            synchronized (sectionItems) { sectionItems.put(delegate, new ArrayList<>()); }
+        }
+        return null;
+    }
+
     private void list(Canvas c, RectF card, Head head, ItemList items, List<Action> actions, boolean loading, CarAppHost host) {
         rows(c, card, head, items == null ? new ArrayList<>() : new ArrayList<>(items.getItems()), items, actions, loading, host);
     }
@@ -330,17 +435,17 @@ final class CarAppPanel {
             Row row = (Row) item;
             title = text(row.getTitle()); image = row.getImage(); toggle = row.getToggle();
             List<CarText> texts = row.getTexts(); if (!texts.isEmpty()) sub = text(texts.get(0));
-            if (row.getOnClickDelegate() != null) tap = () -> row.getOnClickDelegate().sendClick(new OnDoneCallback() { });
+            if (row.getOnClickDelegate() != null) tap = () -> row.getOnClickDelegate().sendClick(CarAppHost.clickDone("row"));
         } else if (item instanceof GridItem) {
             GridItem g = (GridItem) item;
             title = text(g.getTitle()); sub = text(g.getText()); image = g.getImage();
-            if (g.getOnClickDelegate() != null) tap = () -> g.getOnClickDelegate().sendClick(new OnDoneCallback() { });
+            if (g.getOnClickDelegate() != null) tap = () -> g.getOnClickDelegate().sendClick(CarAppHost.clickDone("grid"));
         }
         if (tap == null && list != null && list.getOnSelectedDelegate() != null)
-            tap = () -> list.getOnSelectedDelegate().sendSelected(position, new OnDoneCallback() { });
+            tap = () -> list.getOnSelectedDelegate().sendSelected(position, CarAppHost.clickDone("select"));
         final Toggle tg = toggle;
         if (tap == null && tg != null && tg.getOnCheckedChangeDelegate() != null)
-            tap = () -> tg.getOnCheckedChangeDelegate().sendCheckedChange(!tg.isChecked(), new OnDoneCallback() { });
+            tap = () -> tg.getOnCheckedChangeDelegate().sendCheckedChange(!tg.isChecked(), CarAppHost.clickDone("toggle"));
         boolean selected = list != null && list.getOnSelectedDelegate() != null && list.getSelectedIndex() == position;
         if (selected) ui.fill(c, b, 14, CarUi.ACCENT_CONTAINER);
         float x = b.left + 10;

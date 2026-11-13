@@ -64,6 +64,12 @@ public final class DepthClockRenderer {
         }
     }
 
+    private boolean mColon = true;
+
+    public void setColon(boolean colon) {
+        mColon = colon;
+    }
+
     public DepthClockRenderer() {
         mStroke.setStyle(Paint.Style.STROKE);
         mGlow.setStyle(Paint.Style.STROKE);
@@ -104,6 +110,9 @@ public final class DepthClockRenderer {
 
         float digitSpacing = ts * 0.12f;
 
+        // lockscreen glues the colon onto the hour, home never did so it just vanished
+        if (hourDisp.endsWith(":")) hourDisp = hourDisp.substring(0, hourDisp.length() - 1);
+        if (!vertical && mColon) hourDisp = hourDisp + ":";
         android.graphics.RectF hh = textBounds(hourDisp, style);
         android.graphics.RectF mm = textBounds(minute, style);
         float centerX = viewW * anchorXFrac;
