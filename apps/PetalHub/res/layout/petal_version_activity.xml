@@ -309,5 +309,21 @@
                 </LinearLayout>
             </LinearLayout>
         </org.petalos.hub.GlassCardView>
+
+        <!-- only on -exp builds, set in PetalVersionActivity -->
+        <TextView
+            android:id="@+id/petal_unstable_banner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/petal_unstable_banner_bg"
+            android:paddingStart="18dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="18dp"
+            android:paddingBottom="14dp"
+            android:text="@string/petal_version_unstable"
+            android:textColor="#FFFFDAD6"
+            android:textSize="14sp"
+            android:visibility="gone" />
     </LinearLayout>
 </ScrollView>

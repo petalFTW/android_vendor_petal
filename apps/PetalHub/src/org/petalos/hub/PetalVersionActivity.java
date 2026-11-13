@@ -61,8 +61,12 @@ public class PetalVersionActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.petal_version_activity);
 
-        ((TextView) findViewById(R.id.petal_version_value)).setText(
-                prop("ro.petal.version", getString(R.string.petal_version_fallback)));
+        String version = prop("ro.petal.version", getString(R.string.petal_version_fallback));
+        ((TextView) findViewById(R.id.petal_version_value)).setText(version);
+        // -exp = beta, people need to know they signed up for bugs
+        if (version.toLowerCase(java.util.Locale.ROOT).contains("-exp")) {
+            findViewById(R.id.petal_unstable_banner).setVisibility(View.VISIBLE);
+        }
 
         String type = prop("ro.petal.build.type", "UNOFFICIAL");
         TextView typeValue = findViewById(R.id.petal_build_type_value);
